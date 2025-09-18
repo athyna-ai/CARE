@@ -1,0 +1,42 @@
+# Environment and configuration files
+.env
+config.local.php
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# XAMPP specific
+xampp/
+
+# Database dumps (if they contain sensitive data)
+*.sql.backup
+
+# Cache files
+cache/
+tmp/
+
+# Node modules (if any)
+node_modules/
+
+# Composer (if any)
+vendor/
