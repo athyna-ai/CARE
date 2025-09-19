@@ -42,7 +42,17 @@ $actionTypes = $actionStmt->fetchAll(PDO::FETCH_COLUMN);
 <div class="grid gap-6">
 		<div class="rounded-2xl bg-white/80 backdrop-blur border border-slate-200 shadow-xl p-6">
 			<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-				<h1 class="text-2xl font-semibold mb-4 sm:mb-0">Activity Logs</h1>
+				<div>
+					<div class="flex items-center gap-4 mb-2">
+						<a href="dashboard.php" class="flex items-center gap-2 text-clinic-blue hover:text-clinic-tea transition-colors">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+							</svg>
+							Back to Dashboard
+						</a>
+					</div>
+					<h1 class="text-2xl font-semibold mb-4 sm:mb-0">Activity Logs</h1>
+				</div>
 				
 				<!-- Filter Dropdown and Archives Button -->
 				<div class="flex items-center gap-3">
@@ -86,17 +96,47 @@ $actionTypes = $actionStmt->fetchAll(PDO::FETCH_COLUMN);
 								<td class="px-4 py-3">
 									<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <?php
 										switch($row['action']) {
+											// Authentication actions
 											case 'login': echo 'bg-green-100 text-green-800';
 											case 'logout': echo 'bg-blue-100 text-blue-800';
 											case 'login_failed': echo 'bg-red-100 text-red-800';
+											case 'register': echo 'bg-green-100 text-green-800';
+											case 'unauthorized_access': echo 'bg-red-100 text-red-800';
+											
+											// Student actions
 											case 'student_register': echo 'bg-emerald-100 text-emerald-800';
 											case 'student_update': echo 'bg-amber-100 text-amber-800';
+											case 'student_archived': echo 'bg-orange-100 text-orange-800';
+											case 'student_restored': echo 'bg-green-100 text-green-800';
+											
+											// Faculty actions
 											case 'faculty_register': echo 'bg-purple-100 text-purple-800';
 											case 'faculty_update': echo 'bg-orange-100 text-orange-800';
+											case 'faculty_archived': echo 'bg-red-100 text-red-800';
+											case 'faculty_restored': echo 'bg-green-100 text-green-800';
+											
+											// RFID actions
 											case 'rfid_search': echo 'bg-cyan-100 text-cyan-800';
+											case 'rfid_update': echo 'bg-teal-100 text-teal-800';
+											
+											// Profile actions
 											case 'profile_update': echo 'bg-indigo-100 text-indigo-800';
 											case 'password_update': echo 'bg-pink-100 text-pink-800';
-											case 'rfid_update': echo 'bg-teal-100 text-teal-800';
+											
+											// Medical actions
+											case 'medical_form_created': echo 'bg-blue-100 text-blue-800';
+											case 'medical_record_updated': echo 'bg-amber-100 text-amber-800';
+											case 'medical_history_created': echo 'bg-green-100 text-green-800';
+											
+											// Visitation actions
+											case 'visitation_logged': echo 'bg-violet-100 text-violet-800';
+											case 'visitation_archived': echo 'bg-orange-100 text-orange-800';
+											case 'visitation_restored': echo 'bg-green-100 text-green-800';
+											
+											// System actions
+											case 'rfid_verified': echo 'bg-cyan-100 text-cyan-800';
+											case 'rfid_verification_failed': echo 'bg-red-100 text-red-800';
+											
 											default: echo 'bg-gray-100 text-gray-800';
 										}
 									?>">
@@ -166,12 +206,12 @@ function showNotification(message, type = 'info') {
         notification.classList.remove('translate-x-full');
     }, 100);
     
-    // Auto-dismiss after 5 seconds
+    // Auto-dismiss after 2 seconds
     setTimeout(() => {
         if (notification.parentNode) {
             closeNotification(notification.querySelector('.close-btn'));
         }
-    }, 5000);
+    }, 2000);
 }
 
 function closeNotification(button) {

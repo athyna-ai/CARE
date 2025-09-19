@@ -3,6 +3,9 @@
 
 declare(strict_types=1);
 
+// Set timezone to Asia/Manila for the entire system
+date_default_timezone_set('Asia/Manila');
+
 // Update these for your local MySQL setup
 $DB_HOST = getenv('DB_HOST') ?: '127.0.0.1';
 $DB_NAME = getenv('DB_NAME') ?: 'care_cms';

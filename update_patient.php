@@ -2,6 +2,7 @@
 session_start();
 require_once 'config.php';
 
+
 // Check if user is logged in
 if (!isset($_SESSION['user']['id'])) {
     header('Location: login.php');
@@ -23,11 +24,23 @@ if (empty($patientId) || empty($patientType)) {
 }
 
 try {
-    $pdo = new PDO($dsn, $username, $password, $options);
+    $pdo = get_pdo();
     
-    // Debug: Log the received data
-    error_log("Update Patient Debug - Patient ID: $patientId, Type: $patientType");
-    error_log("Update Patient Debug - POST data: " . print_r($_POST, true));
+    
+    // Validate required fields
+    $requiredFields = ['name', 'date_of_birth', 'gender', 'address'];
+    $missingFields = [];
+    
+    foreach ($requiredFields as $field) {
+        if (empty($_POST[$field])) {
+            $missingFields[] = $field;
+        }
+    }
+    
+    if (!empty($missingFields)) {
+        header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Please fill in all required fields: ' . implode(', ', $missingFields)) . '&message_type=error');
+        exit;
+    }
     
     // Get the table name based on patient type
     $tableName = ($patientType === 'student') ? 'students' : 'faculty';
@@ -35,7 +48,7 @@ try {
     // Prepare the update data
     $updateData = [
         'name' => $_POST['name'] ?? '',
-        'dob' => $_POST['date_of_birth'] ?? '', // Use 'dob' to match database column
+        'dob' => $_POST['date_of_birth'] ?? '', // Map date_of_birth to dob
         'gender' => $_POST['gender'] ?? '',
         'religion' => $_POST['religion'] ?? '',
         'address' => $_POST['address'] ?? '',
@@ -54,14 +67,18 @@ try {
         return !empty(trim($contact));
     });
     
-    // Only update contacts if there are actual contacts, otherwise keep existing
-    if (!empty($contacts)) {
-        $updateData['contacts'] = json_encode($contacts);
+    // Validate that at least one contact is provided
+    if (empty($contacts)) {
+        header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('At least one contact number is required') . '&message_type=error');
+        exit;
     }
+    
+    // Update contacts
+    $updateData['contacts'] = json_encode($contacts);
     
     // Add emergency contact only for faculty (legacy field)
     if ($patientType === 'faculty') {
-        $updateData['emergency_contact'] = !empty($contacts) ? $contacts[0] : '';
+        $updateData['emergency_contact'] = $contacts[0];
     }
     
     // Add type-specific fields
@@ -99,8 +116,20 @@ try {
     }
     
     // Calculate age from date of birth
-    if (!empty($updateData['date_of_birth'])) {
-        $dob = new DateTime($updateData['date_of_birth']);
+    if (!empty($updateData['dob'])) {
+        // Handle different date formats
+        $dobString = $updateData['dob'];
+        if (strpos($dobString, '/') !== false) {
+            // Convert from DD/MM/YYYY to YYYY-MM-DD for age calculation
+            $date = DateTime::createFromFormat('d/m/Y', $dobString);
+            if ($date) {
+                $dob = $date;
+            } else {
+                $dob = new DateTime($dobString);
+            }
+        } else {
+            $dob = new DateTime($dobString);
+        }
         $today = new DateTime();
         $age = $today->diff($dob)->y;
         $updateData['age'] = $age;
@@ -111,9 +140,16 @@ try {
     $values = [];
     
     foreach ($updateData as $field => $value) {
-        if ($field === 'dob') {
-            // Special handling for date of birth with STR_TO_DATE
-            $setClause[] = "`$field` = STR_TO_DATE(:$field, '%d/%m/%Y')";
+        if ($field === 'dob' && !empty($value)) {
+            // Convert date format if needed
+            if (strpos($value, '/') !== false) {
+                // Convert from DD/MM/YYYY to YYYY-MM-DD
+                $date = DateTime::createFromFormat('d/m/Y', $value);
+                if ($date) {
+                    $value = $date->format('Y-m-d');
+                }
+            }
+            $setClause[] = "`$field` = :$field";
         } else {
             $setClause[] = "`$field` = :$field";
         }
@@ -123,9 +159,6 @@ try {
     $sql = "UPDATE `$tableName` SET " . implode(', ', $setClause) . " WHERE id = :id";
     $values['id'] = $patientId;
     
-    // Debug: Log the SQL and values
-    error_log("Update Patient Debug - SQL: $sql");
-    error_log("Update Patient Debug - Values: " . print_r($values, true));
     
     $stmt = $pdo->prepare($sql);
     $result = $stmt->execute($values);
@@ -135,27 +168,31 @@ try {
     }
     
     // Log the activity
-    $logSql = "INSERT INTO activity_logs (user_id, action, details, ip_address, user_agent, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
+    $logSql = "INSERT INTO activity_logs (user_id, action, description, location, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)";
     $logStmt = $pdo->prepare($logSql);
     $logStmt->execute([
         $_SESSION['user']['id'],
         'update_patient',
         "Updated $patientType information for patient ID: $patientId",
+        'patient_view',
         $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
         $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
     ]);
     
     // Redirect back to patient view with success message
-    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Patient information updated successfully!') . '&type=success');
+    $patientId = (int)$patientId; // Ensure it's an integer
+    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Patient information updated successfully!') . '&message_type=success');
     exit;
     
 } catch (PDOException $e) {
     error_log("Database error in update_patient.php: " . $e->getMessage());
-    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Error updating patient information. Please try again.') . '&type=error');
+    $patientId = (int)$patientId; // Ensure it's an integer
+    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Error updating patient information. Please try again.') . '&message_type=error');
     exit;
 } catch (Exception $e) {
     error_log("General error in update_patient.php: " . $e->getMessage());
-    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Error updating patient information. Please try again.') . '&type=error');
+    $patientId = (int)$patientId; // Ensure it's an integer
+    header("Location: patient_view.php?id=$patientId&type=$patientType&message=" . urlencode('Error updating patient information. Please try again.') . '&message_type=error');
     exit;
 }
 ?>

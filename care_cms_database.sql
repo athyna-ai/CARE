@@ -3,10 +3,26 @@
 -- =====================================================
 -- Main tables store ORIGINAL data
 -- Views show MASKED data for security
+-- Archive tables store archived patient data
 
 -- Create the new database
 CREATE DATABASE IF NOT EXISTS care_cms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE care_cms;
+
+-- =====================================================
+-- DAILY LOGS TABLE (for archiving daily logs)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS daily_logs (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    log_date DATE NOT NULL UNIQUE,
+    activity_data JSON NOT NULL,
+    visitation_data JSON NOT NULL,
+    total_activities INT NOT NULL DEFAULT 0,
+    total_visitations INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_log_date (log_date)
+) ENGINE=InnoDB;
 
 -- =====================================================
 -- USERS TABLE (replaces admin table)
@@ -18,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     rfid VARCHAR(50) NULL,
     is_admin TINYINT(1) NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
     verified TINYINT(1) NOT NULL DEFAULT 0,
     verify_token VARCHAR(100) NULL,
     reset_token VARCHAR(100) NULL,
@@ -117,6 +134,252 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 ) ENGINE=InnoDB;
 
 -- =====================================================
+-- VISITATION LOGS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS visitation_logs (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    visit_date DATETIME NOT NULL,
+    symptoms TEXT NULL,
+    other_notes TEXT NULL,
+    heart_rate INT NULL,
+    blood_pressure VARCHAR(50) NULL,
+    temperature DECIMAL(4,2) NULL,
+    medication_given TINYINT(1) DEFAULT 0,
+    medication_name VARCHAR(255) NULL,
+    other_treatment VARCHAR(255) NULL,
+    medication_notes TEXT NULL,
+    injury TINYINT(1) DEFAULT 0,
+    first_aid_given TINYINT(1) DEFAULT 0,
+    first_aid_type VARCHAR(255) NULL,
+    nurse_name VARCHAR(100) NULL,
+    created_by INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_patient_type (patient_type),
+    INDEX idx_visit_date (visit_date),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- MEDICAL RECORDS TABLE
+-- =====================================================
+CREATE TABLE IF NOT EXISTS medical_records (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    form_type VARCHAR(100) NOT NULL,
+    form_data JSON NOT NULL,
+    created_by INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_patient_type (patient_type),
+    INDEX idx_form_type (form_type),
+    INDEX idx_created_at (created_at),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- ARCHIVE TABLES FOR PATIENTS
+-- =====================================================
+
+-- Students Archive Table
+CREATE TABLE IF NOT EXISTS students_archive (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    level VARCHAR(50) NOT NULL,
+    year_grade VARCHAR(20) NULL,
+    section VARCHAR(100) NULL,
+    strand VARCHAR(100) NULL,
+    course VARCHAR(100) NULL,
+    rfid VARCHAR(50) NULL,
+    address TEXT NULL,
+    guardian VARCHAR(255) NULL,
+    emergency_contact VARCHAR(20) NULL,
+    dob DATE NULL,
+    age INT NULL,
+    religion VARCHAR(100) NULL,
+    allergies TEXT NULL,
+    contacts JSON NULL,
+    medical_notes TEXT NULL,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT NULL,
+    INDEX idx_original_id (original_id),
+    INDEX idx_name (name),
+    INDEX idx_level (level),
+    INDEX idx_archived_at (archived_at)
+) ENGINE=InnoDB;
+
+-- Faculty Archive Table
+CREATE TABLE IF NOT EXISTS faculty_archive (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    original_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    department VARCHAR(100) NULL,
+    address TEXT NULL,
+    age INT NULL,
+    sr BOOLEAN DEFAULT FALSE,
+    dob DATE NULL,
+    allergies TEXT NULL,
+    religion VARCHAR(100) NULL,
+    emergency_contact VARCHAR(20) NULL,
+    gender ENUM('Male', 'Female', 'Other') NULL,
+    rfid VARCHAR(50) NULL,
+    employee_id VARCHAR(50) NULL,
+    position VARCHAR(100) NULL,
+    medical_notes TEXT NULL,
+    archived_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT NULL,
+    INDEX idx_original_id (original_id),
+    INDEX idx_name (name),
+    INDEX idx_department (department),
+    INDEX idx_archived_at (archived_at)
+) ENGINE=InnoDB;
+
+-- =====================================================
+-- VISITATION ARCHIVE TABLES
+-- =====================================================
+
+-- Student Visitation Archive
+CREATE TABLE IF NOT EXISTS student_visitation_archive (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    original_id INT UNSIGNED NOT NULL,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    visit_date DATETIME NOT NULL,
+    symptoms TEXT NULL,
+    other_notes TEXT NULL,
+    heart_rate INT NULL,
+    blood_pressure VARCHAR(50) NULL,
+    temperature DECIMAL(4,2) NULL,
+    medication_given TINYINT(1) DEFAULT 0,
+    medication_name VARCHAR(255) NULL,
+    other_treatment VARCHAR(255) NULL,
+    medication_notes TEXT NULL,
+    injury TINYINT(1) DEFAULT 0,
+    first_aid_given TINYINT(1) DEFAULT 0,
+    first_aid_type VARCHAR(255) NULL,
+    nurse_name VARCHAR(100) NULL,
+    archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT UNSIGNED NOT NULL,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_original_id (original_id),
+    INDEX idx_archived_at (archived_at),
+    INDEX idx_patient_type (patient_type),
+    FOREIGN KEY (archived_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Faculty Visitation Archive
+CREATE TABLE IF NOT EXISTS faculty_visitation_archive (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    original_id INT UNSIGNED NOT NULL,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    reason VARCHAR(255) NOT NULL,
+    visit_date DATETIME NOT NULL,
+    symptoms TEXT NULL,
+    other_notes TEXT NULL,
+    heart_rate INT NULL,
+    blood_pressure VARCHAR(50) NULL,
+    temperature DECIMAL(4,2) NULL,
+    medication_given TINYINT(1) DEFAULT 0,
+    medication_name VARCHAR(255) NULL,
+    other_treatment VARCHAR(255) NULL,
+    medication_notes TEXT NULL,
+    injury TINYINT(1) DEFAULT 0,
+    first_aid_given TINYINT(1) DEFAULT 0,
+    first_aid_type VARCHAR(255) NULL,
+    nurse_name VARCHAR(100) NULL,
+    archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT UNSIGNED NOT NULL,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_original_id (original_id),
+    INDEX idx_archived_at (archived_at),
+    INDEX idx_patient_type (patient_type),
+    FOREIGN KEY (archived_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- MEDICAL ARCHIVE TABLES
+-- =====================================================
+
+-- Student Medical Archive
+CREATE TABLE IF NOT EXISTS student_medical_archive (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    original_id INT UNSIGNED NOT NULL,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    form_type VARCHAR(100) NOT NULL,
+    form_data JSON NOT NULL,
+    archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT UNSIGNED NOT NULL,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_original_id (original_id),
+    INDEX idx_archived_at (archived_at),
+    INDEX idx_patient_type (patient_type),
+    FOREIGN KEY (archived_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Faculty Medical Archive
+CREATE TABLE IF NOT EXISTS faculty_medical_archive (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    original_id INT UNSIGNED NOT NULL,
+    patient_id INT UNSIGNED NOT NULL,
+    patient_type ENUM('student','faculty') NOT NULL,
+    form_type VARCHAR(100) NOT NULL,
+    form_data JSON NOT NULL,
+    archived_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    archived_by INT UNSIGNED NOT NULL,
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_original_id (original_id),
+    INDEX idx_archived_at (archived_at),
+    INDEX idx_patient_type (patient_type),
+    FOREIGN KEY (archived_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- ORPHANED RECORDS TABLE
+-- =====================================================
+-- For handling visitation records when patient data is missing
+CREATE TABLE IF NOT EXISTS orphaned_visitation_logs (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    original_id INT UNSIGNED NOT NULL,
+    patient_id INT UNSIGNED NULL,
+    patient_type ENUM('student','faculty') NULL,
+    reason VARCHAR(255) NOT NULL,
+    visit_date DATETIME NOT NULL,
+    symptoms TEXT NULL,
+    other_notes TEXT NULL,
+    heart_rate INT NULL,
+    blood_pressure VARCHAR(50) NULL,
+    temperature DECIMAL(4,2) NULL,
+    medication_given TINYINT(1) DEFAULT 0,
+    medication_name VARCHAR(255) NULL,
+    other_treatment VARCHAR(255) NULL,
+    medication_notes TEXT NULL,
+    injury TINYINT(1) DEFAULT 0,
+    first_aid_given TINYINT(1) DEFAULT 0,
+    first_aid_type VARCHAR(255) NULL,
+    nurse_name VARCHAR(100) NULL,
+    created_by INT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    moved_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    moved_by INT UNSIGNED NULL,
+    reason_moved VARCHAR(255) NOT NULL,
+    INDEX idx_original_id (original_id),
+    INDEX idx_patient_id (patient_id),
+    INDEX idx_created_at (created_at),
+    INDEX idx_moved_at (moved_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
 -- MASKED DATA VIEWS (for security/logs)
 -- =====================================================
 
@@ -185,6 +448,16 @@ SELECT
 FROM users;
 
 -- =====================================================
+-- ADDITIONAL INDEXES FOR PERFORMANCE
+-- =====================================================
+
+-- Add indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_visitation_logs_patient ON visitation_logs(patient_id, patient_type);
+CREATE INDEX IF NOT EXISTS idx_visitation_logs_date ON visitation_logs(visit_date);
+CREATE INDEX IF NOT EXISTS idx_medical_records_patient ON medical_records(patient_id, patient_type);
+CREATE INDEX IF NOT EXISTS idx_medical_records_type ON medical_records(form_type);
+
+-- =====================================================
 -- INSERT DEFAULT ADMIN USER
 -- =====================================================
 INSERT IGNORE INTO users (name, email, password_hash, rfid, is_admin, verified) 
@@ -203,4 +476,6 @@ VALUES (
 SELECT 'CARE CMS database created successfully!' as status;
 SELECT 'Main tables store ORIGINAL data' as note1;
 SELECT 'Views show MASKED data for security' as note2;
-SELECT 'Default admin: admin@care.com / password' as note3;
+SELECT 'Archive tables created for patient-specific archives' as note3;
+SELECT 'Orphaned records table for data integrity' as note4;
+SELECT 'Default admin: admin@care.com / password' as note5;

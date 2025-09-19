@@ -85,31 +85,50 @@
 		const mainContent = document.getElementById('mainContent');
 		
 		if (sidebarToggle && appSidebar && mainContent) {
-			// Function to update sidebar state and content layout
-			window.updateSidebarState = function() {
-				const isMobile = window.innerWidth < 768;
-				const isHidden = appSidebar.classList.contains('-translate-x-full');
-				
-				// Update data attribute for CSS
-				appSidebar.setAttribute('data-sidebar-state', isHidden ? 'hidden' : 'visible');
-				
-				if (isMobile) {
-					// On mobile, sidebar is overlay - content stays full width
+		// Function to update sidebar state and content layout
+		window.updateSidebarState = function() {
+			const isMobile = window.innerWidth < 768;
+			const isTablet = window.innerWidth >= 768 && window.innerWidth < 1024;
+			const isDesktop = window.innerWidth >= 1024;
+			const isHidden = appSidebar.classList.contains('-translate-x-full');
+			
+			// Update data attribute for CSS
+			appSidebar.setAttribute('data-sidebar-state', isHidden ? 'hidden' : 'visible');
+			
+			// Remove existing classes
+			mainContent.classList.remove('sidebar-open');
+			
+			if (isMobile) {
+				// On mobile, sidebar is overlay - content stays full width
+				mainContent.style.marginLeft = '0';
+				mainContent.style.paddingLeft = '0';
+				mainContent.style.width = '100%';
+			} else if (isTablet) {
+				// On tablet, sidebar affects layout
+				if (isHidden) {
 					mainContent.style.marginLeft = '0';
 					mainContent.style.paddingLeft = '0';
+					mainContent.style.width = '100%';
 				} else {
-					// On desktop, sidebar affects layout
-					if (isHidden) {
-						// Sidebar hidden - content takes full width
-						mainContent.style.marginLeft = '0';
-						mainContent.style.paddingLeft = '0';
-					} else {
-						// Sidebar visible - content adjusts to sidebar width (288px = 72 * 4)
-						mainContent.style.marginLeft = '0';
-						mainContent.style.paddingLeft = '18rem'; // 288px = 18rem
-					}
+					mainContent.style.marginLeft = '0';
+					mainContent.style.paddingLeft = '280px';
+					mainContent.style.width = 'calc(100% - 280px)';
+					mainContent.classList.add('sidebar-open');
 				}
-			};
+			} else if (isDesktop) {
+				// On desktop, sidebar affects layout
+				if (isHidden) {
+					mainContent.style.marginLeft = '0';
+					mainContent.style.paddingLeft = '0';
+					mainContent.style.width = '100%';
+				} else {
+					mainContent.style.marginLeft = '0';
+					mainContent.style.paddingLeft = '320px';
+					mainContent.style.width = 'calc(100% - 320px)';
+					mainContent.classList.add('sidebar-open');
+				}
+			}
+		};
 			
 			// Initialize sidebar state
 			function initSidebar() {
@@ -299,18 +318,6 @@
 			privacyReadChk.addEventListener('change', syncCheckboxes);
 		}
 
-		const addContactBtn = document.getElementById('addContactBtn');
-		const contactsContainer = document.getElementById('contactsContainer');
-		if (addContactBtn && contactsContainer) {
-			addContactBtn.addEventListener('click', () => {
-				const input = document.createElement('input');
-				input.type = 'text';
-				input.name = 'contacts[]';
-				input.className = 'w-full rounded-xl bg-white border border-slate-300 px-4 py-3';
-				input.placeholder = '09xxxxxxxxx';
-				contactsContainer.appendChild(input);
-			});
-		}
 
 		// RFID portal: auto-submit on input focus/scan and role modal
 		const rfidSearchForm = document.getElementById('rfidSearchForm');
@@ -357,6 +364,9 @@
 				
 				// Clear and populate grade/year dropdown
 				yearGradeInput.innerHTML = '<option value="">Select Grade/Year</option>';
+				
+				// Reset label text
+				yearGradeLabel.textContent = 'Year/Grade';
 				
 				// Show appropriate fields based on level
 				if (level === 'Pre-school') {
@@ -539,33 +549,50 @@ document.addEventListener('DOMContentLoaded', () => {
 		});
 	});
 
-	// Auto-format address fields (Barangay/Municipality/City, Province)
+	// Address field auto-layout enhancement
 	const addressInputs = document.querySelectorAll('input[name="address"]');
-	console.log('Found address inputs:', addressInputs.length);
 	addressInputs.forEach(input => {
-		input.addEventListener('input', (e) => {
-			let value = e.target.value;
+		// Auto-resize based on content
+		input.addEventListener('input', function() {
+			// Get current cursor position
+			const cursorPos = this.selectionStart;
+			let value = this.value;
 			
-			// Auto-format: Add "/" after first word if user types space
-			if (value.includes(' ') && !value.includes('/') && !value.includes(',')) {
-				const words = value.split(' ');
-				if (words.length >= 2) {
-					value = words[0] + '/' + words.slice(1).join(' ');
+			// Only apply formatting if the value has changed significantly
+			// Don't interfere with normal typing
+			if (value.length > 0) {
+				// Auto-capitalize first letter of the entire string only
+				if (value.charAt(0) !== value.charAt(0).toUpperCase()) {
+					value = value.charAt(0).toUpperCase() + value.slice(1);
 				}
 			}
 			
-			// Auto-format: Add comma before "Province" if user types "Province"
-			if (value.toLowerCase().includes('province') && !value.includes(',')) {
-				value = value.replace(/\bprovince\b/gi, ', Province');
+			// Update the value if it changed
+			if (value !== this.value) {
+				this.value = value;
+				// Restore cursor position
+				this.setSelectionRange(cursorPos, cursorPos);
 			}
 			
-			e.target.value = value;
+			// Auto-adjust height based on content length
+			if (value.length > 50) {
+				this.style.minHeight = '60px';
+				this.style.lineHeight = '1.4';
+			} else {
+				this.style.minHeight = '48px';
+				this.style.lineHeight = '1.5';
+			}
 		});
 		
-		// Show format hint on focus
-		input.addEventListener('focus', (e) => {
-			if (!e.target.value) {
-				e.target.placeholder = 'Barangay/Municipality/City, Province';
+		// Format on blur to ensure proper capitalization
+		input.addEventListener('blur', function() {
+			let value = this.value.trim();
+			if (value) {
+				// Capitalize first letter of each word, preserving spaces
+				value = value.replace(/\b\w/g, function(letter) {
+					return letter.toUpperCase();
+				});
+				this.value = value;
 			}
 		});
 	});
@@ -577,11 +604,9 @@ document.addEventListener('DOMContentLoaded', () => {
 		const ageInput = ageInputs[index];
 		
 		if (ageInput) {
-			dobInput.addEventListener('input', (e) => {
-				const dobValue = e.target.value.trim();
-				
+			function calculateAgeFromDOB(dobValue) {
 				// Check if date format is complete (DD/MM/YYYY)
-				if (dobValue.length === 10 && dobValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+				if (dobValue && dobValue.length === 10 && dobValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
 					const [day, month, year] = dobValue.split('/').map(Number);
 					
 					// Validate date
@@ -614,26 +639,39 @@ document.addEventListener('DOMContentLoaded', () => {
 							// Clear any error styling
 							dobInput.classList.remove('border-red-500');
 							dobInput.classList.add('border-slate-300');
+							return true;
 						} else {
 							ageInput.value = '';
 							dobInput.classList.add('border-red-500');
 							dobInput.classList.remove('border-slate-300');
+							return false;
 						}
 					} else {
 						ageInput.value = '';
 						dobInput.classList.add('border-red-500');
 						dobInput.classList.remove('border-slate-300');
+						return false;
 					}
 				} else {
 					ageInput.value = '';
 					dobInput.classList.remove('border-red-500');
 					dobInput.classList.add('border-slate-300');
+					return false;
 				}
+			}
+			
+			// Add event listeners
+			dobInput.addEventListener('input', (e) => {
+				calculateAgeFromDOB(e.target.value.trim());
+			});
+			
+			dobInput.addEventListener('blur', (e) => {
+				calculateAgeFromDOB(e.target.value.trim());
 			});
 			
 			// Calculate age on page load if DOB is already filled
 			if (dobInput.value.trim().length === 10) {
-				dobInput.dispatchEvent(new Event('input'));
+				calculateAgeFromDOB(dobInput.value.trim());
 			}
 		}
 	});
@@ -727,6 +765,120 @@ document.addEventListener('keydown', (e) => {
 		} else {
 			console.log('Sidebar elements not found on this page');
 		}
+		return;
+	}
+	
+	// Ctrl+D for dashboard
+	if (e.key === 'd' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+		e.preventDefault();
+		// Check if we're in an input field
+		const activeElement = document.activeElement;
+		const isInputField = activeElement && (
+			activeElement.tagName === 'INPUT' || 
+			activeElement.tagName === 'TEXTAREA' || 
+			activeElement.contentEditable === 'true'
+		);
+		
+		if (isInputField) {
+			return; // Don't interfere with typing
+		}
+		
+		console.log('Ctrl+D pressed - navigating to dashboard');
+		window.location.href = 'dashboard.php';
+		return;
+	}
+	
+	// Ctrl+K for RFID portal search
+	if (e.key === 'k' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+		e.preventDefault();
+		// Check if we're in an input field
+		const activeElement = document.activeElement;
+		const isInputField = activeElement && (
+			activeElement.tagName === 'INPUT' || 
+			activeElement.tagName === 'TEXTAREA' || 
+			activeElement.contentEditable === 'true'
+		);
+		
+		if (isInputField) {
+			return; // Don't interfere with typing
+		}
+		
+		console.log('Ctrl+K pressed - navigating to RFID portal');
+		window.location.href = 'rfid_portal.php';
+		return;
+	}
+	
+	// Ctrl+S for save form
+	if (e.key === 's' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+		e.preventDefault();
+		// Check if we're in an input field
+		const activeElement = document.activeElement;
+		const isInputField = activeElement && (
+			activeElement.tagName === 'INPUT' || 
+			activeElement.tagName === 'TEXTAREA' || 
+			activeElement.contentEditable === 'true'
+		);
+		
+		if (isInputField) {
+			return; // Don't interfere with typing
+		}
+		
+		console.log('Ctrl+S pressed - attempting to save form');
+		
+		// Look for common save buttons
+		const saveButtons = [
+			'saveButton',
+			'saveVisitationButton', 
+			'saveMedicalButton',
+			'saveFormButton',
+			'registerButton',
+			'loginButton',
+			'updateButton',
+			'submitButton'
+		];
+		
+		for (const buttonId of saveButtons) {
+			const button = document.getElementById(buttonId);
+			if (button && !button.disabled && !button.classList.contains('hidden')) {
+				console.log('Found save button:', buttonId);
+				button.click();
+				return;
+			}
+		}
+		
+		// Fallback: look for any button with "save" in the text
+		const allButtons = document.querySelectorAll('button');
+		for (const button of allButtons) {
+			if (button.textContent.toLowerCase().includes('save') && 
+				!button.disabled && 
+				!button.classList.contains('hidden')) {
+				console.log('Found save button by text:', button.textContent);
+				button.click();
+				return;
+			}
+		}
+		
+		console.log('No save button found');
+		return;
+	}
+	
+	// Ctrl+R for refresh page
+	if (e.key === 'r' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+		e.preventDefault();
+		// Check if we're in an input field
+		const activeElement = document.activeElement;
+		const isInputField = activeElement && (
+			activeElement.tagName === 'INPUT' || 
+			activeElement.tagName === 'TEXTAREA' || 
+			activeElement.contentEditable === 'true'
+		);
+		
+		if (isInputField) {
+			return; // Don't interfere with typing
+		}
+		
+		console.log('Ctrl+R pressed - refreshing page');
+		window.location.reload();
 		return;
 	}
 	
@@ -877,5 +1029,6 @@ function addEscapeKeySupport() {
 document.addEventListener('DOMContentLoaded', () => {
 	addEscapeKeySupport();
 });
+
 
 

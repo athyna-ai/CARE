@@ -8,16 +8,33 @@ $pdo = get_pdo();
 
 // Get record ID from URL
 $recordId = (int)($_GET['id'] ?? 0);
+$isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
 
 if ($recordId <= 0) {
     header('Location: dashboard.php?error=invalid_record');
     exit;
 }
 
-// Get medical record
-$stmt = $pdo->prepare('SELECT * FROM medical_records WHERE id = ?');
-$stmt->execute([$recordId]);
-$record = $stmt->fetch();
+// Get medical record (check if archived)
+$record = null;
+if ($isArchived) {
+    // Try to get from archive tables
+    $archiveTables = ['student_medical_archive', 'faculty_medical_archive'];
+    foreach ($archiveTables as $table) {
+        $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ?");
+        $stmt->execute([$recordId]);
+        $record = $stmt->fetch();
+        if ($record) {
+            $record['is_archived'] = true;
+            break;
+        }
+    }
+} else {
+    // Get from active medical records
+    $stmt = $pdo->prepare('SELECT * FROM medical_records WHERE id = ?');
+    $stmt->execute([$recordId]);
+    $record = $stmt->fetch();
+}
 
 if (!$record) {
     header('Location: dashboard.php?error=record_not_found');
@@ -257,9 +274,9 @@ include __DIR__ . '/partials/header.php';
 </div>
 
 <!-- Edit Modal -->
-<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-8rem)] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-semibold text-slate-800">Edit Medical Record</h2>
             <button onclick="closeEditModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">

@@ -1,16 +1,226 @@
-:root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; --primary:#22c55e; --danger:#ef4444; }
+/* CSS Variables removed to prevent conflicts with Tailwind CSS */
 * { box-sizing: border-box; }
-body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); }
-.container { max-width: 540px; margin: 48px auto; padding: 24px; background: var(--card); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+.container { max-width: 540px; margin: 48px auto; padding: 24px; background: #111827; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
 h1 { margin-top:0; font-size: 24px; }
 .field { margin-bottom: 16px; }
-label { display:block; margin-bottom: 6px; color: var(--muted); }
-input[type=text], input[type=email], input[type=password] { width:100%; padding:12px 14px; border-radius:8px; border:1px solid #1f2937; background:#0b1220; color:var(--text); }
-input[type=text]:focus, input[type=email]:focus, input[type=password]:focus { outline:none; border-color:#334155; }
-button { background: var(--primary); color:#052e16; font-weight:600; padding: 10px 14px; border:none; border-radius:8px; cursor:pointer; }
+label { display:block; margin-bottom: 6px; color: #9ca3af; }
+/* Input styles removed to prevent conflicts with Tailwind CSS */
+
+/* Force proper styling for ALL form inputs - Maximum specificity */
+input[type="text"], 
+input[type="email"], 
+input[type="password"], 
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select, 
+textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* ULTRA SPECIFIC - Override any possible conflicting styles */
+body input[type="text"],
+body input[type="email"],
+body input[type="password"],
+body input[type="tel"],
+body input[type="number"],
+body input[type="date"],
+body input[type="time"],
+body select,
+body textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Even more specific - target all possible selectors */
+html body input[type="text"],
+html body input[type="email"],
+html body input[type="password"],
+html body input[type="tel"],
+html body input[type="number"],
+html body input[type="date"],
+html body input[type="time"],
+html body select,
+html body textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Override any Tailwind classes that might be causing issues */
+input.bg-white,
+select.bg-white,
+textarea.bg-white {
+    background-color: white !important;
+    background: white !important;
+}
+
+input.text-slate-800,
+select.text-slate-800,
+textarea.text-slate-800 {
+    color: #1e293b !important;
+}
+
+/* Override any form containers that might have dark backgrounds */
+form,
+.form,
+.form-container,
+.modal,
+.modal-content,
+#editPatientModal,
+#editPatientModal .modal-content {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Ensure all form elements in modals have proper styling */
+.modal input[type="text"],
+.modal input[type="email"],
+.modal input[type="password"],
+.modal select,
+.modal textarea,
+#editPatientModal input[type="text"],
+#editPatientModal input[type="email"],
+#editPatientModal input[type="password"],
+#editPatientModal select,
+#editPatientModal textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Override any potential dark styling on form elements */
+input[type="text"]:not([class*="bg-clinic-ivory"]),
+input[type="email"]:not([class*="bg-clinic-ivory"]),
+input[type="password"]:not([class*="bg-clinic-ivory"]),
+select:not([class*="bg-clinic-ivory"]),
+textarea:not([class*="bg-clinic-ivory"]) {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Force white background on all form elements regardless of any other CSS */
+*[class*="bg-white"] {
+    background-color: white !important;
+    background: white !important;
+}
+
+/* Target specific form elements by their classes */
+input[class*="rounded-xl"],
+select[class*="rounded-xl"],
+textarea[class*="rounded-xl"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target elements with specific Tailwind classes */
+input[class*="border-slate-300"],
+select[class*="border-slate-300"],
+textarea[class*="border-slate-300"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target elements with text-slate-800 class */
+input[class*="text-slate-800"],
+select[class*="text-slate-800"],
+textarea[class*="text-slate-800"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target form elements in specific containers */
+.max-w-4xl input[type="text"],
+.max-w-4xl input[type="email"],
+.max-w-4xl input[type="password"],
+.max-w-4xl select,
+.max-w-4xl textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target form elements in grid layouts */
+.grid input[type="text"],
+.grid input[type="email"],
+.grid input[type="password"],
+.grid select,
+.grid textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Nuclear option - target ALL input and select elements */
+input, select, textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Placeholder styling */
+input[type="text"]::placeholder, 
+input[type="email"]::placeholder, 
+input[type="password"]::placeholder, 
+input[type="tel"]::placeholder,
+input[type="number"]::placeholder,
+input[type="date"]::placeholder,
+input[type="time"]::placeholder,
+textarea::placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+}
+
+/* Focus states */
+input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus, 
+input[type="tel"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus, 
+textarea:focus {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #0ea5e9 !important;
+    outline: none !important;
+}
+
+/* Specific styling for clinic-themed inputs */
+input[type="text"][class*="bg-clinic-ivory"], 
+input[type="text"][class*="bg-clinic-ivory/40"] {
+    background-color: #fbfcee !important;
+    background: #fbfcee !important;
+    color: #343b1b !important;
+}
+
+input[type="text"][class*="bg-clinic-ivory"]::placeholder, 
+input[type="text"][class*="bg-clinic-ivory/40"]::placeholder {
+    color: rgba(52, 59, 27, 0.5) !important;
+    opacity: 1 !important;
+}
+button { background: #22c55e; color:#052e16; font-weight:600; padding: 10px 14px; border:none; border-radius:8px; cursor:pointer; }
 button[disabled] { opacity:.5; cursor:not-allowed; }
-.checkbox { display:flex; align-items:center; gap:8px; color: var(--text); }
-.hint { color: var(--muted); }
+.checkbox { display:flex; align-items:center; gap:8px; color: #e5e7eb; }
+.hint { color: #9ca3af; }
 .notice { margin: 12px 0; padding: 10px 12px; border-radius: 8px; }
 .notice.error { background: rgba(239,68,68,.15); color: #fecaca; border:1px solid rgba(239,68,68,.4); }
 .notice.success { background: rgba(34,197,94,.15); color: #bbf7d0; border:1px solid rgba(34,197,94,.4); }
@@ -22,16 +232,177 @@ button[disabled] { opacity:.5; cursor:not-allowed; }
 /* Responsive sidebar behavior */
 #mainContent {
     transition: padding-left 0.3s ease-in-out;
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+}
+
+/* Sidebar base styles - work with Tailwind classes */
+#appSidebar {
+    /* Let Tailwind handle positioning and styling */
+    /* Only override transform behavior */
+    transition: transform 0.3s ease-in-out !important;
+    background: rgba(251, 252, 238, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 25px 50px -12px rgba(52, 59, 27, 0.15) !important;
+}
+
+/* Ensure sidebar is hidden by default */
+#appSidebar[data-sidebar-state="hidden"] {
+    transform: translateX(-100%) !important;
+}
+
+/* Show sidebar when visible */
+#appSidebar[data-sidebar-state="visible"] {
+    transform: translateX(0) !important;
 }
 
 /* Mobile sidebar overlay */
 @media (max-width: 767px) {
     #appSidebar {
+        width: 100vw;
+        max-width: 320px;
         z-index: 40;
     }
     #mainContent {
         padding-left: 0 !important;
+        margin-left: 0 !important;
+        width: 100% !important;
     }
+    
+    /* Ensure content doesn't get cut off on mobile */
+    .page-container {
+        padding: 1rem;
+        min-height: calc(100vh - 5rem);
+    }
+}
+
+/* Tablet responsive */
+@media (min-width: 768px) and (max-width: 1023px) {
+    #appSidebar {
+        width: 280px;
+    }
+    #mainContent {
+        padding-left: 0;
+        width: 100%;
+    }
+}
+
+/* Desktop responsive */
+@media (min-width: 1024px) {
+    #appSidebar {
+        width: 320px;
+    }
+    #mainContent {
+        padding-left: 0;
+        width: 100%;
+    }
+    
+    /* When sidebar is visible on desktop, add padding */
+    #mainContent.lg\:pl-80 {
+        padding-left: 320px;
+    }
+    
+    /* Ensure grid cards fill the full width properly */
+    .grid.grid-cols-6 {
+        width: 100% !important;
+        max-width: none !important;
+        display: grid !important;
+        grid-template-columns: repeat(6, 1fr) !important;
+    }
+    
+    /* Make sure cards are evenly distributed and fill full width */
+    .grid.grid-cols-6 > * {
+        width: 100% !important;
+        min-width: 0;
+        flex: 1;
+    }
+    
+    /* Ensure the container takes full width */
+    .w-full.max-w-none {
+        max-width: none !important;
+        width: 100% !important;
+    }
+}
+
+/* Additional responsive fixes for better card distribution */
+@media (min-width: 1280px) {
+    .grid.grid-cols-6 {
+        gap: 2rem;
+    }
+}
+
+/* Ensure proper spacing and layout on all screen sizes */
+@media (min-width: 1024px) {
+    .min-h-\[calc\(100vh-5rem\)\] {
+        min-height: calc(100vh - 5rem);
+    }
+    
+    /* Make sure the content container fills available space - but not forms */
+    .min-h-\[calc\(100vh-5rem\)\] .w-full:not(.max-w-4xl):not(.max-w-3xl) {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* When sidebar is closed, ensure content takes full width - but not forms */
+    #mainContent:not(.lg\:pl-80) .w-full:not(.max-w-4xl):not(.max-w-3xl) {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* Force full width for the main content area */
+    #mainContent {
+        width: 100% !important;
+    }
+}
+
+/* Fix for pages with fixed heights */
+@media (max-width: 767px) {
+    .h-\[calc\(100vh-5rem\)\] {
+        height: calc(100vh - 5rem);
+        min-height: calc(100vh - 5rem);
+    }
+    
+    .min-h-\[calc\(100vh-5rem\)\] {
+        min-height: calc(100vh - 5rem);
+    }
+}
+
+/* Tooltip Styles */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+
+/* Solid professional design for dashboard cards */
+.group {
+    background: white !important;
+    border: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 4px 6px -1px rgba(52, 59, 27, 0.1), 0 2px 4px -1px rgba(200, 214, 155, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.group:hover {
+    background: white !important;
+    box-shadow: 0 10px 15px -3px rgba(52, 59, 27, 0.1), 0 4px 6px -2px rgba(200, 214, 155, 0.1) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Enhanced glassy effect for the main content area */
+#mainContent {
+    background: linear-gradient(135deg, rgba(251, 252, 238, 0.8) 0%, rgba(255, 255, 255, 0.9) 50%, rgba(246, 230, 165, 0.6) 100%) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Professional glassy header */
+header {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 8px 32px -8px rgba(52, 59, 27, 0.1) !important;
 }
 
 

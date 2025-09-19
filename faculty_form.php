@@ -70,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		if ($name === '' || $gender === '' || $rfid === '') { $errors[] = 'Name, Gender and RFID are required.'; }
 		if ($dob !== '' && !preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dob)) { $errors[] = 'DOB must be DD/MM/YYYY.'; }
 		if (!$consented) { $errors[] = 'You must agree to the data privacy consent.'; }
+		if (empty(trim($emergency))) { $errors[] = 'Emergency contact number is required.'; }
 
 		if (!$errors) {
 			// Store original data in main table (no hashing)
@@ -98,47 +99,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 ?>
-<?php $pageTitle = $id ? 'Edit Faculty' : 'Register Faculty'; $showTopNav = true; $showSidebar = true; include __DIR__ . '/partials/header.php'; ?>
-	<div class="min-h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8">
-		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10">
+<?php $pageTitle = $id ? 'Edit Faculty' : 'Register Faculty'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/partials/header.php'; ?>
+	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
+		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-full flex flex-col">
 			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Faculty' : 'Register Faculty' ?></h1>
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
-			<form method="post" class="grid md:grid-cols-2 gap-4" autocomplete="on">
+			<form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
 				<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
 				<div>
-					<label class="block text-slate-700 mb-1">Name</label>
-					<input type="text" name="name" value="<?= htmlspecialchars($row['name'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required />
+					<label class="block text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+					<input type="text" name="name" value="<?= htmlspecialchars($row['name'] ?? '') ?>" 
+						   placeholder="e.g., Dr. Maria Santos Dela Cruz" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   required 
+						   autofocus
+						   data-next-field="department" />
 					<?php if ($row && isset($row['name_masked'])): ?>
 						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['name_masked']) ?></p>
 					<?php endif; ?>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Department</label>
-					<input type="text" name="department" value="<?= htmlspecialchars($row['department'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" />
+					<input type="text" name="department" value="<?= htmlspecialchars($row['department'] ?? '') ?>" 
+						   placeholder="e.g., Mathematics, English, Science" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   data-next-field="gender" />
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Gender</label>
-					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required>
+					<label class="block text-slate-700 mb-1">Gender <span class="text-red-500">*</span></label>
+					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="rfid">
 						<option value="">Select Gender</option>
 						<option value="Male" <?= ($row['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
 						<option value="Female" <?= ($row['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
 					</select>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">RFID</label>
-					<input type="text" name="rfid" value="<?= htmlspecialchars($prefillRfid) ?>" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" required />
+					<label class="block text-slate-700 mb-1">RFID Number <span class="text-red-500">*</span></label>
+					<input type="text" name="rfid" value="<?= htmlspecialchars($prefillRfid) ?>" 
+						   placeholder="e.g., 1234567890" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   required 
+						   data-next-field="barangay" />
 				</div>
 				<div class="md:col-span-2">
-					<label class="block text-slate-700 mb-1">Address</label>
-					<input type="text" name="address" value="<?= htmlspecialchars($row['address'] ?? '') ?>" placeholder="Barangay/Municipality/City, Province" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" />
+					<label class="block text-slate-700 mb-1">Complete Address</label>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Barangay</label>
+							<input type="text" name="barangay" value="<?= htmlspecialchars($row['barangay'] ?? '') ?>" 
+								   placeholder="e.g., Cawayang Bugtong" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="municipality" />
+						</div>
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Municipality/City</label>
+							<input type="text" name="municipality" value="<?= htmlspecialchars($row['municipality'] ?? '') ?>" 
+								   placeholder="e.g., San Juan" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="province" />
+						</div>
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Province</label>
+							<input type="text" name="province" value="<?= htmlspecialchars($row['province'] ?? '') ?>" 
+								   placeholder="e.g., Nueva Ecija" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="dob" />
+						</div>
+					</div>
+					<p class="text-xs text-slate-500 mt-2">Enter each part of the address separately</p>
 					<?php if ($row && isset($row['address_masked'])): ?>
 						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['address_masked']) ?></p>
 					<?php endif; ?>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Date of Birth (DD/MM/YYYY)</label>
-					<input type="text" name="dob" id="dob" value="<?= isset($row['dob']) && $row['dob'] ? date('d/m/Y', strtotime($row['dob'])) : '' ?>" pattern="\d{2}/\d{2}/\d{4}" placeholder="DD/MM/YYYY" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" maxlength="10" />
+					<label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
+					<input type="text" name="dob" id="dob" 
+						   value="<?= isset($row['dob']) && $row['dob'] ? date('d/m/Y', strtotime($row['dob'])) : '' ?>" 
+						   pattern="\d{2}/\d{2}/\d{4}" 
+						   placeholder="DD/MM/YYYY" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   maxlength="10" 
+						   data-next-field="religion" />
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Age</label>
@@ -146,25 +188,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						<input type="number" name="age" id="ageInput" value="<?= htmlspecialchars((string)($row['age'] ?? '')) ?>" readonly class="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-3 text-slate-600" />
 						<span id="srTag" class="hidden px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded">Sr.</span>
 					</div>
-					<p class="text-xs text-slate-500 mt-1">Age is automatically calculated from date of birth</p>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Religion</label>
-					<select name="religion" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3">
-						<?php $rel=$row['religion'] ?? ''; $religions=['Roman Catholic','Islam','Iglesia ni Cristo','Born Again Christian','United Methodist','Aglipayan (IFI)','Seventh-day Adventist','Baptist','Hindu','Buddhist','None']; foreach($religions as $r){$sel=$rel===$r?'selected':''; echo "<option {$sel}>{$r}</option>";} ?>
+					<select name="religion" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" data-next-field="emergency_contact">
+						<option value="">Select Religion</option>
+						<?php $rel=$row['religion'] ?? ''; $religions=['Roman Catholic','Islam','Iglesia ni Cristo','Born Again Christian','United Methodist','Aglipayan (IFI)','Seventh-day Adventist','Baptist','Hindu','Buddhist','None']; foreach($religions as $r){$sel=$rel===$r?'selected':''; echo "<option value=\"{$r}\" {$sel}>{$r}</option>";} ?>
 					</select>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Emergency Contact</label>
-					<input type="text" name="emergency_contact" value="<?= htmlspecialchars($row['emergency_contact'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" />
+					<input type="text" name="emergency_contact" value="<?= htmlspecialchars($row['emergency_contact'] ?? '') ?>" 
+						   placeholder="e.g., 09xxxxxxxxx" 
+						   pattern="09[0-9]{9}" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   data-next-field="allergies" />
 					<?php if ($row && isset($row['emergency_contact_masked'])): ?>
 						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['emergency_contact_masked']) ?></p>
 					<?php endif; ?>
 				</div>
 				<div class="md:col-span-2">
-					<label class="block text-slate-700 mb-1">Allergies</label>
-					<textarea name="allergies" placeholder="List any known allergies (e.g., peanuts, shellfish, medications). Leave blank if none." class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" rows="3"><?= htmlspecialchars($row['allergies'] ?? '') ?></textarea>
-					<p class="mt-1 text-xs text-slate-500">Enter "None" or leave blank if the faculty member has no known allergies.</p>
+					<label class="block text-slate-700 mb-1">Allergies & Medical Notes</label>
+					<textarea name="allergies" 
+							  placeholder="List any known allergies (e.g., peanuts, shellfish, medications). Leave blank if none." 
+							  class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+							  rows="3"
+							  data-next-field="consent"><?= htmlspecialchars($row['allergies'] ?? '') ?></textarea>
+					<p class="mt-1 text-xs text-slate-500">Enter "None" or leave blank if the faculty member has no known allergies or medical conditions.</p>
 				</div>
 				<div class="md:col-span-2">
 					<label class="block text-slate-700 mb-1">Data Privacy Consent</label>
@@ -187,16 +237,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					<div id="formHelp" class="mt-2 text-xs text-slate-500 text-center">
 						<span id="formHelpText">Fill in all required fields (Name, RFID) and read the complete Data Privacy Consent</span>
 					</div>
-					<a href="rfid_portal.php" class="mt-2 inline-block w-full text-center border border-slate-300 rounded-xl py-3 hover:bg-slate-50">Cancel</a>
+					<a href="dashboard.php" class="mt-2 inline-block w-full text-center border border-slate-300 rounded-xl py-3 hover:bg-slate-50">Cancel</a>
 				</div>
 			</form>
 		</div>
 	</div>
 
 	<!-- Data Privacy Modal -->
-	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/50"></div>
-		<div class="relative w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-xl p-6 max-h-[80vh] flex flex-col">
+		<div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl p-6 max-h-[80vh] flex flex-col">
 			<h2 class="text-xl font-semibold mb-4">Data Privacy Consent</h2>
 			<div id="privacyContent" class="flex-1 overflow-y-auto space-y-3 text-sm text-slate-700 pr-2">
 				<p>The Department of Education shall engage in the collection of health / medical information for the purposes of tracking, provision of necessary health / medical interventions, and educational purposes.</p>
@@ -220,58 +270,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include __DIR__ . '/partials/footer.php'; ?>
 
 <script>
-// Age calculation from date of birth
-function calculateAge(dob) {
-    if (!dob) return '';
-    
-    const today = new Date();
-    const birthDate = new Date(dob.split('/').reverse().join('-'));
-    
-    if (isNaN(birthDate.getTime())) return '';
-    
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-    }
-    
-    return age;
-}
-
-// Update age when date of birth changes
-document.addEventListener('DOMContentLoaded', function() {
-    const dobInput = document.getElementById('dob');
-    const ageInput = document.getElementById('ageInput');
-    const srTag = document.getElementById('srTag');
-    
-    if (dobInput && ageInput) {
-        function updateAge() {
-            const dob = dobInput.value;
-            const age = calculateAge(dob);
-            
-            if (age !== '') {
-                ageInput.value = age;
-                
-                // Show Sr. tag if age >= 60
-                if (age >= 60) {
-                    srTag.classList.remove('hidden');
-                } else {
-                    srTag.classList.add('hidden');
-                }
-            } else {
-                ageInput.value = '';
-                srTag.classList.add('hidden');
-            }
-        }
-        
-        dobInput.addEventListener('input', updateAge);
-        updateAge(); // Calculate on page load
-    }
-});
+// Age calculation is handled by validation.js
 
 // Popup notification system
-function showNotification(message, type = 'success', duration = 5000) {
+function showNotification(message, type = 'success', duration = 2000) {
     const container = document.getElementById('notificationContainer');
     if (!container) return;
     
@@ -358,8 +360,74 @@ document.addEventListener('DOMContentLoaded', () => {
     
     <?php if ($info): ?>
         <?php foreach ($info as $message): ?>
-            showNotification('<?= addslashes(htmlspecialchars($message)) ?>', 'success', 5000);
+            showNotification('<?= addslashes(htmlspecialchars($message)) ?>', 'success', 2000);
         <?php endforeach; ?>
     <?php endif; ?>
+    
+    // Enter key navigation functionality
+    function setupEnterNavigation() {
+        const form = document.querySelector('form');
+        if (!form) return;
+        
+        // Add event listener to all form elements
+        const formElements = form.querySelectorAll('input, select, textarea');
+        formElements.forEach(element => {
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    
+                    // Get the next field from data attribute
+                    const nextFieldName = this.getAttribute('data-next-field');
+                    if (nextFieldName) {
+                        const nextField = form.querySelector(`[name="${nextFieldName}"]`);
+                        if (nextField) {
+                            nextField.focus();
+                            // If it's a select, open it
+                            if (nextField.tagName === 'SELECT') {
+                                nextField.click();
+                            }
+                        }
+                    } else {
+                        // If no next field specified, try to find the next input
+                        const currentIndex = Array.from(formElements).indexOf(this);
+                        const nextElement = formElements[currentIndex + 1];
+                        if (nextElement) {
+                            nextElement.focus();
+                            if (nextElement.tagName === 'SELECT') {
+                                nextElement.click();
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    // Initialize enter navigation
+    setupEnterNavigation();
+});
+
+// Handle ESC key to redirect to dashboard (outside DOMContentLoaded)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        // Check if any form element is focused
+        const activeElement = document.activeElement;
+        const isFormElement = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.tagName === 'SELECT' ||
+            activeElement.tagName === 'BUTTON' ||
+            activeElement.closest('form')
+        );
+        
+        // Only redirect if no form element is focused
+        if (!isFormElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.replace('dashboard.php');
+        }
+    }
 });
 </script>
+
+<script src="validation.js"></script>

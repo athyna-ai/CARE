@@ -98,7 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				<input type="checkbox" id="accept_policy" name="accept_policy" class="h-4 w-4 rounded border-slate-300 bg-white">
 				<label for="accept_policy" class="text-slate-700">I accept the policy</label>
 			</div>
-			<button type="submit" id="registerButton" disabled class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-3 rounded-xl transition">Create Admin Account</button>
+			<button type="submit" id="registerButton" disabled class="w-full bg-clinic-blue hover:bg-clinic-tea text-white font-semibold py-3 rounded-xl transition">Create Admin Account</button>
 			<p class="text-sm text-slate-600"><a href="login.php" class="text-sky-700 hover:underline">Back to Login</a></p>
 		</form>
 			</div>

@@ -99,11 +99,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 ?>
-<?php $pageTitle = 'Account Settings'; $showTopNav = true; $showSidebar = true; include __DIR__ . '/partials/header.php'; ?>
+<?php $pageTitle = 'Account Settings'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/partials/header.php'; ?>
 	<div class="min-h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8">
 		<div class="w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10">
 			<div class="flex justify-between items-center mb-4">
-				<h1 class="text-2xl font-semibold">Account Settings</h1>
+				<div>
+					<div class="flex items-center gap-4 mb-2">
+						<a href="dashboard.php" class="flex items-center gap-2 text-clinic-blue hover:text-clinic-tea transition-colors">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+							</svg>
+							Back to Dashboard
+						</a>
+					</div>
+					<h1 class="text-2xl font-semibold">Account Settings</h1>
+				</div>
 				<?php if (!$showRegisterForm): ?>
 					<form method="post" class="inline">
 						<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />

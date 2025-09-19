@@ -1,62 +1,91 @@
-<?php
-declare(strict_types=1);
-require_once __DIR__ . '/../config.php';
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title><?= isset($pageTitle) ? htmlspecialchars($pageTitle) : 'CARE: Clinic Administration & Records System' ?></title>
-	<script src="https://cdn.tailwindcss.com"></script>
-	<script>
-		tailwind.config = {
-			theme: {
-				extend: {
-					colors: {
-						brand: {
-							light: '#93c5fd',
-							DEFAULT: '#3b82f6',
-							dark: '#1d4ed8'
-						},
-						accent: {
-							yellow: '#f59e0b',
-							red: '#ef4444'
-						}
-					}
-				}
-			}
-		};
-	</script>
-	<link rel="stylesheet" href="/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($pageTitle ?? 'CARE - Clinic Administration & Records System') ?></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'clinic-blue': '#3971b8',
+                        'clinic-tea': '#c8d69b',
+                        'clinic-ivory': '#fbfcee',
+                        'clinic-vanilla': '#f6e6a5',
+                        'clinic-dark': '#343b1b',
+                        'clinic-green': '#22c55e',
+                        'clinic-purple': '#a855f7'
+                    },
+                    fontFamily: {
+                        'poppins': ['Poppins', 'sans-serif'],
+                        'comfortaa': ['Comfortaa', 'cursive']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .font-comfortaa { font-family: 'Comfortaa', cursive; }
+    </style>
 </head>
-<body class="min-h-screen bg-gradient-to-br from-white via-sky-50 to-blue-50 text-slate-800">
-    <header class="fixed top-0 inset-x-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200 shadow-sm">
-        <div class="w-full px-6 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <?php $enableSidebar = (!empty($_SESSION['user']) && ($GLOBALS['showSidebar'] ?? false)); if ($enableSidebar): ?>
-                    <button id="sidebarToggle" class="inline-flex items-center justify-center h-10 w-10 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 shadow-sm transition-all duration-200" aria-label="Toggle navigation">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
-                    </button>
+<body class="bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla min-h-screen">
+    <!-- Top Navigation Bar -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-md border-b border-clinic-tea/20 shadow-lg">
+        <div class="flex items-center justify-between px-4 py-3 h-20">
+            <!-- Left side - Hamburger menu and logo -->
+            <div class="flex items-center gap-4">
+                <!-- Hamburger Menu Button - Only show when sidebar is enabled -->
+                <?php if ($showSidebar ?? false): ?>
+                <button id="sidebarToggle" class="p-2 rounded-xl bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 hover:scale-105">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
                 <?php endif; ?>
-				<div class="h-8 w-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 ring-2 ring-sky-200/60"></div>
-				<div class="font-semibold tracking-wide">CARE<span class="ml-2 text-xs text-slate-500 font-normal">Clinic Administration &amp; Records System</span></div>
-			</div>
-            <?php $showTopNav = $GLOBALS['showTopNav'] ?? false; if (!empty($_SESSION['user']) && $showTopNav): ?>
-                <nav class="hidden md:flex items-center gap-4 text-sm">
-                    <a href="dashboard.php" class="hover:text-sky-700 transition">Dashboard</a>
-                    <a href="logs.php" class="hover:text-sky-700 transition">Logs</a>
-                    <form action="logout.php" method="post">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>">
-                        <button class="text-red-600 hover:underline">Logout</button>
-                    </form>
-                </nav>
-            <?php endif; ?>
-		</div>
-	</header>
-    <main class="pt-20 pr-0 min-h-screen transition-all duration-300" id="mainContent">
-        <?php if ($enableSidebar) { include __DIR__ . '/sidebar.php'; } ?>
-        <div class="w-full">
+                
+                <!-- Logo and Title -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-clinic-blue to-clinic-tea shadow-lg"></div>
+                    <div>
+                        <h1 class="text-xl font-comfortaa font-bold text-clinic-dark">CARE</h1>
+                        <p class="text-xs text-clinic-dark/60 font-poppins">Clinic Administration & Records System</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right side - Navigation and logout -->
+            <div class="flex items-center gap-4">
+                <!-- Index button - only show on login page -->
+                <?php if (basename($_SERVER['PHP_SELF']) === 'login.php'): ?>
+                <a href="index.php" class="px-4 py-2 bg-clinic-ivory/60 hover:bg-clinic-ivory/80 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                    Index
+                </a>
+                <?php endif; ?>
+                
+                <!-- Dashboard and logout - only show if user is logged in -->
+                <?php if (isset($_SESSION['user']) && !empty($_SESSION['user'])): ?>
+                <a href="dashboard.php" class="px-4 py-2 bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                    Dashboard
+                </a>
+                <a href="logout.php" class="px-4 py-2 bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                    Logout
+                </a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </header>
 
+    <!-- Sidebar -->
+    <?php if ($showSidebar ?? false): ?>
+        <?php include __DIR__ . '/sidebar.php'; ?>
+    <?php endif; ?>
+
+    <!-- Main Content Area -->
+    <main id="mainContent" class="transition-all duration-300 ease-in-out pt-20 min-h-screen <?= ($showSidebar ?? false) ? 'lg:pl-80' : '' ?>">
+        <div class="w-full h-full">

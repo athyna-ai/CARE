@@ -136,6 +136,7 @@ include __DIR__ . '/partials/header.php';
                                value="<?= htmlspecialchars($search) ?>"
                                placeholder="Search archived records..." 
                                class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 text-slate-800"
+                               style="background-color: white !important; color: #1e293b !important;"
                                autofocus>
                     </div>
                 </div>
@@ -227,8 +228,7 @@ include __DIR__ . '/partials/header.php';
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                                         <div class="flex items-center gap-2">
                                             <button onclick="restoreRecord(<?= $record['id'] ?>, '<?= htmlspecialchars($record['name']) ?>', '<?= $type ?>')" 
-                                                    class="text-green-600 hover:text-green-800 transition-colors" 
-                                                    title="Restore Record">
+                                                    class="text-green-600 hover:text-green-800 transition-colors">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
                                                 </svg>

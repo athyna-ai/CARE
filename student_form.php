@@ -40,6 +40,7 @@ $pdo->exec('CREATE TABLE IF NOT EXISTS students (
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $prefillRfid = sanitize_string($_GET['rfid'] ?? '');
+$prefillLevel = sanitize_string($_GET['level'] ?? '');
 $errors = [];
 $info = [];
 $student = null;
@@ -48,6 +49,22 @@ if ($id) {
 	$st = $pdo->prepare('SELECT * FROM students WHERE id = ?');
 	$st->execute([$id]);
 	$student = $st->fetch();
+	
+	// Load existing emergency contacts
+	if ($student && !empty($student['contacts'])) {
+		$existingContacts = json_decode($student['contacts'], true);
+		if (is_array($existingContacts)) {
+			$student['emergency_contacts'] = $existingContacts;
+		}
+	}
+	
+	// Parse existing address into separate fields
+	if ($student && !empty($student['address'])) {
+		$addressParts = explode(',', $student['address']);
+		$student['barangay'] = trim($addressParts[0] ?? '');
+		$student['municipality'] = trim($addressParts[1] ?? '');
+		$student['province'] = trim($addressParts[2] ?? '');
+	}
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -62,7 +79,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$strand = sanitize_string($_POST['strand'] ?? '');
 		$year_grade = sanitize_string($_POST['year_grade'] ?? '');
 		$rfid = sanitize_string($_POST['rfid'] ?? '');
-		$address = sanitize_string($_POST['address'] ?? '');
+		$barangay = sanitize_string($_POST['barangay'] ?? '');
+		$municipality = sanitize_string($_POST['municipality'] ?? '');
+		$province = sanitize_string($_POST['province'] ?? '');
+		// Combine address fields
+		$address = trim($barangay . ', ' . $municipality . ', ' . $province, ', ');
 		$age = (int)($_POST['age'] ?? 0);
 		$dob = sanitize_string($_POST['dob'] ?? '');
 		$religion = sanitize_string($_POST['religion'] ?? '');
@@ -72,28 +93,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		if (empty($allergies)) {
 			$allergies = 'N/A';
 		}
-		$emergency_contact = sanitize_string($_POST['emergency_contact'] ?? '');
 		$contacts = $_POST['contacts'] ?? [];
 		$consented = isset($_POST['consented']);
 
 		if ($name === '' || $gender === '' || $level === '' || $rfid === '') { $errors[] = 'Name, Gender, Level and RFID are required.'; }
 		if ($dob !== '' && !preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dob)) { $errors[] = 'DOB must be DD/MM/YYYY.'; }
 		if (!$consented) { $errors[] = 'You must agree to the data privacy consent.'; }
+		
+		// Validate that at least one contact is provided
+		$validContacts = array_filter(array_map('trim', (array)$contacts), function($contact) {
+			return !empty($contact);
+		});
+		if (empty($validContacts)) { $errors[] = 'At least one contact number is required.'; }
 
 		if (!$errors) {
 			// Store original data in main table (no hashing)
 			$contactsJson = json_encode(array_values(array_filter(array_map('trim', (array)$contacts))));
 			
 			if ($id) {
-				$upd = $pdo->prepare('UPDATE students SET name=?, gender=?, level=?, course=?, section=?, strand=?, year_grade=?, rfid=?, address=?, age=?, dob=STR_TO_DATE(?,"%d/%m/%Y"), religion=?, guardian=?, allergies=?, contacts=?, emergency_contact=? WHERE id=?');
-				$upd->execute([$name,$gender,$level,$course,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$emergency_contact,$id]);
+				$upd = $pdo->prepare('UPDATE students SET name=?, gender=?, level=?, course=?, section=?, strand=?, year_grade=?, rfid=?, address=?, age=?, dob=STR_TO_DATE(?,"%d/%m/%Y"), religion=?, guardian=?, allergies=?, contacts=? WHERE id=?');
+				$upd->execute([$name,$gender,$level,$course,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$id]);
 				$info[] = 'Student updated successfully.';
 				
 				// Log activity
 				log_activity($pdo, (int)$_SESSION['user']['id'], 'student_update', "Updated student: {$name} ({$level})", 'student_form');
 			} else {
-				$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts, emergency_contact) VALUES (?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?,?)');
-				$ins->execute([$name,$gender,$level,$course,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$emergency_contact]);
+				$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts) VALUES (?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?)');
+				$ins->execute([$name,$gender,$level,$course,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson]);
 				$info[] = 'Student registered successfully.';
 				
 				// Log activity
@@ -107,35 +133,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 ?>
-<?php $pageTitle = $id ? 'Edit Student' : 'Register Student'; $showTopNav = true; $showSidebar = true; include __DIR__ . '/partials/header.php'; ?>
-	<div class="min-h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8">
-		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10">
+<?php $pageTitle = $id ? 'Edit Student' : 'Register Student'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/partials/header.php'; ?>
+	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
+		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-full flex flex-col">
 			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
-			<form method="post" class="grid md:grid-cols-2 gap-4" autocomplete="on">
+			<form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
 				<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
 				<div>
-					<label class="block text-slate-700 mb-1">Name</label>
-					<input type="text" name="name" value="<?= htmlspecialchars($student['name'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required />
+					<label class="block text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
+					<input type="text" name="name" value="<?= htmlspecialchars($student['name'] ?? '') ?>" 
+						   placeholder="e.g., Juan Dela Cruz Santos" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   required 
+						   autofocus
+						   data-next-field="gender" />
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Gender</label>
-					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required>
+					<label class="block text-slate-700 mb-1">Gender <span class="text-red-500">*</span></label>
+					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="level">
 						<option value="">Select Gender</option>
 						<option value="Male" <?= ($student['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
 						<option value="Female" <?= ($student['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
 					</select>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Level</label>
-					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required>
-						<option value="">Select Level</option>
-						<option value="Pre-school" <?= ($student['level'] ?? '') === 'Pre-school' ? 'selected' : '' ?>>Pre-school</option>
-						<option value="Elementary" <?= ($student['level'] ?? '') === 'Elementary' ? 'selected' : '' ?>>Elementary</option>
-						<option value="High School" <?= ($student['level'] ?? '') === 'High School' ? 'selected' : '' ?>>High School</option>
-						<option value="Senior High School" <?= ($student['level'] ?? '') === 'Senior High School' ? 'selected' : '' ?>>Senior High School</option>
-						<option value="College" <?= ($student['level'] ?? '') === 'College' ? 'selected' : '' ?>>College</option>
+					<label class="block text-slate-700 mb-1">Education Level <span class="text-red-500">*</span></label>
+					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="rfid">
+						<option value="">Select Education Level</option>
+						<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel) === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
+						<option value="Elementary" <?= (($student['level'] ?? $prefillLevel) === 'Elementary') ? 'selected' : '' ?>>Elementary</option>
+						<option value="High School" <?= (($student['level'] ?? $prefillLevel) === 'High School') ? 'selected' : '' ?>>High School</option>
+						<option value="Senior High School" <?= (($student['level'] ?? $prefillLevel) === 'Senior High School') ? 'selected' : '' ?>>Senior High School</option>
+						<option value="College" <?= (($student['level'] ?? $prefillLevel) === 'College') ? 'selected' : '' ?>>College</option>
 					</select>
 				</div>
 				<!-- Year/Grade field (dynamic based on level) -->
@@ -178,25 +209,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					</select>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">RFID</label>
-					<input type="text" name="rfid" value="<?= htmlspecialchars($prefillRfid) ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required />
+					<label class="block text-slate-700 mb-1">RFID Number <span class="text-red-500">*</span></label>
+					<input type="text" name="rfid" value="<?= htmlspecialchars($prefillRfid) ?>" 
+						   placeholder="e.g., 1234567890" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   required 
+						   data-next-field="barangay" />
 				</div>
 				<div class="md:col-span-2">
-					<label class="block text-slate-700 mb-1">Address</label>
-					<input type="text" name="address" value="<?= htmlspecialchars($student['address'] ?? '') ?>" placeholder="Barangay/Municipality/City, Province" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" />
+					<label class="block text-slate-700 mb-1">Complete Address</label>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Barangay</label>
+							<input type="text" name="barangay" value="<?= htmlspecialchars($student['barangay'] ?? '') ?>" 
+								   placeholder="e.g., Cawayang Bugtong" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="municipality" />
+						</div>
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Municipality/City</label>
+							<input type="text" name="municipality" value="<?= htmlspecialchars($student['municipality'] ?? '') ?>" 
+								   placeholder="e.g., San Juan" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="province" />
+						</div>
+						<div>
+							<label class="block text-slate-600 text-sm mb-1">Province</label>
+							<input type="text" name="province" value="<?= htmlspecialchars($student['province'] ?? '') ?>" 
+								   placeholder="e.g., Nueva Ecija" 
+								   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+								   data-next-field="dob" />
+						</div>
+					</div>
+					<p class="text-xs text-slate-500 mt-2">Enter each part of the address separately</p>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Date of Birth (DD/MM/YYYY)</label>
-					<input type="text" name="dob" id="dob" value="<?= isset($student['dob']) && $student['dob'] ? date('d/m/Y', strtotime($student['dob'])) : '' ?>" pattern="\d{2}/\d{2}/\d{4}" placeholder="DD/MM/YYYY" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" maxlength="10" />
+					<label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
+					<input type="text" name="dob" id="dob" 
+						   value="<?= isset($student['dob']) && $student['dob'] ? date('d/m/Y', strtotime($student['dob'])) : '' ?>" 
+						   pattern="\d{2}/\d{2}/\d{4}" 
+						   placeholder="DD/MM/YYYY" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   maxlength="10" 
+						   data-next-field="religion" />
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Age</label>
 					<input type="number" name="age" id="ageInput" value="<?= htmlspecialchars((string)($student['age'] ?? '')) ?>" readonly class="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-3 text-slate-600" />
-					<p class="text-xs text-slate-500 mt-1">Age is automatically calculated from date of birth</p>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Religion</label>
-					<select name="religion" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
+					<select name="religion" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" data-next-field="guardian">
+						<option value="">Select Religion</option>
 						<?php
 						$religions = ['Roman Catholic','Islam','Iglesia ni Cristo','Born Again Christian','United Methodist','Aglipayan (IFI)','Seventh-day Adventist','Baptist','Hindu','Buddhist','None'];
 						$curR = $student['religion'] ?? '';
@@ -208,24 +272,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					</select>
 				</div>
 				<div>
-					<label class="block text-slate-700 mb-1">Parent/Guardian</label>
-					<input type="text" name="guardian" value="<?= htmlspecialchars($student['guardian'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" />
-				</div>
-				<div>
-					<label class="block text-slate-700 mb-1">Emergency Contact</label>
-					<input type="text" name="emergency_contact" value="<?= htmlspecialchars($student['emergency_contact'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" placeholder="09xxxxxxxxx" />
+					<label class="block text-slate-700 mb-1">Parent/Guardian Name</label>
+					<input type="text" name="guardian" value="<?= htmlspecialchars($student['guardian'] ?? '') ?>" 
+						   placeholder="e.g., Maria Santos Dela Cruz" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   data-next-field="contacts" />
 				</div>
 				<div class="md:col-span-2">
-					<label class="block text-slate-700 mb-1">Contact Numbers</label>
+					<label class="block text-slate-700 mb-1">Emergency Contacts <span class="text-red-500">*</span></label>
 					<div id="contactsContainer" class="space-y-2">
-						<input type="text" name="contacts[]" class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" placeholder="09xxxxxxxxx" />
+						<div class="flex items-center gap-2">
+							<input type="text" name="contacts[]" 
+								   class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" 
+								   placeholder="09xxxxxxxxx" 
+								   pattern="09[0-9]{9}" 
+								   data-next-field="allergies" />
+							<button type="button" class="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors remove-contact-btn" style="display: none;">Remove</button>
+						</div>
 					</div>
-					<button type="button" id="addContactBtn" class="mt-2 px-3 py-2 rounded-lg border border-slate-300 text-slate-700">Add another</button>
+					<button type="button" id="addContactBtn" class="mt-2 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Add another contact</button>
+					<p class="mt-1 text-xs text-slate-500">Add emergency contact numbers (at least one required)</p>
 				</div>
 				<div class="md:col-span-2">
-					<label class="block text-slate-700 mb-1">Allergies</label>
-					<textarea name="allergies" rows="3" placeholder="List any known allergies (e.g., peanuts, shellfish, medications). Leave blank if none." class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800"><?= htmlspecialchars($student['allergies'] ?? '') ?></textarea>
-					<p class="mt-1 text-xs text-slate-500">Enter "None" or leave blank if the student has no known allergies.</p>
+					<label class="block text-slate-700 mb-1">Allergies & Medical Notes</label>
+					<textarea name="allergies" rows="3" 
+							  placeholder="List any known allergies (e.g., peanuts, shellfish, medications). Leave blank if none." 
+							  class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800"
+							  data-next-field="consent"><?= htmlspecialchars($student['allergies'] ?? '') ?></textarea>
+					<p class="mt-1 text-xs text-slate-500">Enter "None" or leave blank if the student has no known allergies or medical conditions.</p>
 				</div>
 
 				<div class="md:col-span-2">
@@ -250,16 +324,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					<div id="formHelp" class="mt-2 text-xs text-slate-500 text-center">
 						<span id="formHelpText">Fill in all required fields (Name, Level, RFID) and read the complete Data Privacy Consent</span>
 					</div>
-					<a href="rfid_portal.php" class="mt-2 inline-block w-full text-center border border-slate-300 rounded-xl py-3 hover:bg-slate-50">Cancel</a>
+					<a href="dashboard.php" class="mt-2 inline-block w-full text-center border border-slate-300 rounded-xl py-3 hover:bg-slate-50">Cancel</a>
 				</div>
 			</form>
 		</div>
 	</div>
 
 	<!-- Data Privacy Modal -->
-	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center">
+	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
 		<div class="absolute inset-0 bg-slate-900/50"></div>
-		<div class="relative w-full max-w-2xl mx-4 bg-white rounded-2xl shadow-xl p-6 max-h-[80vh] flex flex-col">
+		<div class="relative w-full max-w-4xl bg-white rounded-2xl shadow-xl p-6 max-h-[80vh] flex flex-col">
 			<h2 class="text-xl font-semibold mb-4">Data Privacy Consent</h2>
 			<div id="privacyContent" class="flex-1 overflow-y-auto space-y-3 text-sm text-slate-700 pr-2">
 				<p>The Department of Education shall engage in the collection of health / medical information for the purposes of tracking, provision of necessary health / medical interventions, and educational purposes.</p>
@@ -284,7 +358,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 <script>
 // Popup notification system
-function showNotification(message, type = 'success', duration = 5000) {
+function showNotification(message, type = 'success', duration = 2000) {
     const container = document.getElementById('notificationContainer');
     if (!container) return;
     
@@ -371,8 +445,130 @@ document.addEventListener('DOMContentLoaded', () => {
     
     <?php if ($info): ?>
         <?php foreach ($info as $message): ?>
-            showNotification('<?= addslashes(htmlspecialchars($message)) ?>', 'success', 5000);
+            showNotification('<?= addslashes(htmlspecialchars($message)) ?>', 'success', 2000);
         <?php endforeach; ?>
     <?php endif; ?>
+    
+    // Auto-trigger level change if prefill level is set
+    <?php if ($prefillLevel && !$student): ?>
+    const levelSelect = document.getElementById('levelSelect');
+    if (levelSelect && levelSelect.value === '<?= htmlspecialchars($prefillLevel) ?>') {
+        // Trigger change event to populate dependent fields
+        levelSelect.dispatchEvent(new Event('change'));
+    }
+    <?php endif; ?>
+    
+    // Enter key navigation functionality
+    function setupEnterNavigation() {
+        const form = document.querySelector('form');
+        if (!form) return;
+        
+        // Add event listener to all form elements
+        const formElements = form.querySelectorAll('input, select, textarea');
+        formElements.forEach(element => {
+            element.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    
+                    // Get the next field from data attribute
+                    const nextFieldName = this.getAttribute('data-next-field');
+                    if (nextFieldName) {
+                        const nextField = form.querySelector(`[name="${nextFieldName}"]`);
+                        if (nextField) {
+                            nextField.focus();
+                            // If it's a select, open it
+                            if (nextField.tagName === 'SELECT') {
+                                nextField.click();
+                            }
+                        }
+                    } else {
+                        // If no next field specified, try to find the next input
+                        const currentIndex = Array.from(formElements).indexOf(this);
+                        const nextElement = formElements[currentIndex + 1];
+                        if (nextElement) {
+                            nextElement.focus();
+                            if (nextElement.tagName === 'SELECT') {
+                                nextElement.click();
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    // Initialize enter navigation
+    setupEnterNavigation();
+    
+    // Emergency contacts functionality - simple and clean
+    const addContactBtn = document.getElementById('addContactBtn');
+    const contactsContainer = document.getElementById('contactsContainer');
+    
+    if (addContactBtn && contactsContainer) {
+        addContactBtn.addEventListener('click', function() {
+            // Check if we already have 2 contacts (1 default + 1 added)
+            const existingContacts = contactsContainer.querySelectorAll('input[name="contacts[]"]');
+            if (existingContacts.length >= 2) {
+                return; // Don't add more than 2 total
+            }
+            
+            // Create the new contact field
+            const newContactDiv = document.createElement('div');
+            newContactDiv.className = 'flex items-center gap-2';
+            
+            const newInput = document.createElement('input');
+            newInput.type = 'text';
+            newInput.name = 'contacts[]';
+            newInput.className = 'w-full rounded-xl bg-white border border-slate-300 px-4 py-3';
+            newInput.placeholder = '09xxxxxxxxx';
+            newInput.pattern = '09[0-9]{9}';
+            
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors';
+            removeBtn.textContent = 'Remove';
+            removeBtn.onclick = function() {
+                newContactDiv.remove();
+                // Re-enable the add button when extra contact is removed
+                addContactBtn.disabled = false;
+                addContactBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                addContactBtn.classList.add('hover:bg-slate-50');
+            };
+            
+            newContactDiv.appendChild(newInput);
+            newContactDiv.appendChild(removeBtn);
+            contactsContainer.appendChild(newContactDiv);
+            
+            // Disable the add button after adding extra contact
+            addContactBtn.disabled = true;
+            addContactBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            addContactBtn.classList.remove('hover:bg-slate-50');
+        });
+    }
+    
+});
+
+// Handle ESC key to redirect to dashboard (outside DOMContentLoaded)
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        // Check if any form element is focused
+        const activeElement = document.activeElement;
+        const isFormElement = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.tagName === 'SELECT' ||
+            activeElement.tagName === 'BUTTON' ||
+            activeElement.closest('form')
+        );
+        
+        // Only redirect if no form element is focused
+        if (!isFormElement) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.replace('dashboard.php');
+        }
+    }
 });
 </script>
+
+<script src="validation.js"></script>
