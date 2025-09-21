@@ -1,18 +1,18 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/core/config.php';
-require_once __DIR__ . '/core/helpers.php';
+require_once __DIR__ . '/../core/config.php';
+require_once __DIR__ . '/../core/helpers.php';
 
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
-    header('Location: admin/dashboard.php');
+    header('Location: ../admin/dashboard.php');
     exit;
 }
 
 $pageTitle = 'Welcome';
 $showTopNav = false;
 $showSidebar = false;
-include __DIR__ . '/partials/header.php';
+include __DIR__ . '/../partials/header.php';
 ?>
 
 <div class="min-h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla flex items-center justify-center p-4">
@@ -78,7 +78,7 @@ include __DIR__ . '/partials/header.php';
             </p>
             
             <div class="flex justify-center">
-                <a href="auth/login.php" class="inline-block px-12 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-4 border-2 border-blue-500">
+                <a href="../auth/login.php" class="inline-block px-12 py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center gap-4 border-2 border-blue-500">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                     </svg>
@@ -122,4 +122,4 @@ include __DIR__ . '/partials/header.php';
 }
 </style>
 
-<?php include __DIR__ . '/partials/footer.php'; ?>
+<?php include __DIR__ . '/../partials/footer.php'; ?>

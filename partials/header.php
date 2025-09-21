@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="../assets/styles.css">
     <script>
         tailwind.config = {
             theme: {
@@ -63,17 +63,17 @@
             <div class="flex items-center gap-4">
                 <!-- Index button - only show on login page -->
                 <?php if (basename($_SERVER['PHP_SELF']) === 'login.php'): ?>
-                <a href="index.php" class="px-4 py-2 bg-clinic-ivory/60 hover:bg-clinic-ivory/80 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                <a href="../index.php" class="px-4 py-2 bg-clinic-ivory/60 hover:bg-clinic-ivory/80 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Index
                 </a>
                 <?php endif; ?>
                 
                 <!-- Dashboard and logout - only show if user is logged in -->
                 <?php if (isset($_SESSION['user']) && !empty($_SESSION['user'])): ?>
-                <a href="dashboard.php" class="px-4 py-2 bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                <a href="../admin/dashboard.php" class="px-4 py-2 bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Dashboard
                 </a>
-                <a href="logout.php" class="px-4 py-2 bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                <a href="../auth/logout.php" class="px-4 py-2 bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Logout
                 </a>
                 <?php endif; ?>
