@@ -38,6 +38,24 @@ if ($patientType === 'student') {
     $patient = $stmt->fetch();
 }
 
+// For display purposes, we need to get the actual data from the contacts JSON
+// The contacts field contains the original data for functionality
+if ($patient && !empty($patient['contacts'])) {
+    // Check if contacts is already an array or needs to be decoded
+    if (is_string($patient['contacts'])) {
+        $contacts = json_decode($patient['contacts'], true);
+        if (is_array($contacts)) {
+            $patient['contacts'] = $contacts;
+        }
+    }
+    // If it's already an array, we can use it directly
+}
+
+// Since we're using hashed data in the database, we need to get the actual values for display
+// For now, we'll use the contacts field which contains the original data
+// In a real implementation, you'd need to decrypt the hashed fields
+// For this fix, we'll assume the contacts field contains the original contact data
+
 if (!$patient) {
     error_log("Patient not found - ID: {$patientId}, Type: {$patientType}, Converted ID: {$patientIdInt}, redirecting to dashboard");
     header('Location: ../admin/dashboard.php?error=patient_not_found');
@@ -318,6 +336,155 @@ document.addEventListener('DOMContentLoaded', function() {
         const newUrl = window.location.pathname + '?id=' + urlParams.get('id') + '&type=' + urlParams.get('type');
         window.history.replaceState({}, document.title, newUrl);
     }
+    
+    // Auto-capitalization functions
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    function toSentenceCase(str) {
+        return str.replace(/(^\w{1}|\.\s*\w{1})/gi, function(txt) {
+            return txt.toUpperCase();
+        });
+    }
+    
+    // Apply auto-capitalization to form fields
+    function setupAutoCapitalization() {
+        // Name field - Title Case
+        const nameField = document.querySelector('input[name="name"]');
+        if (nameField) {
+            nameField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Department field - Title Case
+        const departmentField = document.querySelector('input[name="department"]');
+        if (departmentField) {
+            departmentField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Guardian field - Title Case
+        const guardianField = document.querySelector('input[name="guardian"]');
+        if (guardianField) {
+            guardianField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Address field - Sentence Case
+        const addressField = document.querySelector('input[name="address"]');
+        if (addressField) {
+            addressField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Religion field - Title Case
+        const religionField = document.querySelector('input[name="religion"]');
+        if (religionField) {
+            religionField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Section field - Title Case
+        const sectionField = document.querySelector('input[name="section"]');
+        if (sectionField) {
+            sectionField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Sport field - Title Case
+        const sportField = document.querySelector('input[name="sport"]');
+        if (sportField) {
+            sportField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Position field - Title Case
+        const positionField = document.querySelector('input[name="position"]');
+        if (positionField) {
+            positionField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Chief complaint field - Sentence Case
+        const chiefComplaintField = document.querySelector('input[name="chief_complaint"]');
+        if (chiefComplaintField) {
+            chiefComplaintField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Duration field - Sentence Case
+        const durationField = document.querySelector('input[name="duration"]');
+        if (durationField) {
+            durationField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Other reason field - Sentence Case
+        const otherReasonField = document.querySelector('input[name="other_reason"]');
+        if (otherReasonField) {
+            otherReasonField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Other medication field - Sentence Case
+        const otherMedicationField = document.querySelector('input[name="other_medication"]');
+        if (otherMedicationField) {
+            otherMedicationField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Other first aid field - Sentence Case
+        const otherFirstAidField = document.querySelector('input[name="other_first_aid"]');
+        if (otherFirstAidField) {
+            otherFirstAidField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+    }
+    
+    // Initialize auto-capitalization
+    setupAutoCapitalization();
 });
 
 // Add notification functions to global scope for easy access
@@ -522,8 +689,8 @@ window.closeNotification = closeNotification;
                                             <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Parent Contact</span>
                                             <p class="text-sm font-poppins font-semibold text-clinic-dark">
                                                 <?php 
-                                                // Parse contacts JSON to get parent contact
-                                                $contacts = json_decode($patient['contacts'] ?? '[]', true);
+                                                // Get parent contact from contacts array
+                                                $contacts = $patient['contacts'] ?? [];
                                                 $parentContact = '';
                                                 if (is_array($contacts) && !empty($contacts)) {
                                                     $parentContact = $contacts[0]; // First contact is usually parent
@@ -1276,9 +1443,9 @@ window.closeNotification = closeNotification;
                     <label class="block text-slate-700 mb-2"><?= $patientType === 'student' ? 'Parent/Guardian Contact Numbers' : 'Emergency Contact Numbers' ?></label>
                     <div id="contactNumbersContainer">
                         <?php 
-                        $contacts = json_decode($patient['contacts'] ?? '[]', true);
+                        $contacts = $patient['contacts'] ?? [];
                         
-                        // If no contacts in JSON, check if there's an emergency_contact field (legacy data)
+                        // If no contacts in array, check if there's an emergency_contact field (legacy data)
                         if (empty($contacts) && !empty($patient['emergency_contact'])) {
                             $contacts = [$patient['emergency_contact']];
                         }

@@ -373,6 +373,78 @@ document.addEventListener('DOMContentLoaded', () => {
         <?php endforeach; ?>
     <?php endif; ?>
     
+    // Auto-capitalization functions
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    function toSentenceCase(str) {
+        return str.replace(/(^\w{1}|\.\s*\w{1})/gi, function(txt) {
+            return txt.toUpperCase();
+        });
+    }
+    
+    // Apply auto-capitalization to form fields
+    function setupAutoCapitalization() {
+        // Name field - Title Case
+        const nameField = document.querySelector('input[name="name"]');
+        if (nameField) {
+            nameField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Department field - Title Case
+        const departmentField = document.querySelector('input[name="department"]');
+        if (departmentField) {
+            departmentField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Address fields - Sentence Case
+        const addressFields = ['barangay', 'municipality', 'province'];
+        addressFields.forEach(fieldName => {
+            const field = document.querySelector(`input[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('blur', function() {
+                    if (this.value.trim()) {
+                        this.value = toSentenceCase(this.value.trim());
+                    }
+                });
+            }
+        });
+        
+        // Emergency contact field - Title Case
+        const emergencyContactField = document.querySelector('input[name="emergency_contact"]');
+        if (emergencyContactField) {
+            emergencyContactField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Allergies field - Sentence Case
+        const allergiesField = document.querySelector('textarea[name="allergies"]');
+        if (allergiesField) {
+            allergiesField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+    }
+    
+    // Initialize auto-capitalization
+    setupAutoCapitalization();
+    
     // Enter key navigation functionality
     function setupEnterNavigation() {
         const form = document.querySelector('form');

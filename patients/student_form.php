@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					<label class="block text-slate-700 mb-1">Education Level <span class="text-red-500">*</span></label>
 					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="rfid">
 						<option value="">Select Education Level</option>
-						<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel ?? 'Pre-school') === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
+						<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel) === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
 						<option value="Elementary" <?= (($student['level'] ?? $prefillLevel) === 'Elementary') ? 'selected' : '' ?>>Elementary</option>
 						<option value="High School" <?= (($student['level'] ?? $prefillLevel) === 'High School') ? 'selected' : '' ?>>High School</option>
 						<option value="Senior High School" <?= (($student['level'] ?? $prefillLevel) === 'Senior High School') ? 'selected' : '' ?>>Senior High School</option>
@@ -534,13 +534,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Auto-trigger level change if prefill level is set
-    <?php if ($prefillLevel && !$student): ?>
-    if (levelSelect && levelSelect.value === '<?= htmlspecialchars($prefillLevel) ?>') {
-        // Trigger change event to populate dependent fields
-        levelSelect.dispatchEvent(new Event('change'));
-    }
-    <?php endif; ?>
     
     // Enter key navigation functionality
     function setupEnterNavigation() {
@@ -629,6 +622,89 @@ document.addEventListener('DOMContentLoaded', () => {
             addContactBtn.classList.remove('hover:bg-slate-50');
         });
     }
+    
+    // Auto-trigger level change if prefill level is set
+    <?php if ($prefillLevel && !$student): ?>
+    const levelSelectForAuto = document.getElementById('levelSelect');
+    if (levelSelectForAuto) {
+        // Set the value first, then trigger change event
+        levelSelectForAuto.value = '<?= htmlspecialchars($prefillLevel) ?>';
+        // Trigger change event to populate dependent fields
+        levelSelectForAuto.dispatchEvent(new Event('change'));
+    }
+    <?php endif; ?>
+    
+    // Auto-capitalization functions
+    function toTitleCase(str) {
+        return str.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+    }
+    
+    function toSentenceCase(str) {
+        return str.replace(/(^\w{1}|\.\s*\w{1})/gi, function(txt) {
+            return txt.toUpperCase();
+        });
+    }
+    
+    // Apply auto-capitalization to form fields
+    function setupAutoCapitalization() {
+        // Name field - Title Case
+        const nameField = document.querySelector('input[name="name"]');
+        if (nameField) {
+            nameField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Guardian field - Title Case
+        const guardianField = document.querySelector('input[name="guardian"]');
+        if (guardianField) {
+            guardianField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Address fields - Sentence Case
+        const addressFields = ['barangay', 'municipality', 'province'];
+        addressFields.forEach(fieldName => {
+            const field = document.querySelector(`input[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('blur', function() {
+                    if (this.value.trim()) {
+                        this.value = toSentenceCase(this.value.trim());
+                    }
+                });
+            }
+        });
+        
+        // Religion field - Title Case
+        const religionField = document.querySelector('input[name="religion"]');
+        if (religionField) {
+            religionField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toTitleCase(this.value.trim());
+                }
+            });
+        }
+        
+        // Allergies field - Sentence Case
+        const allergiesField = document.querySelector('input[name="allergies"]');
+        if (allergiesField) {
+            allergiesField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    this.value = toSentenceCase(this.value.trim());
+                }
+            });
+        }
+    }
+    
+    // Initialize auto-capitalization
+    setupAutoCapitalization();
     
 });
 

@@ -45,20 +45,49 @@ try {
     // Get the table name based on patient type
     $tableName = ($patientType === 'student') ? 'students' : 'faculty';
     
-    // Prepare the update data
+    // Prepare the update data with proper field mapping
+    $name = sanitize_string($_POST['name'] ?? '');
+    $address = sanitize_string($_POST['address'] ?? '');
+    $religion = sanitize_string($_POST['religion'] ?? '');
+    $allergies = sanitize_string($_POST['allergies'] ?? '');
+    
+    // Set to N/A if allergies is empty
+    if (empty(trim($allergies))) {
+        $allergies = 'N/A';
+    }
+    
+    // Hash the sensitive data
+    $nameHash = password_hash($name, PASSWORD_DEFAULT);
+    $addressHash = password_hash($address, PASSWORD_DEFAULT);
+    
+    // Create masked versions (show first 2 chars, mask the rest)
+    $nameMasked = strlen($name) > 2 ? substr($name, 0, 2) . str_repeat('*', strlen($name) - 2) : $name;
+    $addressMasked = strlen($address) > 2 ? substr($address, 0, 2) . str_repeat('*', strlen($address) - 2) : $address;
+    
+    // Prepare the update data - store both hashed and plain text for functionality
     $updateData = [
-        'name' => $_POST['name'] ?? '',
-        'dob' => $_POST['date_of_birth'] ?? '', // Map date_of_birth to dob
+        'name_hash' => $nameHash,
+        'name_masked' => $nameMasked,
+        'name' => $name, // Store plain text for display
+        'address_hash' => $addressHash,
+        'address_masked' => $addressMasked,
+        'address' => $address, // Store plain text for display
+        'dob' => !empty($_POST['date_of_birth']) ? date('Y-m-d', strtotime(str_replace('/', '-', $_POST['date_of_birth']))) : null,
         'gender' => $_POST['gender'] ?? '',
-        'religion' => $_POST['religion'] ?? '',
-        'address' => $_POST['address'] ?? '',
-        'allergies' => !empty($_POST['allergies']) ? $_POST['allergies'] : 'N/A',
+        'religion' => $religion,
+        'allergies' => $allergies,
         'updated_at' => date('Y-m-d H:i:s')
     ];
     
     // Add guardian field only for students
     if ($patientType === 'student') {
-        $updateData['guardian'] = $_POST['guardian'] ?? '';
+        $guardian = sanitize_string($_POST['guardian'] ?? '');
+        $guardianHash = password_hash($guardian, PASSWORD_DEFAULT);
+        $guardianMasked = strlen($guardian) > 2 ? substr($guardian, 0, 2) . str_repeat('*', strlen($guardian) - 2) : $guardian;
+        
+        $updateData['guardian_hash'] = $guardianHash;
+        $updateData['guardian_masked'] = $guardianMasked;
+        $updateData['guardian'] = $guardian; // Store plain text for display
     }
     
     // Handle contacts array for both students and faculty
@@ -73,12 +102,28 @@ try {
         exit;
     }
     
-    // Update contacts
-    $updateData['contacts'] = json_encode($contacts);
+    // Hash the contact numbers
+    $hashedContacts = [];
+    $maskedContacts = [];
+    foreach ($contacts as $contact) {
+        $hashedContacts[] = password_hash($contact, PASSWORD_DEFAULT);
+        $maskedContacts[] = strlen($contact) > 4 ? substr($contact, 0, 4) . str_repeat('*', strlen($contact) - 4) : $contact;
+    }
     
-    // Add emergency contact only for faculty (legacy field)
+    // Update contacts
+    $updateData['contacts'] = json_encode($contacts); // Store original for functionality
+    $updateData['contacts_hash'] = json_encode($hashedContacts);
+    $updateData['contacts_masked'] = json_encode($maskedContacts);
+    
+    // Add emergency contact for faculty (legacy field)
     if ($patientType === 'faculty') {
-        $updateData['emergency_contact'] = $contacts[0];
+        $emergencyContact = $contacts[0];
+        $emergencyContactHash = password_hash($emergencyContact, PASSWORD_DEFAULT);
+        $emergencyContactMasked = strlen($emergencyContact) > 4 ? substr($emergencyContact, 0, 4) . str_repeat('*', strlen($emergencyContact) - 4) : $emergencyContact;
+        
+        $updateData['emergency_contact'] = $emergencyContact;
+        $updateData['emergency_contact_hash'] = $emergencyContactHash;
+        $updateData['emergency_contact_masked'] = $emergencyContactMasked;
     }
     
     // Add type-specific fields
