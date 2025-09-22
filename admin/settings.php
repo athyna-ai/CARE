@@ -461,6 +461,158 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 break;
+                
+            case 'update_user_role':
+                $userId = (int)($_POST['user_id'] ?? 0);
+                $newRole = $_POST['new_role'] ?? '';
+                
+                if ($userId <= 0) {
+                    $errors[] = 'Invalid user ID.';
+                } else if ($userId === (int)$user['id']) {
+                    $errors[] = 'You cannot change your own role.';
+                } else if (!in_array($newRole, ['admin', 'regular'])) {
+                    $errors[] = 'Invalid role specified.';
+                } else {
+                    try {
+                        // Check if user exists
+                        $checkUser = $pdo->prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?");
+                        $checkUser->execute([$userId]);
+                        $targetUser = $checkUser->fetch();
+                        
+                        if (!$targetUser) {
+                            $errors[] = 'User not found.';
+                        } else {
+                            $isAdmin = $newRole === 'admin' ? 1 : 0;
+                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = ? WHERE id = ?");
+                            $updateRole->execute([$isAdmin, $userId]);
+                            
+                            if ($updateRole->rowCount() > 0) {
+                                $roleText = $isAdmin ? 'Admin' : 'Regular User';
+                                $info[] = "User '{$targetUser['name']}' role updated to {$roleText}.";
+                                log_activity($pdo, (int)$user['id'], 'user_role_updated', "Updated user role: {$targetUser['name']} to {$roleText}", 'settings');
+                            } else {
+                                $errors[] = 'Failed to update user role.';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'Error updating user role: ' . $e->getMessage();
+                    }
+                }
+                break;
+                
+            case 'toggle_user_status':
+                $userId = (int)($_POST['user_id'] ?? 0);
+                
+                if ($userId <= 0) {
+                    $errors[] = 'Invalid user ID.';
+                } else if ($userId === (int)$user['id']) {
+                    $errors[] = 'You cannot deactivate your own account.';
+                } else {
+                    try {
+                        // Check if user exists and get current status
+                        $checkUser = $pdo->prepare("SELECT id, name, email, is_active FROM users WHERE id = ?");
+                        $checkUser->execute([$userId]);
+                        $targetUser = $checkUser->fetch();
+                        
+                        if (!$targetUser) {
+                            $errors[] = 'User not found.';
+                        } else {
+                            $newStatus = $targetUser['is_active'] ? 0 : 1;
+                            $statusText = $newStatus ? 'activated' : 'deactivated';
+                            
+                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = ? WHERE id = ?");
+                            $updateStatus->execute([$newStatus, $userId]);
+                            
+                            if ($updateStatus->rowCount() > 0) {
+                                $info[] = "User '{$targetUser['name']}' has been {$statusText}.";
+                                log_activity($pdo, (int)$user['id'], 'user_status_updated', "User {$statusText}: {$targetUser['name']}", 'settings');
+                            } else {
+                                $errors[] = 'Failed to update user status.';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'Error updating user status: ' . $e->getMessage();
+                    }
+                }
+                break;
+                
+            case 'bulk_action':
+                $action = $_POST['bulk_action'] ?? '';
+                $userIds = $_POST['user_ids'] ?? [];
+                
+                if (empty($userIds) || !is_array($userIds)) {
+                    $errors[] = 'No users selected for bulk action.';
+                } else {
+                    // Remove current user from bulk actions for safety
+                    $userIds = array_filter($userIds, function($id) use ($user) {
+                        return (int)$id !== (int)$user['id'];
+                    });
+                    
+                    if (empty($userIds)) {
+                        $errors[] = 'No valid users selected for bulk action.';
+                    } else {
+                        try {
+                            $successCount = 0;
+                            $userNames = [];
+                            
+                            foreach ($userIds as $userId) {
+                                $userId = (int)$userId;
+                                
+                                // Get user info for logging
+                                $checkUser = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ?");
+                                $checkUser->execute([$userId]);
+                                $targetUser = $checkUser->fetch();
+                                
+                                if ($targetUser) {
+                                    $userNames[] = $targetUser['name'];
+                                    
+                                    switch ($action) {
+                                        case 'delete':
+                                            $deleteUser = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                                            $deleteUser->execute([$userId]);
+                                            if ($deleteUser->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'activate':
+                                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = 1 WHERE id = ?");
+                                            $updateStatus->execute([$userId]);
+                                            if ($updateStatus->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'deactivate':
+                                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = 0 WHERE id = ?");
+                                            $updateStatus->execute([$userId]);
+                                            if ($updateStatus->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'make_admin':
+                                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = 1 WHERE id = ?");
+                                            $updateRole->execute([$userId]);
+                                            if ($updateRole->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'make_regular':
+                                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = 0 WHERE id = ?");
+                                            $updateRole->execute([$userId]);
+                                            if ($updateRole->rowCount() > 0) $successCount++;
+                                            break;
+                                    }
+                                }
+                            }
+                            
+                            if ($successCount > 0) {
+                                $actionText = ucfirst(str_replace('_', ' ', $action));
+                                $info[] = "Bulk action '{$actionText}' completed successfully on {$successCount} user(s).";
+                                log_activity($pdo, (int)$user['id'], 'bulk_action', "Bulk {$action} on {$successCount} users: " . implode(', ', $userNames), 'settings');
+                            } else {
+                                $errors[] = 'No users were affected by the bulk action.';
+                            }
+                        } catch (Throwable $e) {
+                            $errors[] = 'Error performing bulk action: ' . $e->getMessage();
+                        }
+                    }
+                }
+                break;
         }
     }
 }
@@ -1007,22 +1159,7 @@ try {
                     <p class="text-clinic-dark/60 mt-2">Manage all registered users in the system</p>
                 </div>
 
-                <!-- Search and Filter -->
-                <div class="mb-6 space-y-4">
-                    <div class="flex flex-col sm:flex-row gap-4">
-                        <input type="text" id="userSearch" placeholder="Search users by name or email..." class="flex-1 px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
-                        <select id="userTypeFilter" class="px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
-                            <option value="">All Users</option>
-                            <option value="admin">Admin Users</option>
-                            <option value="regular">Regular Users</option>
-                        </select>
-                        <select id="userStatusFilter" class="px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
+
 
                 <!-- Users Table -->
                 <div class="flex-1 border border-clinic-tea/20 rounded-lg overflow-hidden">
@@ -1040,11 +1177,7 @@ try {
                         <div id="usersTableBody">
                             <?php if (!empty($allUsers)): ?>
                                 <?php foreach ($allUsers as $userData): ?>
-                                    <div class="user-row grid grid-cols-6 gap-4 px-4 py-3 border-b border-clinic-tea/10 hover:bg-clinic-ivory/30 transition-colors" 
-                                         data-name="<?= htmlspecialchars(strtolower($userData['name'])) ?>" 
-                                         data-email="<?= htmlspecialchars(strtolower($userData['email'])) ?>" 
-                                         data-type="<?= $userData['is_admin'] ? 'admin' : 'regular' ?>" 
-                                         data-status="<?= $userData['is_active'] ? 'active' : 'inactive' ?>">
+                                    <div class="user-row grid grid-cols-6 gap-4 px-4 py-3 border-b border-clinic-tea/10 hover:bg-clinic-ivory/30 transition-colors">
                                         <div class="flex items-center">
                                             <div class="w-8 h-8 rounded-full bg-clinic-blue/10 flex items-center justify-center mr-3">
                                                 <svg class="w-4 h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1073,18 +1206,42 @@ try {
                                         <div class="flex items-center text-clinic-dark/60 text-sm">
                                             <?= date('M j, Y', strtotime($userData['created_at'])) ?>
                                         </div>
-                                        <div class="flex items-center gap-2">
+                                        <div class="flex items-center gap-1 flex-wrap">
                                             <?php if ($userData['id'] != $user['id']): ?>
+                                                <!-- Role Change -->
+                                                <form method="post" class="inline">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                                    <input type="hidden" name="action" value="update_user_role" />
+                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
+                                                    <input type="hidden" name="new_role" value="<?= $userData['is_admin'] ? 'regular' : 'admin' ?>" />
+                                                    <button type="submit" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 text-xs font-medium rounded transition-colors" 
+                                                            onclick="return confirm('Are you sure you want to change this user\'s role?')">
+                                                        <?= $userData['is_admin'] ? 'Make User' : 'Make Admin' ?>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Status Toggle -->
+                                                <form method="post" class="inline">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                                    <input type="hidden" name="action" value="toggle_user_status" />
+                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
+                                                    <button type="submit" class="px-2 py-1 <?= $userData['is_active'] ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-600' : 'bg-green-100 hover:bg-green-200 text-green-600' ?> text-xs font-medium rounded transition-colors"
+                                                            onclick="return confirm('Are you sure you want to <?= $userData['is_active'] ? 'deactivate' : 'activate' ?> this user?')">
+                                                        <?= $userData['is_active'] ? 'Deactivate' : 'Activate' ?>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Delete -->
                                                 <form method="post" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">
                                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
                                                     <input type="hidden" name="action" value="delete_user" />
                                                     <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
-                                                    <button type="submit" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium rounded-lg transition-colors">
+                                                    <button type="submit" class="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium rounded transition-colors">
                                                         Delete
                                                     </button>
                                                 </form>
                                             <?php else: ?>
-                                                <span class="px-3 py-1 bg-gray-100 text-gray-400 text-xs font-medium rounded-lg">Current User</span>
+                                                <span class="px-3 py-1 bg-gray-100 text-gray-400 text-xs font-medium rounded">Current User</span>
                                             <?php endif; ?>
                                         </div>
                                     </div>
@@ -1466,65 +1623,13 @@ function archiveTodaysLogs() {
     }
 }
 
-// User search and filter functionality
-function filterUsers() {
-    const searchTerm = document.getElementById('userSearch')?.value.toLowerCase() || '';
-    const typeFilter = document.getElementById('userTypeFilter')?.value || '';
-    const statusFilter = document.getElementById('userStatusFilter')?.value || '';
-    
-    const userRows = document.querySelectorAll('.user-row');
-    let visibleCount = 0;
-    
-    userRows.forEach(row => {
-        const name = row.dataset.name || '';
-        const email = row.dataset.email || '';
-        const type = row.dataset.type || '';
-        const status = row.dataset.status || '';
-        
-        const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
-        const matchesType = !typeFilter || type === typeFilter;
-        const matchesStatus = !statusFilter || status === statusFilter;
-        
-        if (matchesSearch && matchesType && matchesStatus) {
-            row.style.display = 'grid';
-            visibleCount++;
-        } else {
-            row.style.display = 'none';
-        }
-    });
-    
-    // Update summary if it exists
-    const summaryElement = document.querySelector('.mt-6.p-4.bg-clinic-ivory\\/30.rounded-lg');
-    if (summaryElement) {
-        const totalSpan = summaryElement.querySelector('span:first-child strong');
-        if (totalSpan) {
-            totalSpan.textContent = visibleCount;
-        }
-    }
-}
-
-// Initialize user filtering when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    const userSearch = document.getElementById('userSearch');
-    const userTypeFilter = document.getElementById('userTypeFilter');
-    const userStatusFilter = document.getElementById('userStatusFilter');
-    
-    if (userSearch) {
-        userSearch.addEventListener('input', filterUsers);
-    }
-    if (userTypeFilter) {
-        userTypeFilter.addEventListener('change', filterUsers);
-    }
-    if (userStatusFilter) {
-        userStatusFilter.addEventListener('change', filterUsers);
-    }
-});
 
 // Back navigation function for settings
 function goBackToSettings() {
     // Go back to main settings view
     window.location.href = '?section=main_logs';
 }
+
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>
