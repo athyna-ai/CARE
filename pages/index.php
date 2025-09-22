@@ -28,10 +28,10 @@ include __DIR__ . '/../partials/header.php';
                 CARE
             </h1>
             <p class="text-xl md:text-2xl text-clinic-dark/70 font-poppins max-w-2xl mx-auto mb-2">
-                Clinic Administration & Records System
+                Clinic Administration of Records System
             </p>
-            <p class="text-lg text-clinic-dark/60 font-poppins">
-                Your Clinic Management System
+            <p class="text-lg text-clinic-dark/60 font-poppins italic">
+                A School Clinic management Information system
             </p>
         </div>
 

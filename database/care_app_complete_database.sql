@@ -1,6 +1,6 @@
 -- =====================================================
 -- CARE APP - Complete Database Schema
--- Clinic Administration & Records System
+-- Clinic Administration of Records System
 -- =====================================================
 -- This file creates the complete database structure with security measures
 -- Run this in phpMyAdmin or MySQL client
@@ -291,7 +291,7 @@ DELIMITER ;
 
 -- Insert default system settings
 INSERT INTO system_settings (setting_key, setting_value, setting_type, description) VALUES
-('app_name', 'CARE - Clinic Administration & Records System', 'string', 'Application name'),
+('app_name', 'CARE: Clinic Administration of Records System', 'string', 'Application name'),
 ('data_retention_days', '2555', 'integer', 'Number of days to retain data (7 years)'),
 ('session_timeout_minutes', '10', 'integer', 'Session timeout in minutes'),
 ('max_login_attempts', '5', 'integer', 'Maximum login attempts before lockout'),

@@ -36,12 +36,24 @@
             
             function setupSidebar(sidebarToggle, sidebar, mainContent) {
                 console.log('Setting up sidebar functionality...');
-                // Initialize sidebar state - check if it's already visible
-                const isVisible = sidebar.classList.contains('translate-x-0') && !sidebar.classList.contains('-translate-x-full');
-                sidebar.setAttribute('data-sidebar-state', isVisible ? 'visible' : 'hidden');
+                
+                // Get saved sidebar state from localStorage, default to hidden
+                const savedState = localStorage.getItem('sidebarState');
+                const shouldBeVisible = savedState === 'visible';
+                
+                // Set initial state based on saved preference
+                if (shouldBeVisible) {
+                    sidebar.classList.remove('-translate-x-full');
+                    sidebar.classList.add('translate-x-0');
+                    sidebar.setAttribute('data-sidebar-state', 'visible');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    sidebar.classList.remove('translate-x-0');
+                    sidebar.setAttribute('data-sidebar-state', 'hidden');
+                }
                 
                 // Adjust main content padding if sidebar is visible on desktop
-                if (isVisible && window.innerWidth >= 1024) {
+                if (shouldBeVisible && window.innerWidth >= 1024) {
                     mainContent.classList.add('lg:pl-80');
                 }
                 
@@ -59,6 +71,7 @@
                         sidebar.classList.remove('-translate-x-full');
                         sidebar.classList.add('translate-x-0');
                         sidebar.setAttribute('data-sidebar-state', 'visible');
+                        localStorage.setItem('sidebarState', 'visible');
                         
                         // Adjust main content on desktop
                         if (window.innerWidth >= 1024) {
@@ -70,6 +83,7 @@
                         sidebar.classList.add('-translate-x-full');
                         sidebar.classList.remove('translate-x-0');
                         sidebar.setAttribute('data-sidebar-state', 'hidden');
+                        localStorage.setItem('sidebarState', 'hidden');
                         
                         // Adjust main content
                         mainContent.classList.remove('lg:pl-80');
@@ -105,6 +119,7 @@
                         sidebar.classList.add('-translate-x-full');
                         sidebar.classList.remove('translate-x-0');
                         sidebar.setAttribute('data-sidebar-state', 'hidden');
+                        localStorage.setItem('sidebarState', 'hidden');
                         mainContent.classList.remove('lg:pl-80');
                     }
                 });
@@ -135,6 +150,8 @@
                             // Show sidebar
                             sidebar.classList.remove('-translate-x-full');
                             sidebar.classList.add('translate-x-0');
+                            sidebar.setAttribute('data-sidebar-state', 'visible');
+                            localStorage.setItem('sidebarState', 'visible');
                             if (window.innerWidth >= 1024) {
                                 mainContent.classList.add('lg:pl-80');
                             }
@@ -143,6 +160,8 @@
                             // Hide sidebar
                             sidebar.classList.add('-translate-x-full');
                             sidebar.classList.remove('translate-x-0');
+                            sidebar.setAttribute('data-sidebar-state', 'hidden');
+                            localStorage.setItem('sidebarState', 'hidden');
                             mainContent.classList.remove('lg:pl-80');
                             console.log('Fallback: Sidebar hidden');
                         }

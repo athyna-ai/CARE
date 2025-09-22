@@ -5,7 +5,7 @@ require_once __DIR__ . '/../core/helpers.php';
 
 if (empty($_SESSION['user'])) { return; }
 ?>
-<aside id="appSidebar" class="fixed top-20 left-0 z-30 h-[calc(100vh-5rem)] w-72 sm:w-80 bg-white/90 backdrop-blur-md border-r border-clinic-tea/20 shadow-xl transition-transform duration-300 ease-in-out translate-x-0" data-sidebar-state="visible">
+<aside id="appSidebar" class="fixed top-20 left-0 z-30 h-[calc(100vh-5rem)] w-72 sm:w-80 bg-white/90 backdrop-blur-md border-r border-clinic-tea/20 shadow-xl transition-transform duration-300 ease-in-out -translate-x-full" data-sidebar-state="hidden">
 	<nav class="p-4 sm:p-6 space-y-2 sm:space-y-3">
 		<div class="mb-6">
 			<h3 class="text-sm font-comfortaa font-semibold text-clinic-dark/60 uppercase tracking-wider">Navigation</h3>
@@ -91,6 +91,14 @@ if (empty($_SESSION['user'])) { return; }
 						</svg>
 					</div>
 					<span class="font-poppins font-medium text-sm sm:text-base">Activity Logs</span>
+				</a>
+				<a href="../reports/analytics.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-orange/5 hover:border-clinic-orange/20 hover:shadow-lg transition-all duration-300">
+					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-orange/5 flex items-center justify-center group-hover:bg-clinic-orange/10 transition-colors duration-200">
+						<svg class="w-3 h-3 sm:w-4 sm:h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+						</svg>
+					</div>
+					<span class="font-poppins font-medium text-sm sm:text-base">Reports & Analytics</span>
 				</a>
 				<a href="../admin/settings.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-blue/5 hover:border-clinic-blue/20 hover:shadow-lg transition-all duration-300">
 					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-blue/5 flex items-center justify-center group-hover:bg-clinic-blue/10 transition-colors duration-200">

@@ -18,23 +18,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		} else {
 			try {
 				$pdo = get_pdo();
-				$stmt = $pdo->prepare('SELECT id, name, email, password_hash, is_admin FROM users WHERE (email = ? OR name = ?) AND is_admin = 1 LIMIT 1');
+				$stmt = $pdo->prepare('SELECT id, name, email, password_hash, is_admin, rfid FROM users WHERE (email = ? OR name = ?) AND is_admin = 1 LIMIT 1');
 				$stmt->execute([$identifier, $identifier]);
 				$user = $stmt->fetch();
 				if (!$user || !password_verify($password, $user['password_hash'])) {
 					log_activity($pdo, null, 'login_failed', 'Invalid credentials for: ' . $identifier, 'auth/login');
 					$errors[] = 'Invalid credentials.';
 				} else {
-					$_SESSION['user'] = [
+					// Store user data temporarily for RFID verification
+					$_SESSION['pending_login'] = [
 						'id' => (int)$user['id'],
 						'name' => $user['name'],
 						'email' => $user['email'],
 						'is_admin' => (int)$user['is_admin'],
+						'rfid' => $user['rfid']
 					];
-					$_SESSION['last_activity'] = time();
-                    log_activity($pdo, (int)$user['id'], 'login', 'Admin login', 'auth/login');
-                    header('Location: ../admin/dashboard.php');
-					exit;
+					// Don't log in yet, wait for RFID verification
+					$info[] = 'Credentials verified. RFID verification required.';
+					
+					// Debug: Log that session was set
+					error_log('Pending login session set for user: ' . $user['name'] . ' (ID: ' . $user['id'] . ')');
                 }
 			} catch (Throwable $e) {
 				error_log('Login error: ' . $e->getMessage());
@@ -67,7 +70,8 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
                         </div>
                         <div>
                             <h1 class="text-3xl font-comfortaa font-bold text-clinic-dark">CARE</h1>
-                            <p class="text-sm text-clinic-dark/70 font-poppins">Clinic Administration & Records System</p>
+                            <p class="text-sm text-clinic-dark/70 font-poppins">Clinic Administration of Records System</p>
+                            <p class="text-xs text-clinic-dark/60 font-poppins italic">A School Clinic management Information system</p>
                         </div>
                     </div>
 
@@ -164,6 +168,185 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			</div>
 		</div>
 	</div>
+
+	<!-- RFID Verification Modal -->
+	<div id="rfidModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+		<div class="bg-white rounded-xl shadow-2xl w-80 p-4">
+			<div class="text-center">
+				<!-- RFID Icon -->
+				<div class="w-12 h-12 mx-auto mb-3 rounded-xl bg-gradient-to-br from-clinic-blue to-clinic-tea shadow-lg flex items-center justify-center">
+					<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+					</svg>
+				</div>
+				
+				<h3 class="text-lg font-semibold text-clinic-dark mb-1">RFID Verification</h3>
+				<p class="text-clinic-dark/70 mb-4 text-sm">Tap your RFID card or enter manually</p>
+				
+				<!-- RFID Input -->
+				<div class="mb-3">
+					<input type="text" id="rfidInput" placeholder="Tap RFID card or enter manually" 
+						   class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:border-clinic-blue focus:ring-2 focus:ring-clinic-blue/20 text-center text-sm tracking-wider" 
+						   autofocus />
+				</div>
+				
+				<!-- Status Message -->
+				<div id="rfidStatus" class="hidden mb-3 p-2 rounded-lg text-xs"></div>
+				
+				<!-- Action Buttons -->
+				<div class="flex gap-2">
+					<button id="verifyRfid" class="flex-1 bg-clinic-blue hover:bg-clinic-blue/90 text-white font-medium py-2 px-3 rounded-lg transition text-sm">
+						Verify
+					</button>
+					<button id="cancelRfid" type="button" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2 px-3 rounded-lg transition text-sm cursor-pointer">
+						Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	document.addEventListener('DOMContentLoaded', function() {
+		const loginForm = document.getElementById('loginForm');
+		const rfidModal = document.getElementById('rfidModal');
+		const rfidInput = document.getElementById('rfidInput');
+		const verifyRfidBtn = document.getElementById('verifyRfid');
+		const cancelRfidBtn = document.getElementById('cancelRfid');
+		const rfidStatus = document.getElementById('rfidStatus');
+		
+		// Show RFID modal if there's a pending login (only after form submission)
+		// Don't auto-show on page load
+		
+		// Handle form submission
+		loginForm.addEventListener('submit', function(e) {
+			e.preventDefault();
+			
+			const formData = new FormData(loginForm);
+			
+			fetch('login.php', {
+				method: 'POST',
+				body: formData
+			})
+			.then(response => response.text())
+			.then(html => {
+				// Check if there's a pending login (RFID required)
+				if (html.includes('Credentials verified') || html.includes('rfidModal')) {
+					rfidModal.classList.remove('hidden');
+					rfidInput.focus();
+				} else {
+					// No RFID required, reload page to show result
+					location.reload();
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				location.reload();
+			});
+		});
+		
+		// Handle RFID verification
+		verifyRfidBtn.addEventListener('click', function() {
+			const rfid = rfidInput.value.trim();
+			
+			if (!rfid) {
+				showRfidStatus('Please enter or tap your RFID card', 'error');
+				return;
+			}
+			
+			verifyRfidBtn.disabled = true;
+			verifyRfidBtn.textContent = 'Verifying...';
+			
+			fetch('verify_rfid_login.php', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+				},
+				body: 'rfid=' + encodeURIComponent(rfid)
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					showRfidStatus('RFID verified successfully! Logging in...', 'success');
+					setTimeout(() => {
+						window.location.href = '../admin/dashboard.php';
+					}, 1000);
+				} else {
+					showRfidStatus(data.message || 'Invalid RFID card', 'error');
+					rfidInput.value = '';
+					rfidInput.focus();
+					
+					// If no pending session, close modal and reload
+					if (data.message && data.message.includes('No pending login session')) {
+						setTimeout(() => {
+							rfidModal.classList.add('hidden');
+							location.reload();
+						}, 2000);
+					}
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				showRfidStatus('Error verifying RFID. Please try again.', 'error');
+			})
+			.finally(() => {
+				verifyRfidBtn.disabled = false;
+				verifyRfidBtn.textContent = 'Verify RFID';
+			});
+		});
+		
+		// Handle cancel
+		cancelRfidBtn.addEventListener('click', function() {
+			console.log('Cancel button clicked');
+			
+			// Hide modal immediately
+			rfidModal.classList.add('hidden');
+			rfidInput.value = '';
+			rfidStatus.classList.add('hidden');
+			
+			// Clear pending login and reload
+			fetch('clear_pending_login.php', {
+				method: 'POST'
+			}).finally(() => {
+				// Always reload regardless of fetch result
+				location.reload();
+			});
+		});
+		
+		// Handle Enter key in RFID input
+		rfidInput.addEventListener('keypress', function(e) {
+			if (e.key === 'Enter') {
+				verifyRfidBtn.click();
+			}
+		});
+		
+		// Auto-focus RFID input when modal opens
+		rfidInput.addEventListener('focus', function() {
+			this.select();
+		});
+		
+		// Close modal when clicking outside
+		rfidModal.addEventListener('click', function(e) {
+			if (e.target === rfidModal) {
+				cancelRfidBtn.click();
+			}
+		});
+		
+		// Close modal with Escape key
+		document.addEventListener('keydown', function(e) {
+			if (e.key === 'Escape' && !rfidModal.classList.contains('hidden')) {
+				cancelRfidBtn.click();
+			}
+		});
+		
+		function showRfidStatus(message, type) {
+			rfidStatus.textContent = message;
+			rfidStatus.className = 'mb-4 p-3 rounded-lg text-sm ' + (type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200');
+			rfidStatus.classList.remove('hidden');
+		}
+	});
+	</script>
+
 <?php include __DIR__ . '/../partials/footer.php'; ?>
 
 

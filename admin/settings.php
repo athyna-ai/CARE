@@ -427,6 +427,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 break;
+                
+            case 'delete_user':
+                $userId = (int)($_POST['user_id'] ?? 0);
+                
+                if ($userId <= 0) {
+                    $errors[] = 'Invalid user ID.';
+                } else if ($userId === (int)$user['id']) {
+                    $errors[] = 'You cannot delete your own account.';
+                } else {
+                    try {
+                        // Check if user exists
+                        $checkUser = $pdo->prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?");
+                        $checkUser->execute([$userId]);
+                        $targetUser = $checkUser->fetch();
+                        
+                        if (!$targetUser) {
+                            $errors[] = 'User not found.';
+                        } else {
+                            // Delete the user
+                            $deleteUser = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                            $deleteUser->execute([$userId]);
+                            
+                            if ($deleteUser->rowCount() > 0) {
+                                $info[] = "User '{$targetUser['name']}' has been deleted successfully.";
+                                log_activity($pdo, (int)$user['id'], 'user_deleted', "Deleted user: {$targetUser['name']} ({$targetUser['email']})", 'settings');
+                            } else {
+                                $errors[] = 'Failed to delete user.';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'Error deleting user: ' . $e->getMessage();
+                    }
+                }
+                break;
         }
     }
 }
@@ -458,17 +492,17 @@ try {
 <!-- Notification Container -->
 <div id="notificationContainer" class="fixed top-20 right-4 z-50"></div>
 
-<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
-    <div class="w-full max-w-5xl flex flex-col" style="max-height: 80vh;">
+<div class="h-[calc(100vh-5rem)] flex items-start justify-center p-4 md:p-6 overflow-hidden">
+    <div class="w-full max-w-7xl flex flex-col" style="max-height: 85vh;">
         <!-- Header -->
         <div class="mb-4">
             <h1 class="text-3xl font-bold text-clinic-dark">Settings</h1>
         </div>
 
-        <!-- Settings Navigation - Responsive Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Settings Navigation - Single Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
             <!-- Main Logs -->
-            <a href="?section=main_logs" class="group flex flex-col items-center p-4 sm:p-6 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[140px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=main_logs" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-clinic-blue/10 flex items-center justify-center group-hover:bg-clinic-blue/20 transition-colors duration-200 mb-3">
                     <svg class="w-6 h-6 sm:w-8 sm:h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -479,7 +513,7 @@ try {
             </a>
 
             <!-- Account Settings -->
-            <a href="?section=account_settings" class="group flex flex-col items-center p-4 sm:p-6 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[140px] <?= $currentSection === 'account_settings' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=account_settings" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'account_settings' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-clinic-tea/20 flex items-center justify-center group-hover:bg-clinic-tea/30 transition-colors duration-200 mb-3">
                     <svg class="w-6 h-6 sm:w-8 sm:h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
@@ -490,7 +524,7 @@ try {
             </a>
 
             <!-- Register Admin -->
-            <a href="?section=register_admin" class="group flex flex-col items-center p-4 sm:p-6 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[140px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=register_admin" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors duration-200 mb-3">
                     <svg class="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -500,8 +534,19 @@ try {
                 <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">New admin user</p>
             </a>
 
+            <!-- Account Management -->
+            <a href="?section=account_management" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Account Mgmt</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Manage users</p>
+            </a>
+
             <!-- Keyboard Shortcuts -->
-            <a href="?section=keyboard_toggles" class="group flex flex-col items-center p-4 sm:p-6 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[140px] <?= $currentSection === 'keyboard_toggles' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=keyboard_toggles" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'keyboard_toggles' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors duration-200 mb-3">
                     <svg class="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -859,6 +904,15 @@ try {
         <!-- Register Admin Section -->
         <?php if ($currentSection === 'register_admin'): ?>
             <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+                <!-- Back Button -->
+                <div class="mb-4">
+                    <button onclick="goBackToSettings()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                        </svg>
+                        Back to Settings
+                    </button>
+                </div>
                 <h2 class="text-2xl font-bold text-clinic-dark mb-6">Register New Admin User</h2>
                 
                 <form method="post" class="space-y-6">
@@ -941,6 +995,125 @@ try {
                         <strong>Note:</strong> These shortcuts are available throughout the application. 
                         Use them to navigate more efficiently and improve your workflow.
                     </p>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Account Management Section -->
+        <?php if ($currentSection === 'account_management'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-clinic-dark">Account Management</h2>
+                    <p class="text-clinic-dark/60 mt-2">Manage all registered users in the system</p>
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="mb-6 space-y-4">
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input type="text" id="userSearch" placeholder="Search users by name or email..." class="flex-1 px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        <select id="userTypeFilter" class="px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <option value="">All Users</option>
+                            <option value="admin">Admin Users</option>
+                            <option value="regular">Regular Users</option>
+                        </select>
+                        <select id="userStatusFilter" class="px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Users Table -->
+                <div class="flex-1 border border-clinic-tea/20 rounded-lg overflow-hidden">
+                    <div class="bg-clinic-ivory/50 px-4 py-3 border-b border-clinic-tea/20">
+                        <div class="grid grid-cols-6 gap-4 text-sm font-semibold text-clinic-dark">
+                            <div>Name</div>
+                            <div>Email</div>
+                            <div>Type</div>
+                            <div>Status</div>
+                            <div>Created</div>
+                            <div>Actions</div>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto max-h-96">
+                        <div id="usersTableBody">
+                            <?php if (!empty($allUsers)): ?>
+                                <?php foreach ($allUsers as $userData): ?>
+                                    <div class="user-row grid grid-cols-6 gap-4 px-4 py-3 border-b border-clinic-tea/10 hover:bg-clinic-ivory/30 transition-colors" 
+                                         data-name="<?= htmlspecialchars(strtolower($userData['name'])) ?>" 
+                                         data-email="<?= htmlspecialchars(strtolower($userData['email'])) ?>" 
+                                         data-type="<?= $userData['is_admin'] ? 'admin' : 'regular' ?>" 
+                                         data-status="<?= $userData['is_active'] ? 'active' : 'inactive' ?>">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 rounded-full bg-clinic-blue/10 flex items-center justify-center mr-3">
+                                                <svg class="w-4 h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                                </svg>
+                                            </div>
+                                            <span class="font-medium text-clinic-dark"><?= htmlspecialchars($userData['name']) ?></span>
+                                        </div>
+                                        <div class="flex items-center text-clinic-dark/80">
+                                            <?= htmlspecialchars($userData['email']) ?>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <?php if ($userData['is_admin']): ?>
+                                                <span class="px-2 py-1 bg-clinic-blue/10 text-clinic-blue text-xs font-medium rounded-full">Admin</span>
+                                            <?php else: ?>
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">User</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <?php if ($userData['is_active']): ?>
+                                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">Active</span>
+                                            <?php else: ?>
+                                                <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">Inactive</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center text-clinic-dark/60 text-sm">
+                                            <?= date('M j, Y', strtotime($userData['created_at'])) ?>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <?php if ($userData['id'] != $user['id']): ?>
+                                                <form method="post" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                                    <input type="hidden" name="action" value="delete_user" />
+                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
+                                                    <button type="submit" class="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium rounded-lg transition-colors">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="px-3 py-1 bg-gray-100 text-gray-400 text-xs font-medium rounded-lg">Current User</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="text-center py-8 text-clinic-dark/60">
+                                    <svg class="w-12 h-12 mx-auto mb-4 text-clinic-dark/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    </svg>
+                                    <p>No users found</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="mt-6 p-4 bg-clinic-ivory/30 rounded-lg">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-clinic-dark/80">
+                            Total Users: <strong><?= count($allUsers) ?></strong>
+                        </span>
+                        <span class="text-clinic-dark/80">
+                            Admin Users: <strong><?= count(array_filter($allUsers, fn($u) => $u['is_admin'])) ?></strong>
+                        </span>
+                        <span class="text-clinic-dark/80">
+                            Active Users: <strong><?= count(array_filter($allUsers, fn($u) => $u['is_active'])) ?></strong>
+                        </span>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>
@@ -1291,6 +1464,66 @@ function archiveTodaysLogs() {
             showNotification('Error archiving logs. Please try again.', 'error');
         });
     }
+}
+
+// User search and filter functionality
+function filterUsers() {
+    const searchTerm = document.getElementById('userSearch')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('userTypeFilter')?.value || '';
+    const statusFilter = document.getElementById('userStatusFilter')?.value || '';
+    
+    const userRows = document.querySelectorAll('.user-row');
+    let visibleCount = 0;
+    
+    userRows.forEach(row => {
+        const name = row.dataset.name || '';
+        const email = row.dataset.email || '';
+        const type = row.dataset.type || '';
+        const status = row.dataset.status || '';
+        
+        const matchesSearch = !searchTerm || name.includes(searchTerm) || email.includes(searchTerm);
+        const matchesType = !typeFilter || type === typeFilter;
+        const matchesStatus = !statusFilter || status === statusFilter;
+        
+        if (matchesSearch && matchesType && matchesStatus) {
+            row.style.display = 'grid';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Update summary if it exists
+    const summaryElement = document.querySelector('.mt-6.p-4.bg-clinic-ivory\\/30.rounded-lg');
+    if (summaryElement) {
+        const totalSpan = summaryElement.querySelector('span:first-child strong');
+        if (totalSpan) {
+            totalSpan.textContent = visibleCount;
+        }
+    }
+}
+
+// Initialize user filtering when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const userSearch = document.getElementById('userSearch');
+    const userTypeFilter = document.getElementById('userTypeFilter');
+    const userStatusFilter = document.getElementById('userStatusFilter');
+    
+    if (userSearch) {
+        userSearch.addEventListener('input', filterUsers);
+    }
+    if (userTypeFilter) {
+        userTypeFilter.addEventListener('change', filterUsers);
+    }
+    if (userStatusFilter) {
+        userStatusFilter.addEventListener('change', filterUsers);
+    }
+});
+
+// Back navigation function for settings
+function goBackToSettings() {
+    // Go back to main settings view
+    window.location.href = '?section=main_logs';
 }
 </script>
 

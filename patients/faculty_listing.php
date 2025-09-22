@@ -173,7 +173,12 @@ include __DIR__ . '/../partials/header.php';
                                     <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($member['rfid']) ?></code>
                                 </div>
                                 <div class="col-span-4">
-                                    <div class="font-medium text-slate-900"><?= htmlspecialchars($member['name']) ?></div>
+                                    <div class="font-medium text-slate-900 flex items-center gap-2">
+                                        <?= htmlspecialchars($member['name']) ?>
+                                        <?php if ($member['sr'] == 1): ?>
+                                            <span class="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded">Sr.</span>
+                                        <?php endif; ?>
+                                    </div>
                                     <div class="text-sm text-slate-500"><?= htmlspecialchars($member['gender']) ?></div>
                                 </div>
                                 <div class="col-span-4">

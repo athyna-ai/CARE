@@ -137,6 +137,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php $pageTitle = $id ? 'Edit Student' : 'Register Student'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
 	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
 		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-full flex flex-col">
+			<!-- Back Button -->
+			<div class="mb-4">
+				<button onclick="goBack()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+					</svg>
+					Back
+				</button>
+			</div>
 			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
@@ -926,6 +935,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial validation
     validateForm();
 });
+
+// Smart back navigation function
+function goBack() {
+    const referrer = document.referrer;
+    const currentUrl = window.location.href;
+    
+    // If there's a referrer and it's not the same page
+    if (referrer && referrer !== currentUrl) {
+        // Check if coming from specific pages and navigate accordingly
+        if (referrer.includes('school_listing.php')) {
+            window.location.href = '../patients/school_listing.php';
+        } else if (referrer.includes('rfid_portal.php')) {
+            window.location.href = '../rfid/rfid_portal.php';
+        } else if (referrer.includes('dashboard.php')) {
+            window.location.href = '../admin/dashboard.php';
+        } else {
+            // Default to browser back
+            window.history.back();
+        }
+    } else {
+        // Default fallback - go to dashboard
+        window.location.href = '../admin/dashboard.php';
+    }
+}
 </script>
 
 <script src="../core/validation.js"></script>

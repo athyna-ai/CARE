@@ -972,7 +972,7 @@ window.closeNotification = closeNotification;
     <div class="absolute inset-0 bg-slate-900/50"></div>
     <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
         <h2 class="text-xl font-semibold mb-4">Add Visitation Record</h2>
-        <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="showNotification('Saving visitation record...', 'info', 0); return true;">
+        <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="return submitVisitationForm(event);">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             
@@ -1004,7 +1004,7 @@ window.closeNotification = closeNotification;
             
             <div class="mb-4">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms/Observations</label>
-                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Describe symptoms and observations..."></textarea>
+                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Describe symptoms and observations...">Leave blank if none</textarea>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1024,7 +1024,7 @@ window.closeNotification = closeNotification;
             
             <div class="mb-4">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Other Notes</label>
-                <textarea name="other_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Additional notes..."></textarea>
+                <textarea name="other_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional notes...">Leave blank if none</textarea>
             </div>
             
             <div class="mb-4">
@@ -1036,36 +1036,30 @@ window.closeNotification = closeNotification;
             
             <div id="medicationForm" class="hidden mb-4 p-4 bg-slate-50 rounded-lg">
                 <h3 class="text-lg font-semibold text-lg text-slate-800 mb-3">Medication Details</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Medication Name</label>
-                        <select name="medication_name" id="medicationSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="toggleOtherMedication()">
-                            <option value="">Select medication</option>
-                            <option value="antacid">Antacid</option>
-                            <option value="antihistamine">Antihistamine (Diphenhydramine)</option>
-                            <option value="antiseptic">Antiseptic Solution</option>
-                            <option value="aspirin">Aspirin</option>
-                            <option value="band_aid">Band Aid/Plaster</option>
-                            <option value="cough_syrup">Cough Syrup</option>
-                            <option value="gauze">Gauze/Dressing</option>
-                            <option value="ice_pack">Ice Pack</option>
-                            <option value="ibuprofen">Ibuprofen</option>
-                            <option value="paracetamol">Paracetamol (Acetaminophen)</option>
-                            <option value="other">Other</option>
-                        </select>
-                        <div id="otherMedicationDiv" class="mt-2 hidden">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Please specify medication *</label>
-                            <input type="text" name="other_medication" id="otherMedicationInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Enter specific medication...">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Other Treatment</label>
-                        <input type="text" name="other_treatment" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Medication Name</label>
+                    <select name="medication_name" id="medicationSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="toggleOtherMedication()">
+                        <option value="">Select medication</option>
+                        <option value="antacid">Antacid</option>
+                        <option value="antihistamine">Antihistamine (Diphenhydramine)</option>
+                        <option value="antiseptic">Antiseptic Solution</option>
+                        <option value="aspirin">Aspirin</option>
+                        <option value="band_aid">Band Aid/Plaster</option>
+                        <option value="cough_syrup">Cough Syrup</option>
+                        <option value="gauze">Gauze/Dressing</option>
+                        <option value="ibuprofen">Ibuprofen</option>
+                        <option value="ice_pack">Ice Pack</option>
+                        <option value="paracetamol">Paracetamol (Acetaminophen)</option>
+                        <option value="other">Other</option>
+                    </select>
+                    <div id="otherMedicationDiv" class="mt-2 hidden">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Please specify medication *</label>
+                        <input type="text" name="other_medication" id="otherMedicationInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Enter specific medication...">
                     </div>
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-slate-700 mb-2">Additional Notes</label>
-                    <textarea name="medication_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"></textarea>
+                    <textarea name="medication_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional medication notes or instructions...">Leave blank if none</textarea>
                 </div>
             </div>
             
@@ -1494,6 +1488,40 @@ function validateVisitationForm() {
     return true;
 }
 
+function submitVisitationForm(event) {
+    event.preventDefault();
+    
+    // Get form data
+    const form = document.getElementById('visitationForm');
+    const formData = new FormData(form);
+    
+    // Submit via AJAX
+    fetch('save_visitation.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success notification and close modal quickly
+            showNotification(data.message, 'success');
+            setTimeout(() => {
+                closeVisitationModal();
+                window.location.reload();
+            }, 1000);
+        } else {
+            showNotification(data.message, 'error');
+            // Keep modal open so user can fix validation errors
+        }
+    })
+    .catch(error => {
+        showNotification('Error saving visitation record: ' + error.message, 'error');
+        console.error('Error:', error);
+    });
+    
+    return false; // Prevent default form submission
+}
+
 function toggleOtherMedication() {
     const medicationSelect = document.getElementById('medicationSelect');
     const otherMedicationDiv = document.getElementById('otherMedicationDiv');
@@ -1907,6 +1935,12 @@ document.getElementById('medicationCheckbox').addEventListener('change', functio
         medicationForm.classList.remove('hidden');
     } else {
         medicationForm.classList.add('hidden');
+        // Clear medication form fields when unchecked
+        document.getElementById('medicationSelect').value = '';
+        document.getElementById('otherMedicationInput').value = '';
+        document.querySelector('textarea[name="medication_notes"]').value = 'Leave blank if none';
+        // Hide other medication div
+        document.getElementById('otherMedicationDiv').classList.add('hidden');
     }
 });
 
@@ -1917,6 +1951,12 @@ document.getElementById('injuryCheckbox').addEventListener('change', function() 
         injuryForm.classList.remove('hidden');
     } else {
         injuryForm.classList.add('hidden');
+        // Clear injury form fields when unchecked
+        document.querySelector('input[name="first_aid_given"]').checked = false;
+        document.getElementById('firstAidSelect').value = '';
+        document.getElementById('otherFirstAidInput').value = '';
+        // Hide other first aid div
+        document.getElementById('otherFirstAidDiv').classList.add('hidden');
     }
 });
 

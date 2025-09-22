@@ -20,7 +20,7 @@ $success = isset($_GET['success']) ? (int)$_GET['success'] : 0;
 				<h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-comfortaa font-bold text-clinic-dark">WELCOME</h1>
 			</div>
 			<h2 class="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-comfortaa font-semibold text-clinic-blue mb-4"><?= htmlspecialchars(strtoupper($user['name'])) ?></h2>
-			<p class="mt-4 text-clinic-dark/70 text-base sm:text-lg md:text-xl font-poppins max-w-2xl mx-auto px-4">We Care, You Care — enabling secure, efficient, and compassionate clinic operations.</p>
+			<p class="mt-4 text-clinic-dark/70 text-base sm:text-lg md:text-xl font-poppins max-w-2xl mx-auto px-4">Empowering School Health & Wellness — enabling secure, efficient, and compassionate clinic operations.</p>
 		</div>
 
 		<!-- Section title and description -->

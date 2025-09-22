@@ -63,6 +63,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="hidden md:block bg-gradient-to-br from-sky-100 to-blue-100 min-h-[calc(100vh-5rem)]"></div>
         <div class="min-h-[calc(100vh-5rem)] flex items-center justify-center p-0 md:p-8">
             <div class="w-full max-w-2xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10">
+			<!-- Back Button -->
+			<div class="mb-4">
+				<button onclick="goBack()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+					</svg>
+					Back
+				</button>
+			</div>
 			<h1 class="text-2xl font-semibold mb-2">Register Admin</h1>
 		<?php if ($success): ?>
 			<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm p-3">Registration successful. <a href="../auth/login.php" class="underline">Go to Login</a></div>
@@ -104,6 +113,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			</div>
 		</div>
 	</div>
+
+<script>
+// Smart back navigation function
+function goBack() {
+	const referrer = document.referrer;
+	const currentUrl = window.location.href;
+	
+	// If there's a referrer and it's not the same page
+	if (referrer && referrer !== currentUrl) {
+		// Check if coming from specific pages and navigate accordingly
+		if (referrer.includes('login.php')) {
+			window.location.href = 'login.php';
+		} else if (referrer.includes('dashboard.php')) {
+			window.location.href = '../admin/dashboard.php';
+		} else if (referrer.includes('settings.php')) {
+			window.location.href = '../admin/settings.php';
+		} else {
+			// Default to browser back
+			window.history.back();
+		}
+	} else {
+		// Default fallback - go to login
+		window.location.href = 'login.php';
+	}
+}
+</script>
+
 <?php include __DIR__ . '/../partials/footer.php'; ?>
 
 

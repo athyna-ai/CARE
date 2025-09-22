@@ -59,6 +59,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Debug: Check validation
     error_log("Validation check - Patient ID: {$patientId} (>0: " . ($patientId > 0 ? 'true' : 'false') . "), Type: '{$patientType}' (empty: " . (empty($patientType) ? 'true' : 'false') . "), Reason: '{$reason}' (empty: " . (empty($reason) ? 'true' : 'false') . "), Visit Date: '{$visitDate}' (empty: " . (empty($visitDate) ? 'true' : 'false') . ")");
     
+    // Additional validation for injury and medication fields
+    $validationErrors = [];
+    
+    // Validate medication fields if medication given is checked
+    if ($medicationGiven) {
+        if (empty($medicationName) || $medicationName === 'N/A' || $medicationName === '') {
+            $validationErrors[] = "Medication name is required when medication is given";
+        }
+    }
+    
+    // Convert "Leave blank if none" to "N/A" for database storage
+    $symptoms = ($symptoms === 'Leave blank if none' || empty($symptoms)) ? 'N/A' : $symptoms;
+    $otherNotes = ($otherNotes === 'Leave blank if none' || empty($otherNotes)) ? 'N/A' : $otherNotes;
+    $medicationNotes = ($medicationNotes === 'Leave blank if none' || empty($medicationNotes)) ? 'N/A' : $medicationNotes;
+    
+    // Validate injury fields if injury is checked
+    if ($injury) {
+        if (!$firstAidGiven) {
+            $validationErrors[] = "First aid given status is required when injury occurred";
+        }
+        if ($firstAidGiven && (empty($firstAidType) || $firstAidType === 'N/A' || $firstAidType === '')) {
+            $validationErrors[] = "First aid type is required when first aid is given";
+        }
+    }
+    
+    // If there are validation errors, return JSON error response
+    if (!empty($validationErrors)) {
+        $errorMessage = "Validation failed: " . implode(", ", $validationErrors);
+        error_log("Validation errors: " . $errorMessage);
+        error_log("Validation errors count: " . count($validationErrors));
+        error_log("Medication given: " . ($medicationGiven ? 'true' : 'false'));
+        error_log("Injury: " . ($injury ? 'true' : 'false'));
+        
+        // Return JSON error response for AJAX handling
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => $errorMessage,
+            'errors' => $validationErrors
+        ]);
+        exit;
+    }
+    
     if ($patientId > 0 && $patientType && $reason && $visitDate) {
         try {
             // Check if visitation_logs table exists, if not create it
@@ -111,9 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare('INSERT INTO visitation_logs (
                 patient_id, patient_type, reason, visit_date, symptoms, heart_rate, 
                 blood_pressure, temperature, other_notes, medication_given, 
-                medication_name, other_treatment, medication_notes, injury, 
+                medication_name, medication_notes, injury, 
                 first_aid_given, first_aid_type, nurse_name, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             
             $result = $stmt->execute([
                 $patientId,
@@ -127,7 +170,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $otherNotes ?: null,
                 $medicationGiven,
                 $medicationName ?: null,
-                $otherTreatment ?: null,
                 $medicationNotes ?: null,
                 $injury,
                 $firstAidGiven,
@@ -145,26 +187,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Log activity
             log_activity($pdo, (int)$_SESSION['user']['id'], 'visitation_logged', "Added visitation record for patient ID {$patientId} - Reason: {$reason}", 'save_visitation');
             
-            // Debug: Log the redirect URL
-            $redirectUrl = "patient_view.php?id={$patientId}&type={$patientType}&message=" . urlencode("Visitation record saved successfully") . "&message_type=success";
-            error_log("Redirecting to: " . $redirectUrl);
-            
-            // Redirect back with success message
-            header("Location: " . $redirectUrl);
+            // Return JSON success response for AJAX handling
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Visitation record saved successfully',
+                'redirect' => "patient_view.php?id={$patientId}&type={$patientType}"
+            ]);
             exit;
             
         } catch (Exception $e) {
             error_log("Save visitation error: " . $e->getMessage());
             error_log("Save visitation error trace: " . $e->getTraceAsString());
-            // Always redirect back to patient view, never to dashboard
-            $errorMessage = "Error saving visitation record: " . $e->getMessage();
-            header("Location: patient_view.php?id={$patientId}&type={$patientType}&message=" . urlencode($errorMessage) . "&message_type=error");
+            
+            // Return JSON error response for AJAX handling
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error saving visitation record: ' . $e->getMessage()
+            ]);
             exit;
         }
     } else {
         error_log("Missing required fields - Patient ID: {$patientId}, Type: {$patientType}, Reason: {$reason}, Visit Date: {$visitDate}");
         error_log("Form validation failed - POST data: " . print_r($_POST, true));
-        header("Location: patient_view.php?id={$patientId}&type={$patientType}&message=" . urlencode("Missing required fields: Patient ID={$patientId}, Type={$patientType}, Reason={$reason}, Visit Date={$visitDate}") . "&message_type=error");
+        
+        // Return JSON error response for AJAX handling
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false,
+            'message' => "Missing required fields: Patient ID={$patientId}, Type={$patientType}, Reason={$reason}, Visit Date={$visitDate}"
+        ]);
         exit;
     }
 }

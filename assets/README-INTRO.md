@@ -21,7 +21,7 @@ The system now has a beautiful introduction page that users see first before acc
 ### New User Flow
 
 1. **Intro Page** (`index.php`) - Beautiful welcome page with:
-   - "CARE: Clinic Administration & Records System" branding
+   - "CARE: Clinic Administration of Records System" branding
    - "Your Clinic Management System" tagline
    - Feature highlights
    - "Enter System" button → goes to login
@@ -36,7 +36,7 @@ The system now has a beautiful introduction page that users see first before acc
 - **Feature Cards**: Highlights main system capabilities
 - **Call-to-Action**: Clear "Enter System" button to access login
 - **Floating Animations**: Subtle background animations
-- **Brand Identity**: "CARE: Clinic Administration & Records System" theme
+- **Brand Identity**: "CARE: Clinic Administration of Records System" theme
 
 ### Files Created/Modified
 

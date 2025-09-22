@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($pageTitle ?? 'CARE - Clinic Administration & Records System') ?></title>
+    <title><?= htmlspecialchars($pageTitle ?? 'CARE: Clinic Administration of Records System') ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -52,9 +52,9 @@
                 <!-- Logo and Title -->
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-clinic-blue to-clinic-tea shadow-lg"></div>
-                    <div>
+                    <div class="flex items-center gap-2">
                         <h1 class="text-xl font-comfortaa font-bold text-clinic-dark">CARE</h1>
-                        <p class="text-xs text-clinic-dark/60 font-poppins">Clinic Administration & Records System</p>
+                        <p class="text-xs text-clinic-dark/60 font-poppins">Clinic Administration of Records System</p>
                     </div>
                 </div>
             </div>
