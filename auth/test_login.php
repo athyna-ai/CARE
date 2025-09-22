@@ -10,14 +10,14 @@ try {
     echo "✓ Database connection successful\n";
     
     // Test admin table query
-    $stmt = $pdo->prepare('SELECT id, username as name, email, password_hash, rfid_hash FROM admin WHERE (email = ? OR username = ?) LIMIT 1');
+    $stmt = $pdo->prepare('SELECT id, name, email, password_hash, rfid FROM users WHERE (email = ? OR name = ?) LIMIT 1');
     $stmt->execute(['admin', 'admin']);
     $user = $stmt->fetch();
     
     if ($user) {
         echo "✓ Admin user found: " . $user['name'] . "\n";
         echo "✓ Email: " . $user['email'] . "\n";
-        echo "✓ Has RFID: " . (!empty($user['rfid_hash']) ? 'Yes' : 'No') . "\n";
+        echo "✓ Has RFID: " . (!empty($user['rfid']) ? 'Yes' : 'No') . "\n";
     } else {
         echo "✗ No admin user found\n";
     }

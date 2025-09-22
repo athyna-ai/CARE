@@ -12,7 +12,7 @@ try {
     $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
     
     // Update the admin password
-    $stmt = $pdo->prepare('UPDATE admin SET password_hash = ? WHERE username = ?');
+    $stmt = $pdo->prepare('UPDATE users SET password_hash = ? WHERE name = ?');
     $result = $stmt->execute([$hashedPassword, 'admin']);
     
     if ($result) {

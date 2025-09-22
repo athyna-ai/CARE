@@ -10,17 +10,17 @@ try {
     echo "<p>✓ Database connected</p>";
     
     // Check what's in the admin table
-    $stmt = $pdo->query('SELECT id, username, email, password_hash, rfid_hash FROM admin');
+    $stmt = $pdo->query('SELECT id, name, email, password_hash, rfid FROM users');
     $users = $stmt->fetchAll();
     
     echo "<h3>Admin Users in Database:</h3>";
     foreach ($users as $user) {
         echo "<p>";
         echo "ID: " . $user['id'] . "<br>";
-        echo "Username: " . $user['username'] . "<br>";
+        echo "Name: " . $user['name'] . "<br>";
         echo "Email: " . $user['email'] . "<br>";
         echo "Password Hash: " . substr($user['password_hash'], 0, 20) . "...<br>";
-        echo "RFID Hash: " . (!empty($user['rfid_hash']) ? substr($user['rfid_hash'], 0, 20) . "..." : "NULL") . "<br>";
+        echo "RFID: " . (!empty($user['rfid']) ? $user['rfid'] : "NULL") . "<br>";
         echo "</p>";
     }
     

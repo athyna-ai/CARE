@@ -55,8 +55,10 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS students (
     id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
+    gender ENUM('Male','Female') NULL,
     level ENUM('Pre-school','Elementary','High School','Senior High School','College') NOT NULL,
     course VARCHAR(120) NULL,
+    block VARCHAR(10) NULL,
     section VARCHAR(50) NULL,
     strand VARCHAR(50) NULL,
     year_grade VARCHAR(40) NULL,

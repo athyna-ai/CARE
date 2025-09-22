@@ -11,13 +11,12 @@ $rfid = 'ADMIN0002';
 try {
     $pdo = get_pdo();
     
-    // Hash password and RFID
+    // Hash password only (RFID is stored as plain text in users table)
     $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    $hashedRfid = password_hash($rfid, PASSWORD_DEFAULT);
     
     // Insert new admin
-    $stmt = $pdo->prepare('INSERT INTO admin (username, email, password_hash, rfid_hash) VALUES (?, ?, ?, ?)');
-    $result = $stmt->execute([$username, $email, $hashedPassword, $hashedRfid]);
+    $stmt = $pdo->prepare('INSERT INTO users (name, email, password_hash, rfid, is_admin) VALUES (?, ?, ?, ?, 1)');
+    $result = $stmt->execute([$username, $email, $hashedPassword, $rfid]);
     
     if ($result) {
         echo "<h2>New Admin Created Successfully!</h2>";

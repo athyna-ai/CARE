@@ -9,30 +9,27 @@ $pdo = get_pdo();
 // Ensure faculty table exists
 $pdo->exec('CREATE TABLE IF NOT EXISTS faculty (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name_hash VARCHAR(255) NOT NULL,
-  name_masked VARCHAR(120) NOT NULL,
-  department VARCHAR(120) NULL,
-  gender ENUM("Male","Female") NULL,
-  rfid_hash VARCHAR(255) NOT NULL UNIQUE,
-  address_hash VARCHAR(255) NULL,
-  address_masked VARCHAR(255) NULL,
+  name VARCHAR(100) NOT NULL,
+  department VARCHAR(100) NULL,
+  gender ENUM("Male","Female","Other") NULL,
+  rfid VARCHAR(50) NOT NULL UNIQUE,
+  address VARCHAR(255) NULL,
   age INT NULL,
   sr TINYINT(1) NOT NULL DEFAULT 0,
   dob DATE NULL,
   religion VARCHAR(80) NULL,
-  emergency_contact_hash VARCHAR(255) NULL,
-  emergency_contact_masked VARCHAR(120) NULL,
+  emergency_contact VARCHAR(120) NULL,
   allergies TEXT NULL,
   medical_notes TEXT NULL,
-  employee_id VARCHAR(50) UNIQUE NULL,
+  employee_id VARCHAR(50) NULL,
   position VARCHAR(100) NULL,
   status ENUM("Active","Inactive","Retired","Resigned") DEFAULT "Active",
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_department (department),
   INDEX idx_status (status),
-  INDEX idx_rfid_hash (rfid_hash),
-  INDEX idx_name_hash (name_hash)
+  INDEX idx_rfid (rfid),
+  INDEX idx_name (name)
 ) ENGINE=InnoDB');
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
@@ -124,9 +121,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						   required 
 						   autofocus
 						   data-next-field="department" />
-					<?php if ($row && isset($row['name_masked'])): ?>
-						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['name_masked']) ?></p>
-					<?php endif; ?>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Department</label>
@@ -177,9 +171,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						</div>
 					</div>
 					<p class="text-xs text-slate-500 mt-2">Enter each part of the address separately</p>
-					<?php if ($row && isset($row['address_masked'])): ?>
-						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['address_masked']) ?></p>
-					<?php endif; ?>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
@@ -212,9 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						   pattern="09[0-9]{9}" 
 						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
 						   data-next-field="allergies" />
-					<?php if ($row && isset($row['emergency_contact_masked'])): ?>
-						<p class="mt-1 text-xs text-slate-500">Masked: <?= htmlspecialchars($row['emergency_contact_masked']) ?></p>
-					<?php endif; ?>
 				</div>
 				<div class="md:col-span-2">
 					<label class="block text-slate-700 mb-1">Allergies & Medical Notes</label>

@@ -9,33 +9,31 @@ $pdo = get_pdo();
 // Ensure students table exists
 $pdo->exec('CREATE TABLE IF NOT EXISTS students (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name_hash VARCHAR(255) NOT NULL,
-  name_masked VARCHAR(120) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  gender ENUM("Male","Female") NULL,
   level ENUM("Pre-school","Elementary","High School","Senior High School","College") NOT NULL,
   course VARCHAR(120) NULL,
+  block VARCHAR(10) NULL,
   section VARCHAR(50) NULL,
   strand VARCHAR(50) NULL,
   year_grade VARCHAR(40) NULL,
-  rfid_hash VARCHAR(255) NOT NULL UNIQUE,
-  address_hash VARCHAR(255) NULL,
-  address_masked VARCHAR(255) NULL,
+  rfid VARCHAR(50) NOT NULL UNIQUE,
+  address VARCHAR(255) NULL,
   age INT NULL,
   dob DATE NULL,
   religion VARCHAR(80) NULL,
-  guardian_hash VARCHAR(255) NULL,
-  guardian_masked VARCHAR(120) NULL,
+  guardian VARCHAR(120) NULL,
   allergies TEXT NULL,
   contacts JSON NULL,
-  emergency_contact_hash VARCHAR(255) NULL,
-  emergency_contact_masked VARCHAR(120) NULL,
+  emergency_contact VARCHAR(120) NULL,
   medical_notes TEXT NULL,
   status ENUM("Active","Inactive","Graduated","Transferred") DEFAULT "Active",
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_level (level),
   INDEX idx_status (status),
-  INDEX idx_rfid_hash (rfid_hash),
-  INDEX idx_name_hash (name_hash)
+  INDEX idx_rfid (rfid),
+  INDEX idx_name (name)
 ) ENGINE=InnoDB');
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;

@@ -23,11 +23,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     original_id INT NOT NULL,
                     name VARCHAR(255) NOT NULL,
+                    gender ENUM("Male","Female") NULL,
                     level VARCHAR(50) NOT NULL,
                     year_grade VARCHAR(20) NULL,
                     section VARCHAR(100) NULL,
                     strand VARCHAR(100) NULL,
                     course VARCHAR(100) NULL,
+                    block VARCHAR(10) NULL,
                     rfid VARCHAR(50) NULL,
                     address TEXT NULL,
                     guardian VARCHAR(255) NULL,
@@ -46,19 +48,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Insert into archive table
                 $archiveStmt = $pdo->prepare('INSERT INTO students_archive (
-                    original_id, name, level, year_grade, section, strand, course, 
+                    original_id, name, gender, level, year_grade, section, strand, course, block,
                     rfid, address, guardian, emergency_contact, dob, age, religion, 
                     allergies, archived_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 
                 $archiveStmt->execute([
                     $student['id'],
                     $student['name'],
+                    $student['gender'] ?? null,
                     $student['level'],
                     $student['year_grade'],
                     $student['section'],
                     $student['strand'],
                     $student['course'],
+                    $student['block'] ?? null,
                     $student['rfid'],
                     $student['address'],
                     $student['guardian'],
