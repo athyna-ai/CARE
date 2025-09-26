@@ -77,7 +77,13 @@ try {
     // First check if table exists
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'medical_records'");
     if ($tableCheck->rowCount() > 0) {
-        $medicalStmt = $pdo->prepare('SELECT * FROM medical_records WHERE patient_id = ? AND patient_type = ? ORDER BY created_at DESC');
+        // Since we now archive medical records during re-enrollment, 
+        // we can show all current medical records without filtering
+        $medicalStmt = $pdo->prepare('
+            SELECT * FROM medical_records 
+            WHERE patient_id = ? AND patient_type = ? 
+            ORDER BY created_at DESC
+        ');
         $medicalStmt->execute([$patientId, $patientType]);
         $medicalHistory = $medicalStmt->fetchAll();
         error_log("Medical history query - Patient ID: {$patientId}, Type: {$patientType}, Count: " . count($medicalHistory));
@@ -122,10 +128,48 @@ try {
     // First check if table exists
     $tableCheck = $pdo->query("SHOW TABLES LIKE 'visitation_logs'");
     if ($tableCheck->rowCount() > 0) {
-        $visitationStmt = $pdo->prepare('SELECT * FROM visitation_logs WHERE patient_id = ? AND patient_type = ? ORDER BY visit_date DESC');
-        $visitationStmt->execute([$patientId, $patientType]);
+        // Get the most recent enrollment date to filter out historical visits
+        $enrollmentDate = null;
+        try {
+            $enrollmentStmt = $pdo->prepare('
+                SELECT MAX(created_at) as latest_enrollment 
+                FROM enrollment_history 
+                WHERE student_id = ?
+            ');
+            $enrollmentStmt->execute([$patientId]);
+            $enrollmentResult = $enrollmentStmt->fetch(PDO::FETCH_ASSOC);
+            $enrollmentDate = $enrollmentResult['latest_enrollment'];
+        } catch (Exception $e) {
+            // If enrollment_history table doesn't exist or query fails, show all logs
+            error_log("Enrollment history query failed: " . $e->getMessage());
+        }
+        
+        // Build query based on whether we have an enrollment date
+        if ($enrollmentDate) {
+            // Only show visits from after the most recent enrollment
+            $visitationStmt = $pdo->prepare('
+                SELECT * FROM visitation_logs 
+                WHERE patient_id = ? AND patient_type = ? 
+                AND created_at > ?
+                ORDER BY visit_date DESC
+            ');
+            $visitationStmt->execute([$patientId, $patientType, $enrollmentDate]);
+        } else {
+            // If no enrollment history, filter by current level context
+            // For students without enrollment history, show only recent records (last 6 months)
+            // This prevents showing very old records from previous academic years
+            $sixMonthsAgo = date('Y-m-d H:i:s', strtotime('-6 months'));
+            $visitationStmt = $pdo->prepare('
+                SELECT * FROM visitation_logs 
+                WHERE patient_id = ? AND patient_type = ? 
+                AND created_at > ?
+                ORDER BY visit_date DESC
+            ');
+            $visitationStmt->execute([$patientId, $patientType, $sixMonthsAgo]);
+        }
+        
         $visitationLogs = $visitationStmt->fetchAll();
-        error_log("Visitation logs query - Patient ID: {$patientId}, Type: {$patientType}, Count: " . count($visitationLogs));
+        error_log("Visitation logs query - Patient ID: {$patientId}, Type: {$patientType}, Enrollment Date: {$enrollmentDate}, Count: " . count($visitationLogs));
     } else {
         error_log("Visitation logs table does not exist");
         $visitationLogs = [];
@@ -233,6 +277,17 @@ html, body {
     color: #374151;
 }
 
+/* Debug modal visibility */
+#visitationModal, #generalCheckUpModal {
+    z-index: 9999 !important;
+}
+
+#visitationModal.flex, #generalCheckUpModal.flex {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
 </style>
 
 <script>
@@ -328,11 +383,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const message = urlParams.get('message');
     const messageType = urlParams.get('message_type') || 'info';
+    const formType = urlParams.get('form_type');
+    const openHistory = urlParams.get('open_history');
     
     if (message) {
         showNotification(decodeURIComponent(message), messageType, 8000);
+    }
+    
+    // Handle form type parameter to open specific form popup
+    if (formType) {
+        if (formType === 'general') {
+            openFullScreenMedicalForm('general');
+        } else if (formType === 'athlete') {
+            openFullScreenMedicalForm('athlete');
+        } else if (formType === 'emergency') {
+            openFullScreenMedicalForm('emergency');
+        }
         
-        // Clean up URL
+        // Clean up URL by removing form_type parameter
+        const newUrl = window.location.pathname + '?id=' + urlParams.get('id') + '&type=' + urlParams.get('type');
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    // Handle open_history parameter to open medical history modal
+    if (openHistory === 'true') {
+        openFullScreenMedicalForm('medical_history');
+        
+        // Clean up URL by removing open_history parameter
+        const newUrl = window.location.pathname + '?id=' + urlParams.get('id') + '&type=' + urlParams.get('type');
+        window.history.replaceState({}, document.title, newUrl);
+    }
+    
+    
+    // Clean up URL if there are message parameters
+    if (message) {
         const newUrl = window.location.pathname + '?id=' + urlParams.get('id') + '&type=' + urlParams.get('type');
         window.history.replaceState({}, document.title, newUrl);
     }
@@ -490,6 +574,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Add notification functions to global scope for easy access
 window.showNotification = showNotification;
 window.closeNotification = closeNotification;
+
 </script>
 
 <div class="h-screen w-full bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla flex flex-col overflow-hidden" style="height: calc(100vh - 60px);">
@@ -540,6 +625,33 @@ window.closeNotification = closeNotification;
                                 <?php if ($patientType === 'faculty' && $patient['sr']): ?>
                                     <span class="px-3 py-1 bg-clinic-vanilla/60 text-clinic-dark text-sm font-poppins font-semibold rounded-xl border border-clinic-vanilla/40">Sr.</span>
                                 <?php endif; ?>
+                                <?php if ($patientType === 'student'): ?>
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-xl border font-poppins font-medium
+                                        <?php
+                                        switch($patient['status'] ?? 'Active') {
+                                            case 'Active': echo 'bg-green-100 text-green-800 border-green-200'; break;
+                                            case 'Graduated': echo 'bg-blue-100 text-blue-800 border-blue-200'; break;
+                                            case 'Transferred': echo 'bg-yellow-100 text-yellow-800 border-yellow-200'; break;
+                                            case 'Inactive': echo 'bg-gray-100 text-gray-800 border-gray-200'; break;
+                                            default: echo 'bg-gray-100 text-gray-800 border-gray-200';
+                                        }
+                                        ?>
+                                    ">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Status: <?= htmlspecialchars($patient['status'] ?? 'Active') ?>
+                                    </span>
+                                    <div class="ml-2 inline-block">
+                                        <select onchange="changeStatus(this.value)" class="text-xs px-2 py-1 bg-clinic-blue/10 text-clinic-blue rounded-lg border border-clinic-blue/20 hover:bg-clinic-blue/20 transition-colors duration-200">
+                                            <option value="">Change Status</option>
+                                            <option value="Active" <?= ($patient['status'] ?? 'Active') === 'Active' ? 'disabled' : '' ?>>Active</option>
+                                            <option value="Graduated" <?= ($patient['status'] ?? 'Active') === 'Graduated' ? 'disabled' : '' ?>>Graduated</option>
+                                            <option value="Transferred" <?= ($patient['status'] ?? 'Active') === 'Transferred' ? 'disabled' : '' ?>>Transferred</option>
+                                            <option value="Inactive" <?= ($patient['status'] ?? 'Active') === 'Inactive' ? 'disabled' : '' ?>>Inactive</option>
+                                        </select>
+                                    </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -555,6 +667,16 @@ window.closeNotification = closeNotification;
                         </div>
                         Medical Forms
                     </button>
+                    <?php if ($patientType === 'student'): ?>
+                    <a href="enrollment_history.php?id=<?= $patientId ?>" class="group px-6 py-3 bg-purple-100/20 border border-purple-200/30 text-clinic-blue rounded-2xl hover:bg-purple-100/30 hover:border-purple-200/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
+                        <div class="w-8 h-8 rounded-xl bg-purple-100/30 flex items-center justify-center group-hover:bg-purple-100/40 transition-colors duration-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        Enrollment History
+                    </a>
+                    <?php endif; ?>
                     <button onclick="openVisitationModal()" class="group px-6 py-3 bg-clinic-blue/10 border border-clinic-blue/30 text-clinic-blue rounded-2xl hover:bg-clinic-blue/20 hover:border-clinic-blue/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
                         <div class="w-8 h-8 rounded-xl bg-clinic-blue/20 flex items-center justify-center group-hover:bg-clinic-blue/30 transition-colors duration-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -716,86 +838,10 @@ window.closeNotification = closeNotification;
                 </div>
             </div>
 
-            <!-- Medical History & Visitation Logs -->
-            <div class="space-y-4 flex flex-col h-full">
-                <!-- Medical History -->
-                <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col" style="height: 40%;">
-                    <div class="bg-gradient-to-r from-clinic-tea to-clinic-vanilla px-3 py-2">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-sm font-comfortaa font-bold text-clinic-dark">Medical History</h2>
-                            <button onclick="openMedicalHistoryForm()" class="group w-5 h-5 rounded-lg bg-clinic-dark/20 hover:bg-clinic-dark/30 text-clinic-dark transition-all duration-200 flex items-center justify-center">
-                                <svg class="w-3 h-3 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="p-2 flex-1 overflow-y-auto">
-                        <?php if (empty($allMedicalHistory)): ?>
-                            <div class="text-center py-3">
-                                <div class="w-8 h-8 rounded-lg bg-clinic-ivory/60 mx-auto mb-2 flex items-center justify-center">
-                                    <div class="text-lg">📋</div>
-                                </div>
-                                <p class="text-clinic-dark/60 font-poppins font-medium mb-2 text-xs">No medical history</p>
-                                <button onclick="openMedicalHistoryForm()" class="group inline-flex items-center gap-1 px-2 py-1 bg-clinic-tea/20 border border-clinic-tea/30 text-clinic-blue rounded-lg hover:bg-clinic-tea/30 hover:border-clinic-tea/50 transition-all duration-200 font-poppins font-medium text-xs">
-                                    <div class="w-3 h-3 rounded-md bg-clinic-tea/30 flex items-center justify-center group-hover:bg-clinic-tea/40 transition-colors duration-200">
-                                        <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                        </svg>
-                                    </div>
-                                    Add
-                                </button>
-                            </div>
-                        <?php else: ?>
-                            <?php if (!empty($allMedicalHistory) && isset($allMedicalHistory[0])): ?>
-                                <?php $latestRecord = $allMedicalHistory[0]; ?>
-                                <div class="bg-clinic-ivory/40 rounded-2xl p-3 border border-clinic-tea/20 hover:bg-clinic-tea/20 hover:border-clinic-tea/40 transition-all duration-300 cursor-pointer group" onclick="viewMedicalRecord(<?= $latestRecord['id'] ?>, '<?= $latestRecord['status'] ?? 'active' ?>')">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <div>
-                                            <p class="font-poppins font-semibold text-clinic-dark"><?= htmlspecialchars($latestRecord['form_type']) ?></p>
-                                            <p class="text-sm font-poppins text-clinic-dark/60">
-                                                <?= htmlspecialchars(date('M j, Y', strtotime($latestRecord['created_at'] ?? $latestRecord['archived_at']))) ?>
-                                                <?php if (isset($latestRecord['status']) && $latestRecord['status'] === 'archived'): ?>
-                                                    <span class="text-red-500 text-xs">(Archived)</span>
-                                                <?php endif; ?>
-                                            </p>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <?php if (isset($latestRecord['status']) && $latestRecord['status'] === 'archived'): ?>
-                                                <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-poppins font-medium rounded-lg">Archived</span>
-                                            <?php else: ?>
-                                                <span class="px-2 py-1 bg-clinic-blue/10 text-clinic-blue text-xs font-poppins font-medium rounded-lg">#<?= $latestRecord['id'] ?></span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    <?php if (count($allMedicalHistory) > 1): ?>
-                                        <div class="text-sm font-poppins text-clinic-dark/50">
-                                            +<?= count($allMedicalHistory) - 1 ?> more records
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            <?php else: ?>
-                                <div class="text-center py-3">
-                                    <div class="w-8 h-8 rounded-lg bg-clinic-ivory/60 mx-auto mb-2 flex items-center justify-center">
-                                        <div class="text-lg">📋</div>
-                                    </div>
-                                    <p class="text-clinic-dark/60 font-poppins font-medium mb-2 text-xs">No medical history</p>
-                                    <button onclick="openMedicalHistoryForm()" class="group inline-flex items-center gap-1 px-2 py-1 bg-clinic-tea/20 border border-clinic-tea/30 text-clinic-blue rounded-lg hover:bg-clinic-tea/30 hover:border-clinic-tea/50 transition-all duration-200 font-poppins font-medium text-xs">
-                                        <div class="w-3 h-3 rounded-md bg-clinic-tea/30 flex items-center justify-center group-hover:bg-clinic-tea/40 transition-colors duration-200">
-                                            <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                                            </svg>
-                                        </div>
-                                        Add
-                                    </button>
-                                </div>
-                            <?php endif; ?>
-                        <?php endif; ?>
-                    </div>
-                </div>
-
+            <!-- Right Sidebar -->
+            <div class="lg:col-span-1">
                 <!-- Visitation Logs -->
-                <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col flex-1">
+                <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col h-full">
                     <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-3 py-2">
                         <h2 class="text-sm font-comfortaa font-bold text-white">Visitation Logs</h2>
                     </div>
@@ -840,7 +886,7 @@ window.closeNotification = closeNotification;
                                                 </td>
                                                 <td class="py-2 px-3">
                                                     <div class="flex gap-2 justify-center">
-                                                        <button onclick="viewVisitationDetails(<?= $visit['id'] ?>)" class="px-3 py-1 bg-clinic-blue/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-blue/30 transition-colors">
+                                                        <button onclick="viewVisitationRecord(<?= $visit['id'] ?>)" class="px-3 py-1 bg-clinic-blue/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-blue/30 transition-colors">
                                                             View
                                                         </button>
                                                         <button onclick="archiveVisitation(<?= $visit['id'] ?>)" class="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors">
@@ -857,279 +903,323 @@ window.closeNotification = closeNotification;
                     </div>
                 </div>
             </div>
+            </div>
+        </div>
+    </div>
+<!-- Full Screen Medical Form Modal -->
+<div id="medicalFormFullScreen" class="fixed inset-0 z-50 hidden bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
+    <div class="h-full flex flex-col">
+        <!-- Header -->
+        <div class="bg-white shadow-lg border-b border-slate-200 px-6 py-4">
+
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h2 id="medicalFormTitle" class="text-2xl font-semibold text-slate-800">Medical Form</h2>
+                    <p id="medicalFormSubtitle" class="text-slate-600">Patient Information</p>
+                </div>
+                <button onclick="closeFullScreenMedicalForm()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                    <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <!-- Content Area -->
+        <div class="flex-1 overflow-y-auto p-6">
+            <form id="fullScreenMedicalForm" method="POST" action="../medical/save_medical_history.php">
+                <input type="hidden" name="patient_id" value="<?= $patientId ?>">
+                <input type="hidden" name="patient_type" value="<?= $patientType ?>">
+                <input type="hidden" name="form_type" id="formType">
+                
+                <div id="medicalFormContent" class="max-w-4xl mx-auto">
+                    <!-- Form content will be loaded here -->
+                </div>
+            </form>
         </div>
     </div>
 </div>
-
-
-<!-- Medical History Form Modal -->
-<div id="medicalHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+<!-- Visitation Form Modal -->
+<div id="visitationModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
     <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-semibold text-lg text-slate-800">Medical History Form</h2>
-            <button onclick="closeMedicalHistoryModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+        <h2 class="text-xl font-semibold mb-4">Add Visitation Record</h2>
+        <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="return submitVisitationForm(event);">
+            <input type="hidden" name="patient_id" value="<?= $patientId ?>">
+            <input type="hidden" name="patient_type" value="<?= $patientType ?>">
+            
+            <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Reason *</label>
+                    <select name="reason" id="reasonSelect" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="toggleOtherReason()">
+                        <option value="">Select reason</option>
+                        <option value="cold">Cold</option>
+                        <option value="cough">Cough</option>
+                        <option value="dizziness">Dizziness</option>
+                        <option value="fever">Fever</option>
+                        <option value="headache">Headache</option>
+                        <option value="injury">Injury</option>
+                        <option value="medication">Medication</option>
+                        <option value="nausea">Nausea</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Date *</label>
+                    <input type="date" name="date" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" value="<?= date('Y-m-d') ?>">
+                </div>
+            </div>
+            <div id="otherReasonDiv" class="hidden mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Specify Reason *</label>
+                <input type="text" name="other_reason" id="otherReasonInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Please specify the reason">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms/Observations</label>
+                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Describe symptoms and observations..."></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Vital Signs</label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Heart Rate (BPM)</label>
+                        <input type="number" name="heart_rate" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Temperature (°C)</label>
+                        <input type="number" name="temperature" step="0.1" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-600 mb-1">Blood Pressure (mmHg)</label>
+                        <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" oninput="formatBloodPressure(this)">
+                    </div>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Treatment Given</label>
+                <textarea name="treatment" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Describe treatment given..."></textarea>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeVisitationModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">Save Visitation</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Edit Patient Information Modal -->
+<div id="editPatientModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-3xl font-bold text-slate-800">Edit Patient Information</h2>
+            <button onclick="closeEditPatientModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        
-        <form id="medicalHistoryForm" method="POST" action="../medical/save_medical_history.php">
+        <form id="editPatientForm" method="POST" action="update_patient_info.php">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             
             <div class="space-y-6">
-                <!-- Ongoing Medical Conditions -->
+                <!-- Basic Information -->
                 <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">Ongoing Medical Conditions</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="error_refraction" id="error_refraction" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="error_refraction" class="text-slate-700">Error of Refraction</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="asthma" id="asthma" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="asthma" class="text-slate-700">Asthma</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="seizure" id="seizure" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="seizure" class="text-slate-700">Seizure</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="heart_problem" id="heart_problem" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="heart_problem" class="text-slate-700">Heart Problem</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="anemia" id="anemia" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="anemia" class="text-slate-700">Anemia</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="bleeding_disorder" id="bleeding_disorder" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="bleeding_disorder" class="text-slate-700">Bleeding Disorder</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="hernia" id="hernia" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="hernia" class="text-slate-700">Hernia</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="ongoing_conditions[]" value="others" id="others_ongoing" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="others_ongoing" class="text-slate-700">Others</label>
-                        </div>
-                        <div class="mt-3">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Please specify other conditions:</label>
-                            <textarea name="ongoing_conditions_other" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify other ongoing medical conditions..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Surgery/Hospitalization -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">Surgery/Hospitalization</h3>
-                    <div class="space-y-4">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Basic Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Have you ever had surgery/hospitalization?</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="surgery_status" value="no" class="text-sky-600 focus:ring-sky-500" checked>
-                                    <span class="ml-2 text-slate-700">No</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="surgery_status" value="yes" class="text-sky-600 focus:ring-sky-500">
-                                    <span class="ml-2 text-slate-700">Yes</span>
-                                </label>
-                            </div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Full Name *</label>
+                            <input type="text" name="name" value="<?= htmlspecialchars($patient['name']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
                         </div>
-                        <div id="surgery_details" class="hidden">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Please identify:</label>
-                            <textarea name="surgery_details" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify surgeries and hospitalizations..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Family Medical History -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">Family Medical History</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="tuberculosis" id="tuberculosis" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="tuberculosis" class="text-slate-700">Tuberculosis</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="cancer" id="cancer" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="cancer" class="text-slate-700">Cancer</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="diabetes" id="diabetes" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="diabetes" class="text-slate-700">Diabetes</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="hypertension" id="hypertension" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="hypertension" class="text-slate-700">Hypertension</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="depression" id="depression" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="depression" class="text-slate-700">Depression</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="family_conditions[]" value="others" id="others_family" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="others_family" class="text-slate-700">Others</label>
-                        </div>
-                        <div class="mt-3">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Please specify other family conditions:</label>
-                            <textarea name="family_conditions_other" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify other family medical conditions..."></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Cigarette/Vape Exposure -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">Exposure to Cigarette/Vape Smoke at Home</h3>
-                    <div class="flex space-x-4">
-                        <label class="flex items-center">
-                            <input type="radio" name="smoke_exposure" value="yes" class="text-sky-600 focus:ring-sky-500">
-                            <span class="ml-2 text-slate-700">Yes</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="smoke_exposure" value="no" class="text-sky-600 focus:ring-sky-500" checked>
-                            <span class="ml-2 text-slate-700">No</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Immunization -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">Immunization Received</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="mmr" id="mmr" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="mmr" class="text-slate-700">MMR (Measles, Mumps, Rubella)</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="dpt" id="dpt" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="dpt" class="text-slate-700">DPT (Diphtheria, Pertussis, Tetanus)</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="bcg" id="bcg" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="bcg" class="text-slate-700">BCG (Bacillus Calmette-Guérin)</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="chicken_pox" id="chicken_pox" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="chicken_pox" class="text-slate-700">Chicken Pox (Varicella)</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="hepatitis_b" id="hepatitis_b" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="hepatitis_b" class="text-slate-700">Hepatitis B</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="immunization[]" value="polio" id="polio" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="polio" class="text-slate-700">Polio</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- COVID-19 Vaccine -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">COVID-19 Vaccine Details</h3>
-                    <div class="space-y-3">
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="covid_vaccine[]" value="first_dose" id="first_dose" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="first_dose" class="text-slate-700">First Dose</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="covid_vaccine[]" value="second_dose" id="second_dose" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="second_dose" class="text-slate-700">Second Dose</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="covid_vaccine[]" value="booster_1" id="booster_1" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="booster_1" class="text-slate-700">Booster 1</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="covid_vaccine[]" value="booster_2" id="booster_2" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="booster_2" class="text-slate-700">Booster 2</label>
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            <input type="checkbox" name="covid_vaccine[]" value="bivalent" id="bivalent" class="rounded border-slate-300 text-sky-600 focus:ring-sky-500">
-                            <label for="bivalent" class="text-slate-700">Bivalent</label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- COVID-19 Test -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-3">COVID-19 Test History</h3>
-                    <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Have you tested positive for COVID-19?</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="covid_positive" value="no" class="text-sky-600 focus:ring-sky-500" checked>
-                                    <span class="ml-2 text-slate-700">No</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="covid_positive" value="yes" class="text-sky-600 focus:ring-sky-500">
-                                    <span class="ml-2 text-slate-700">Yes</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div id="covid_details" class="hidden">
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Please identify when and details:</label>
-                            <textarea name="covid_details" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify when you tested positive and any relevant details..."></textarea>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">RFID Number *</label>
+                            <input type="text" name="rfid" value="<?= htmlspecialchars($patient['rfid']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex justify-end space-x-3 mt-8">
-                <button type="button" onclick="closeMedicalHistoryModal()" class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
-                    Cancel
-                </button>
-                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">
-                    Save Medical History
+                <!-- Status Information -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Status Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Current Status *</label>
+                            <select name="status" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                                <option value="enrolled" <?= $patient['status'] === 'enrolled' ? 'selected' : '' ?>>Enrolled</option>
+                                <option value="graduated" <?= $patient['status'] === 'graduated' ? 'selected' : '' ?>>Graduated</option>
+                                <option value="transferred" <?= $patient['status'] === 'transferred' ? 'selected' : '' ?>>Transferred</option>
+                                <option value="dropped" <?= $patient['status'] === 'dropped' ? 'selected' : '' ?>>Dropped</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            <div class="flex justify-end gap-3 mt-8">
+                <button type="button" onclick="closeEditPatientModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-8 py-3 bg-clinic-blue text-white rounded-xl hover:bg-clinic-tea transition-colors font-medium" onclick="console.log('Submit button clicked'); return true;">
+                    Update Patient
                 </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Full Screen Medical Form Modal -->
-<div id="medicalFormFullScreen" class="fixed inset-0 z-50 hidden bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
-    <div class="h-full flex flex-col">
-        <!-- Header -->
-        <div class="bg-white shadow-lg border-b border-slate-200 px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="closeMedicalFormFullScreen()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                        <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 class="text-2xl font-bold text-lg text-slate-800" id="medicalFormTitle">Medical Form</h1>
-                        <p class="text-slate-600" id="medicalFormSubtitle">Patient: <?= htmlspecialchars($patient['name']) ?></p>
-                    </div>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <button onclick="saveMedicalForm()" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors font-medium">
-                        Save Form
-                    </button>
-                    <button onclick="closeMedicalFormFullScreen()" class="px-6 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors">
-                        Cancel
-                    </button>
-                </div>
-            </div>
+<!-- Visitation Details Modal -->
+<div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Visitation Details</h2>
+            <button onclick="closeVisitationDetailsModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
+                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
         </div>
-
-        <!-- Form Content -->
-        <div class="flex-1 overflow-hidden">
-            <div class="h-full overflow-y-auto">
-                <div class="p-6">
-                    <!-- Form will be dynamically loaded here -->
-                    <div id="medicalFormContent" class="space-y-6">
-                        <!-- Content will be loaded via JavaScript -->
+        <div id="visitationDetailsContent">
+            <!-- Content will be loaded here -->
+        </div>
+    </div>
+</div>
+<div id="generalCheckUpModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-semibold text-lg text-slate-800">General CheckUp Form</h2>
+            <button onclick="closeGeneralCheckUpModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="generalCheckUpForm" method="POST" action="../medical/save_medical_history.php">
+            <input type="hidden" name="patient_id" value="<?= $patientId ?>">
+            <input type="hidden" name="patient_type" value="<?= $patientType ?>">
+            <input type="hidden" name="form_type" value="general_checkup">
+            
+            <div class="space-y-6">
+                <!-- Physical Measurements -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Physical Measurements</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Height (cm) *</label>
+                            <input type="number" name="height" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="calculateGeneralBMI()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Weight (kg) *</label>
+                            <input type="number" name="weight" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="calculateGeneralBMI()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">BMI</label>
+                            <input type="text" name="bmi" id="generalBMI" readonly class="w-full rounded-lg border border-slate-300 px-4 py-3 bg-slate-50">
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">BMI Status</label>
+                        <div id="bmiStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                            N/A
+                        </div>
+                        <input type="hidden" name="bmi_status" id="bmiStatusHidden">
+                    </div>
+                </div>
+                
+                <!-- Vital Signs -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Vital Signs</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate (bpm)</label>
+                            <input type="number" name="heart_rate" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Temperature (°C)</label>
+                            <input type="number" name="temperature" step="0.1" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure</label>
+                            <input type="text" name="blood_pressure" id="bloodPressure" placeholder="e.g., 120/80" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="checkBloodPressureStatus()" onblur="checkBloodPressureStatus()" oninput="formatBloodPressure(this)">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate Status</label>
+                            <div id="heartRateStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                                N/A
+                            </div>
+                            <input type="hidden" name="heart_rate_status" id="heartRateStatusHidden">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Temperature Status</label>
+                            <div id="temperatureStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                                N/A
+                            </div>
+                            <input type="hidden" name="temperature_status" id="temperatureStatusHidden">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure Status</label>
+                            <div id="bloodPressureStatus" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600">
+                                N/A
+                            </div>
+                            <input type="hidden" name="blood_pressure_status" id="bloodPressureStatusHidden">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assessment and Plan -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Assessment & Plan</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Assessment & Plan *</label>
+                        <textarea name="assessment_plan" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Medical assessment, diagnosis, treatment plan, recommendations..."></textarea>
                     </div>
                 </div>
             </div>
+            
+            <div class="flex justify-end gap-3 mt-8">
+                <button type="button" onclick="closeGeneralCheckUpModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">
+                    Save General CheckUp
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+<div id="medicalHistoryDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Medical Record Details</h2>
+            <button onclick="closeMedicalHistoryDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="medicalHistoryDetailsContent">
+            <!-- Content will be loaded via JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Visitation Log Details Modal -->
+<div id="visitationLogDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Visitation Log Details</h2>
+            <button onclick="closeVisitationLogDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="visitationLogDetailsContent">
+            <!-- Content will be loaded via JavaScript -->
         </div>
     </div>
 </div>
@@ -1171,7 +1261,7 @@ window.closeNotification = closeNotification;
             
             <div class="mb-4">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms/Observations</label>
-                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Describe symptoms and observations...">Leave blank if none</textarea>
+                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Describe symptoms and observations..."></textarea>
             </div>
             
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -1181,7 +1271,7 @@ window.closeNotification = closeNotification;
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure</label>
-                    <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="N/A">
+                    <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="120/80" oninput="formatBloodPressure(this)">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Temperature (°C)</label>
@@ -1191,7 +1281,7 @@ window.closeNotification = closeNotification;
             
             <div class="mb-4">
                 <label class="block text-sm font-medium text-slate-700 mb-2">Other Notes</label>
-                <textarea name="other_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional notes...">Leave blank if none</textarea>
+                <textarea name="other_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional notes..."></textarea>
             </div>
             
             <div class="mb-4">
@@ -1226,7 +1316,7 @@ window.closeNotification = closeNotification;
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm font-medium text-slate-700 mb-2">Additional Notes</label>
-                    <textarea name="medication_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional medication notes or instructions...">Leave blank if none</textarea>
+                    <textarea name="medication_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional medication notes or instructions..."></textarea>
                 </div>
             </div>
             
@@ -1268,7 +1358,7 @@ window.closeNotification = closeNotification;
             </div>
             
             <div class="flex justify-end gap-3">
-                <button type="button" onclick="closeVisitationModal()" class="px-4 py-2 rounded-lg border border-slate-300">Cancel</button>
+                <button type="button" onclick="closeVisitationModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
                 <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">Save Visitation</button>
             </div>
         </form>
@@ -1496,7 +1586,6 @@ window.closeNotification = closeNotification;
     </div>
 </div>
 
-
 <!-- Visitation Details Modal -->
 <div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
@@ -1515,83 +1604,15 @@ window.closeNotification = closeNotification;
     </div>
 </div>
 
-<!-- Medical Forms Selection Modal -->
-<div id="medicalFormsModal" class="fixed inset-0 z-[9999] hidden items-center justify-center p-4 md:p-8">
-    <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-slate-800">Medical Forms</h2>
-            <button onclick="closeMedicalFormsModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Medical History Form -->
-            <div class="bg-clinic-blue/10 border border-clinic-blue/20 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="openMedicalHistoryForm()">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-clinic-blue/20 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-clinic-dark">Medical History</h3>
-                        <p class="text-sm text-clinic-dark/60">Complete medical history form</p>
-                    </div>
-                </div>
-                <p class="text-sm text-clinic-dark/70">Record comprehensive medical history including past illnesses, allergies, and family history.</p>
-            </div>
-
-            <!-- Athlete Form -->
-            <div class="bg-clinic-vanilla/20 border border-clinic-vanilla/30 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="openAthleteForm()">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-clinic-vanilla/30 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-clinic-dark">Athlete Form</h3>
-                        <p class="text-sm text-clinic-dark/60">Sports and physical activity form</p>
-                    </div>
-                </div>
-                <p class="text-sm text-clinic-dark/70">Document athletic activities, physical fitness, and sports-related health information.</p>
-            </div>
-
-            <!-- General Health Form -->
-            <div class="bg-clinic-tea/20 border border-clinic-tea/30 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 cursor-pointer" onclick="openGeneralForm()">
-                <div class="flex items-center gap-4 mb-4">
-                    <div class="w-12 h-12 rounded-xl bg-clinic-tea/30 flex items-center justify-center">
-                        <svg class="w-6 h-6 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-clinic-dark">General Health</h3>
-                        <p class="text-sm text-clinic-dark/60">General health assessment form</p>
-                    </div>
-                </div>
-                <p class="text-sm text-clinic-dark/70">General health assessment and routine medical information collection.</p>
-            </div>
-        </div>
-
-        <!-- View All Records Button -->
-        <div class="mt-8 text-center">
-            <button onclick="viewAllMedicalRecords()" class="px-6 py-3 bg-clinic-blue text-white rounded-xl hover:bg-clinic-blue/90 transition-colors font-medium">
-                View All Medical Records
-            </button>
-        </div>
-    </div>
-</div>
 
 <script>
 // Modal functions
 function openVisitationModal() {
-    document.getElementById('visitationModal').classList.remove('hidden');
-    document.getElementById('visitationModal').classList.add('flex');
+    const modal = document.getElementById('visitationModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
 }
 
 function closeVisitationModal() {
@@ -1720,18 +1741,43 @@ function toggleOtherFirstAid() {
 }
 
 function viewMedicalRecord(recordId, status = 'active') {
-    if (status === 'archived') {
-        // Redirect to archived medical record view page
-        window.location.href = `medical_record_view.php?id=${recordId}&archived=1`;
-    } else {
-        // Redirect to active medical record view page
-        window.location.href = `medical_record_view.php?id=${recordId}`;
-    }
+    // Show loading
+    document.getElementById('medicalHistoryDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
+    
+    // Show modal
+    document.getElementById('medicalHistoryDetailsModal').classList.remove('hidden');
+    document.getElementById('medicalHistoryDetailsModal').classList.add('flex');
+    
+    // Fetch medical record details
+    fetch(`medical_record_view.php?id=${recordId}&archived=${status === 'archived' ? '1' : '0'}&ajax=1`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('medicalHistoryDetailsContent').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading medical record:', error);
+            document.getElementById('medicalHistoryDetailsContent').innerHTML = '<div class="text-center py-8 text-red-600">Error loading medical record details.</div>';
+        });
 }
 
 function viewVisitationRecord(visitId) {
-    // Redirect to visitation record view page
-    window.location.href = `../logs/visitation_record_view.php?id=${visitId}`;
+    // Show loading
+    document.getElementById('visitationLogDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
+    
+    // Show modal
+    document.getElementById('visitationLogDetailsModal').classList.remove('hidden');
+    document.getElementById('visitationLogDetailsModal').classList.add('flex');
+    
+    // Fetch visitation log details
+    fetch(`../logs/visitation_details_view.php?id=${visitId}&ajax=1`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('visitationLogDetailsContent').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading visitation log:', error);
+            document.getElementById('visitationLogDetailsContent').innerHTML = '<div class="text-center py-8 text-red-600">Error loading visitation log details.</div>';
+        });
 }
 
 function viewVisitationDetails(visitId) {
@@ -1826,7 +1872,7 @@ function showMedicalFormFullScreen(type) {
     // Set title based on form type
     const formTitles = {
         'athlete': 'Athlete Medical Form',
-        'general': 'General Medical Form',
+        'general': 'General CheckUp',
         'emergency': 'Emergency Medical Form'
     };
     
@@ -1854,7 +1900,7 @@ function loadMedicalFormContent(type, container) {
     const form = document.createElement('form');
     form.id = 'medicalForm';
     form.method = 'POST';
-    form.action = '../medical/save_medical_form.php';
+    form.action = '../medical/save_medical_history.php';
     
     // Add hidden fields
     form.innerHTML = `
@@ -1870,9 +1916,70 @@ function loadMedicalFormContent(type, container) {
         form.innerHTML += getGeneralFormContent();
     } else if (type === 'emergency') {
         form.innerHTML += getEmergencyFormContent();
+    } else if (type === 'medical_history') {
+        form.innerHTML += getMedicalHistoryFormContent();
     }
     
     container.appendChild(form);
+}
+
+function getMedicalHistoryFormContent() {
+    return `
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+            <h3 class="text-xl font-semibold text-lg text-slate-800 mb-6">Medical History Form</h3>
+            
+            <div class="space-y-6">
+                <!-- Symptoms/Observations -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms/Observations</label>
+                    <textarea name="symptoms_observations" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Describe any symptoms, observations, or concerns..."></textarea>
+                </div>
+                
+                <!-- Medical History -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Medical History</label>
+                    <textarea name="medical_history" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Previous medical conditions, surgeries, hospitalizations..."></textarea>
+                </div>
+                
+                <!-- Medications -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Current Medications</label>
+                    <textarea name="medications" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - List current medications, dosages, and frequency..."></textarea>
+                </div>
+                
+                <!-- Allergies -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Allergies</label>
+                    <textarea name="allergies" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Food allergies, drug allergies, environmental allergies..."></textarea>
+                </div>
+                
+                <!-- Family History -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Family Medical History</label>
+                    <textarea name="family_history" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Hereditary conditions, family medical history..."></textarea>
+                </div>
+                
+                <!-- Assessment & Plan -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Assessment & Plan</label>
+                    <textarea name="assessment_plan" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Medical assessment, diagnosis, treatment plan, recommendations..."></textarea>
+                </div>
+                
+                <!-- Other Notes -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Other Notes</label>
+                    <textarea name="other_notes" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Additional notes, follow-up instructions..."></textarea>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-3 mt-8">
+                <button type="button" onclick="closeMedicalFormFullScreen()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">
+                    Save Medical History
+                </button>
+            </div>
+        </div>
+    `;
 }
 
 function getAthleteFormContent() {
@@ -1917,44 +2024,98 @@ function getAthleteFormContent() {
     `;
 }
 
+
 function getGeneralFormContent() {
     return `
         <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-            <h3 class="text-xl font-semibold text-lg text-slate-800 mb-6">General Medical Information</h3>
+            <h3 class="text-xl font-semibold text-lg text-slate-800 mb-6">General CheckUp Information</h3>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Chief Complaint *</label>
-                    <input type="text" name="chief_complaint" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Main reason for visit">
+            <!-- Physical Measurements -->
+            <div class="mb-6">
+                <h4 class="text-lg font-medium text-slate-700 mb-4">Physical Measurements</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Height (cm) *</label>
+                        <input type="number" name="height" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="calculateBMI()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Weight (kg) *</label>
+                        <input type="number" name="weight" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="calculateBMI()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">BMI</label>
+                        <input type="text" name="bmi" id="bmi" readonly class="w-full rounded-lg border border-slate-300 px-4 py-3 bg-slate-50">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Duration</label>
-                    <input type="text" name="duration" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="How long has this been going on?">
+                <div class="mt-2">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">BMI Status</label>
+                    <select name="bmi_status" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        <option value="">Select BMI Status</option>
+                        <option value="Underweight">Underweight</option>
+                        <option value="Normal">Normal</option>
+                        <option value="Overweight">Overweight</option>
+                        <option value="Obese">Obese</option>
+                    </select>
                 </div>
             </div>
             
-            <div class="mt-6">
-                <label class="block text-sm font-medium text-slate-700 mb-2">History of Present Illness</label>
-                <textarea name="history_present" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Detailed description of symptoms, onset, progression..."></textarea>
+            <!-- Vital Signs -->
+            <div class="mb-6">
+                <h4 class="text-lg font-medium text-slate-700 mb-4">Vital Signs</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate (bpm)</label>
+                        <input type="number" name="heart_rate" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Temperature (°C)</label>
+                        <input type="number" name="temperature" step="0.1" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure</label>
+                        <input type="text" name="blood_pressure" placeholder="e.g., 120/80" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" oninput="formatBloodPressure(this)">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate Status</label>
+                        <select name="heart_rate_status" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                            <option value="">Select Status</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Elevated">Elevated</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Temperature Status</label>
+                        <select name="temperature_status" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                            <option value="">Select Status</option>
+                            <option value="Normal">Normal</option>
+                            <option value="Fever">Fever</option>
+                            <option value="Hypothermia">Hypothermia</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure Status</label>
+                        <select name="blood_pressure_status" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                            <option value="">Select Status</option>
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             
+            <!-- Assessment and Plan -->
             <div class="mt-6">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Past Medical History</label>
-                <textarea name="past_medical" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Previous illnesses, surgeries, hospitalizations..."></textarea>
-            </div>
-            
-            <div class="mt-6">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Physical Examination</label>
-                <textarea name="physical_exam" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Vital signs, general appearance, specific findings..."></textarea>
-            </div>
-            
-            <div class="mt-6">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Assessment & Plan</label>
-                <textarea name="assessment_plan" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Diagnosis, treatment plan, follow-up..."></textarea>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Assessment & Plan *</label>
+                <textarea name="assessment_plan" rows="4" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - Medical assessment, diagnosis, treatment plan, recommendations..."></textarea>
             </div>
         </div>
     `;
 }
+
 
 function getEmergencyFormContent() {
     return `
@@ -2005,7 +2166,7 @@ function getEmergencyFormContent() {
                     </div>
                     <div>
                         <label class="block text-xs text-slate-600 mb-1">Blood Pressure</label>
-                        <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="120/80">
+                        <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="120/80" oninput="formatBloodPressure(this)">
                     </div>
                     <div>
                         <label class="block text-xs text-slate-600 mb-1">Temperature (°C)</label>
@@ -2029,71 +2190,342 @@ function saveMedicalForm() {
     }
 }
 
-function openMedicalHistoryForm() {
-    document.getElementById('medicalHistoryModal').classList.remove('hidden');
-    document.getElementById('medicalHistoryModal').classList.add('flex');
-}
 
-function closeMedicalHistoryModal() {
-    document.getElementById('medicalHistoryModal').classList.add('hidden');
-    document.getElementById('medicalHistoryModal').classList.remove('flex');
-}
 
-function viewAllMedicalForms() {
-    console.log('viewAllMedicalForms function called');
-    const modal = document.getElementById('medicalFormsModal');
-    console.log('Modal element found:', modal);
+
+function openGeneralCheckUpModal() {
+    const modal = document.getElementById('generalCheckUpModal');
     if (modal) {
-        console.log('Before - Modal classes:', modal.className);
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        console.log('After - Modal classes:', modal.className);
-        console.log('Modal display style:', window.getComputedStyle(modal).display);
-    } else {
-        console.error('Modal element not found!');
     }
 }
 
-function closeMedicalFormsModal() {
-    document.getElementById('medicalFormsModal').classList.add('hidden');
-    document.getElementById('medicalFormsModal').classList.remove('flex');
+function closeGeneralCheckUpModal() {
+    document.getElementById('generalCheckUpModal').classList.add('hidden');
+    document.getElementById('generalCheckUpModal').classList.remove('flex');
 }
 
-function openAthleteForm() {
-    // Close the medical forms modal first
-    closeMedicalFormsModal();
-    // Open the full screen medical form modal for athlete form
-    openFullScreenMedicalForm('athlete');
+function closeMedicalHistoryDetailsModal() {
+    document.getElementById('medicalHistoryDetailsModal').classList.add('hidden');
+    document.getElementById('medicalHistoryDetailsModal').classList.remove('flex');
 }
 
-function openGeneralForm() {
-    // Close the medical forms modal first
-    closeMedicalFormsModal();
-    // Open the full screen medical form modal for general form
-    openFullScreenMedicalForm('general');
+function closeVisitationLogDetailsModal() {
+    document.getElementById('visitationLogDetailsModal').classList.add('hidden');
+    document.getElementById('visitationLogDetailsModal').classList.remove('flex');
 }
 
-function viewAllMedicalRecords() {
-    // Close the modal and redirect to medical forms management
-    closeMedicalFormsModal();
+function calculateGeneralBMI() {
+    const height = parseFloat(document.querySelector('input[name="height"]').value);
+    const weight = parseFloat(document.querySelector('input[name="weight"]').value);
+    
+    if (height && weight && height > 0) {
+        const heightInMeters = height / 100;
+        const bmi = weight / (heightInMeters * heightInMeters);
+        
+        // Update BMI field
+        const bmiField = document.getElementById('generalBMI');
+        if (bmiField) {
+            bmiField.value = bmi.toFixed(1);
+        }
+        
+        // Update BMI status
+        const statusElement = document.getElementById('bmiStatus');
+        const hiddenInput = document.getElementById('bmiStatusHidden');
+        if (statusElement) {
+            let status, className;
+            if (bmi < 18.5) {
+                status = 'Underweight';
+                className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
+            } else if (bmi < 25) {
+                status = 'Normal';
+                className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800';
+            } else if (bmi < 30) {
+                status = 'Overweight';
+                className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800';
+            } else {
+                status = 'Obese';
+                className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+            }
+            statusElement.textContent = status;
+            statusElement.className = className;
+            if (hiddenInput) hiddenInput.value = status;
+        }
+    }
+}
+
+function checkHeartRateStatus() {
+    const hrValue = parseFloat(document.getElementById('heartRate').value);
+    const statusElement = document.getElementById('heartRateStatus');
+    const hiddenInput = document.getElementById('heartRateStatusHidden');
+    
+    if (hrValue && !isNaN(hrValue)) {
+        let status, className;
+        if (hrValue < 60) {
+            status = 'Low';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
+        } else if (hrValue <= 100) {
+            status = 'Normal';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800';
+        } else {
+            status = 'High';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+        }
+        statusElement.textContent = status;
+        statusElement.className = className;
+        if (hiddenInput) hiddenInput.value = status;
+    } else {
+        statusElement.textContent = 'N/A';
+        statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600';
+        if (hiddenInput) hiddenInput.value = '';
+    }
+}
+
+function checkTemperatureStatus() {
+    const tempValue = parseFloat(document.getElementById('temperature').value);
+    const statusElement = document.getElementById('temperatureStatus');
+    const hiddenInput = document.getElementById('temperatureStatusHidden');
+    
+    if (tempValue && !isNaN(tempValue)) {
+        let status, className;
+        if (tempValue < 36.1) {
+            status = 'Low';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800';
+        } else if (tempValue <= 37.2) {
+            status = 'Normal';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800';
+        } else {
+            status = 'High';
+            className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+        }
+        statusElement.textContent = status;
+        statusElement.className = className;
+        if (hiddenInput) hiddenInput.value = status;
+    } else {
+        statusElement.textContent = 'N/A';
+        statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600';
+        if (hiddenInput) hiddenInput.value = '';
+    }
+}
+
+function formatBloodPressure(input) {
+    let value = input.value.replace(/\D/g, ''); // Remove all non-digits
+    
+    if (value.length >= 3) {
+        // Format as XXX/XX
+        const systolic = value.substring(0, 3);
+        const diastolic = value.substring(3, 5);
+        input.value = systolic + '/' + diastolic;
+    } else if (value.length > 0) {
+        // Just show the digits as they are typed
+        input.value = value;
+    }
+    
+    // Trigger status check for General CheckUp form
+    if (input.id === 'bloodPressure') {
+        checkBloodPressureStatus();
+    }
+}
+
+function viewAllMedicalForms() {
+    // Redirect directly to medical forms management
     window.location.href = `medical_forms_management.php?patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`;
+}
+
+function archiveMedicalRecord(recordId) {
+    if (confirm('Are you sure you want to archive this medical record? This will move it to archived records.')) {
+        // Create a form to submit the archive request
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'archive_medical_record.php';
+        
+        // Add hidden fields
+        const recordIdInput = document.createElement('input');
+        recordIdInput.type = 'hidden';
+        recordIdInput.name = 'record_id';
+        recordIdInput.value = recordId;
+        
+        const patientIdInput = document.createElement('input');
+        patientIdInput.type = 'hidden';
+        patientIdInput.name = 'patient_id';
+        patientIdInput.value = '<?= $patientId ?>';
+        
+        const patientTypeInput = document.createElement('input');
+        patientTypeInput.type = 'hidden';
+        patientTypeInput.name = 'patient_type';
+        patientTypeInput.value = '<?= $patientType ?>';
+        
+        form.appendChild(recordIdInput);
+        form.appendChild(patientIdInput);
+        form.appendChild(patientTypeInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 
 function openFullScreenMedicalForm(formType) {
     // Set the form type and title
-    document.getElementById('medicalFormTitle').textContent = formType.charAt(0).toUpperCase() + formType.slice(1) + ' Form';
+    let title = formType.charAt(0).toUpperCase() + formType.slice(1) + ' Form';
+    if (formType === 'general') {
+        title = 'General CheckUp';
+    }
+    
+    document.getElementById('medicalFormTitle').textContent = title;
     document.getElementById('medicalFormSubtitle').textContent = 'Patient: <?= htmlspecialchars($patient['name']) ?>';
     
     // Show the full screen modal
-    document.getElementById('medicalFormFullScreen').classList.remove('hidden');
-    document.getElementById('medicalFormFullScreen').classList.add('flex');
+    const modal = document.getElementById('medicalFormFullScreen');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
     
     // Set the form type in a hidden input for saving
     const formTypeInput = document.getElementById('formType');
     if (formTypeInput) {
         formTypeInput.value = formType;
     }
+    
+    // Load the form content
+    const content = document.getElementById('medicalFormContent');
+    loadMedicalFormContent(formType, content);
 }
+
+
+
+function calculateBMI() {
+    const height = parseFloat(document.getElementById('height').value);
+    const weight = parseFloat(document.getElementById('weight').value);
+    
+    if (height && weight && height > 0) {
+        const heightInMeters = height / 100;
+        const bmi = weight / (heightInMeters * heightInMeters);
+        const bmiValue = document.getElementById('bmiValue');
+        const bmiStatus = document.getElementById('bmiStatus');
+        const bmiHidden = document.getElementById('bmi');
+        const bmiStatusHidden = document.getElementById('bmi_status');
+        
+        // Update BMI field (for general form)
+        if (bmiHidden) {
+            bmiHidden.value = bmi.toFixed(1);
+        }
+        
+        // Update BMI status dropdown (for general form)
+        const bmiStatusSelect = document.querySelector('select[name="bmi_status"]');
+        if (bmiStatusSelect) {
+            let statusValue = '';
+            if (bmi < 18.5) {
+                statusValue = 'Underweight';
+            } else if (bmi >= 18.5 && bmi < 25) {
+                statusValue = 'Normal';
+            } else if (bmi >= 25 && bmi < 30) {
+                statusValue = 'Overweight';
+            } else {
+                statusValue = 'Obese';
+            }
+            bmiStatusSelect.value = statusValue;
+        }
+        
+        // Legacy support for other forms
+        if (bmiValue) {
+            bmiValue.textContent = bmi.toFixed(1);
+        }
+        
+        if (bmiHidden) {
+            bmiHidden.value = bmi.toFixed(1);
+        }
+        
+        // Determine BMI status
+        let statusText = '';
+        if (bmi < 18.5) {
+            statusText = 'Underweight';
+            bmiStatus.textContent = statusText;
+            bmiStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800';
+        } else if (bmi >= 18.5 && bmi < 25) {
+            statusText = 'Normal';
+            bmiStatus.textContent = statusText;
+            bmiStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800';
+        } else if (bmi >= 25 && bmi < 30) {
+            statusText = 'Overweight';
+            bmiStatus.textContent = statusText;
+            bmiStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800';
+        } else {
+            statusText = 'Obese';
+            bmiStatus.textContent = statusText;
+            bmiStatus.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800';
+        }
+        
+        // Update hidden input field for BMI status
+        bmiStatusHidden.value = statusText;
+    } else {
+        document.getElementById('bmiValue').textContent = '--';
+        document.getElementById('bmiStatus').textContent = '';
+        document.getElementById('bmiStatus').className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium';
+        // Clear hidden input fields
+        document.getElementById('bmi').value = '';
+        document.getElementById('bmi_status').value = '';
+    }
+}
+
+function checkVitalStatus(inputId, statusId, minNormal, maxNormal) {
+    const value = parseFloat(document.getElementById(inputId).value);
+    const statusElement = document.getElementById(statusId);
+    
+    if (value) {
+        if (value >= minNormal && value <= maxNormal) {
+            statusElement.textContent = 'Normal';
+            statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800';
+        } else if (value < minNormal) {
+            statusElement.textContent = 'Low';
+            statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800';
+        } else {
+            statusElement.textContent = 'High';
+            statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+        }
+    } else {
+        statusElement.textContent = '';
+        statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium';
+    }
+}
+
+function checkBloodPressureStatus() {
+    const bpValue = document.getElementById('bloodPressure').value;
+    const statusElement = document.getElementById('bloodPressureStatus');
+    const hiddenInput = document.getElementById('bloodPressureStatusHidden');
+    
+    if (bpValue && bpValue.includes('/')) {
+        const [systolic, diastolic] = bpValue.split('/').map(v => parseInt(v.trim()));
+        
+        if (!isNaN(systolic) && !isNaN(diastolic)) {
+            if (systolic < 120 && diastolic < 80) {
+                statusElement.textContent = 'Normal';
+                statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800';
+                if (hiddenInput) hiddenInput.value = 'Normal';
+            } else if (systolic < 130 && diastolic < 80) {
+                statusElement.textContent = 'Elevated';
+                statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800';
+                if (hiddenInput) hiddenInput.value = 'Elevated';
+            } else if (systolic < 140 || diastolic < 90) {
+                statusElement.textContent = 'High Stage 1';
+                statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800';
+                if (hiddenInput) hiddenInput.value = 'High Stage 1';
+            } else {
+                statusElement.textContent = 'High Stage 2';
+                statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800';
+                if (hiddenInput) hiddenInput.value = 'High Stage 2';
+            }
+        } else {
+            statusElement.textContent = 'Invalid Format';
+            statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800';
+        }
+    } else {
+        statusElement.textContent = '';
+        statusElement.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium';
+    }
+}
+
 
 // Toggle medication form
 document.getElementById('medicationCheckbox').addEventListener('change', function() {
@@ -2105,7 +2537,7 @@ document.getElementById('medicationCheckbox').addEventListener('change', functio
         // Clear medication form fields when unchecked
         document.getElementById('medicationSelect').value = '';
         document.getElementById('otherMedicationInput').value = '';
-        document.querySelector('textarea[name="medication_notes"]').value = 'Leave blank if none';
+        document.querySelector('textarea[name="medication_notes"]').value = '';
         // Hide other medication div
         document.getElementById('otherMedicationDiv').classList.add('hidden');
     }
@@ -2232,6 +2664,48 @@ function initializeMedicalHistoryForm() {
 function closeEditPatientModal() {
     document.getElementById('editPatientModal').classList.add('hidden');
     document.getElementById('editPatientModal').classList.remove('flex');
+}
+
+function changeStatus(newStatus) {
+    if (!newStatus) return;
+    
+    const currentStatus = '<?= $patient['status'] ?? 'Active' ?>';
+    if (newStatus === currentStatus) {
+        showNotification('Status is already ' + newStatus, 'info');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to change status from ${currentStatus} to ${newStatus}?`)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'update_student_status.php';
+        
+        const studentIdInput = document.createElement('input');
+        studentIdInput.type = 'hidden';
+        studentIdInput.name = 'student_id';
+        studentIdInput.value = '<?= $patientId ?>';
+        
+        const statusInput = document.createElement('input');
+        statusInput.type = 'hidden';
+        statusInput.name = 'new_status';
+        statusInput.value = newStatus;
+        
+        const notesInput = document.createElement('input');
+        notesInput.type = 'hidden';
+        notesInput.name = 'status_notes';
+        notesInput.value = `Status changed from ${currentStatus} to ${newStatus}`;
+        
+        form.appendChild(studentIdInput);
+        form.appendChild(statusInput);
+        form.appendChild(notesInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    } else {
+        // Reset dropdown to default
+        event.target.value = '';
+    }
 }
 
 // Dynamic field visibility for edit form (same as registration forms)
@@ -2429,5 +2903,6 @@ function editPatientInfo() {
         return true;
     }
 </script>
+
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

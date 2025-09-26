@@ -39,14 +39,37 @@ $pdo->exec('CREATE TABLE IF NOT EXISTS students (
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $prefillRfid = sanitize_string($_GET['rfid'] ?? '');
 $prefillLevel = sanitize_string($_GET['level'] ?? '');
+$reenrolled = isset($_GET['reenrolled']) ? (int)$_GET['reenrolled'] : 0;
+
+// Handle re-enrollment parameters
+$newRfid = sanitize_string($_GET['new_rfid'] ?? '');
+$newLevel = sanitize_string($_GET['new_level'] ?? '');
+$newYearGrade = sanitize_string($_GET['new_year_grade'] ?? '');
+$newSection = sanitize_string($_GET['new_section'] ?? '');
+$newStrand = sanitize_string($_GET['new_strand'] ?? '');
+$newCourse = sanitize_string($_GET['new_course'] ?? '');
+$newBlock = sanitize_string($_GET['new_block'] ?? '');
 $errors = [];
 $info = [];
 $student = null;
+$reenrollmentDetected = false;
+$reenrollmentStudent = null;
 
 if ($id) {
 	$st = $pdo->prepare('SELECT * FROM students WHERE id = ?');
 	$st->execute([$id]);
 	$student = $st->fetch();
+	
+	// If this is a re-enrollment, update the student data with new values
+	if ($reenrolled && $student) {
+		if (!empty($newRfid)) $student['rfid'] = $newRfid;
+		if (!empty($newLevel)) $student['level'] = $newLevel;
+		if (!empty($newYearGrade)) $student['year_grade'] = $newYearGrade;
+		if (!empty($newSection)) $student['section'] = $newSection;
+		if (!empty($newStrand)) $student['strand'] = $newStrand;
+		if (!empty($newCourse)) $student['course'] = $newCourse;
+		if (!empty($newBlock)) $student['block'] = $newBlock;
+	}
 	
 	// Load existing emergency contacts
 	if ($student && !empty($student['contacts'])) {
@@ -62,6 +85,16 @@ if ($id) {
 		$student['barangay'] = trim($addressParts[0] ?? '');
 		$student['municipality'] = trim($addressParts[1] ?? '');
 		$student['province'] = trim($addressParts[2] ?? '');
+	}
+} else {
+	// Check for potential re-enrollment when form is first loaded (for new registrations)
+	if (!empty($prefillRfid)) {
+		$rfidCheck = $pdo->prepare('SELECT * FROM students WHERE rfid = ? AND status = "Graduated"');
+		$rfidCheck->execute([$prefillRfid]);
+		$reenrollmentStudent = $rfidCheck->fetch();
+		if ($reenrollmentStudent) {
+			$reenrollmentDetected = true;
+		}
 	}
 }
 
@@ -106,6 +139,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		if (empty($validContacts)) { $errors[] = 'At least one contact number is required.'; }
 
 		if (!$errors) {
+			// Check for re-enrollment scenario (only for new registrations, not edits)
+			$reenrollmentStudent = null;
+			if (!$id) {
+				// Check if RFID already exists in graduated students
+				$rfidCheck = $pdo->prepare('SELECT * FROM students WHERE rfid = ? AND status = "Graduated"');
+				$rfidCheck->execute([$rfid]);
+				$reenrollmentStudent = $rfidCheck->fetch();
+				
+				// If RFID not found, check by name and DOB for graduated students
+				if (!$reenrollmentStudent && !empty($dob)) {
+					$nameDobCheck = $pdo->prepare('SELECT * FROM students WHERE name = ? AND dob = STR_TO_DATE(?,"%d/%m/%Y") AND status = "Graduated"');
+					$nameDobCheck->execute([$name, $dob]);
+					$reenrollmentStudent = $nameDobCheck->fetch();
+				}
+			}
+			
 			// Store original data in main table (no hashing)
 			$contactsJson = json_encode(array_values(array_filter(array_map('trim', (array)$contacts))));
 			
@@ -117,12 +166,95 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				// Log activity
 				log_activity($pdo, (int)$_SESSION['user']['id'], 'student_update', "Updated student: {$name} ({$level})", 'student_form');
 			} else {
-				$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, block, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts) VALUES (?,?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?)');
-				$ins->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson]);
-				$info[] = 'Student registered successfully.';
-				
-				// Log activity
-				log_activity($pdo, (int)$_SESSION['user']['id'], 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
+				// Handle re-enrollment or new registration
+				if ($reenrollmentStudent) {
+					// Store previous enrollment data for history
+					$previousLevel = $reenrollmentStudent['level'];
+					$previousStatus = $reenrollmentStudent['status'];
+					$previousYearGrade = $reenrollmentStudent['year_grade'];
+					$previousSection = $reenrollmentStudent['section'];
+					$previousStrand = $reenrollmentStudent['strand'];
+					$previousCourse = $reenrollmentStudent['course'];
+					$previousBlock = $reenrollmentStudent['block'];
+					
+					// Re-enroll existing graduated student
+					$reenrollStmt = $pdo->prepare('UPDATE students SET name=?, gender=?, level=?, course=?, block=?, section=?, strand=?, year_grade=?, rfid=?, address=?, age=?, dob=STR_TO_DATE(?,"%d/%m/%Y"), religion=?, guardian=?, allergies=?, contacts=?, status="Active", updated_at=CURRENT_TIMESTAMP WHERE id=?');
+					$reenrollStmt->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$reenrollmentStudent['id']]);
+					
+					// Record enrollment history
+					$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
+						student_id, enrollment_type, previous_level, new_level, previous_status, new_status,
+						previous_year_grade, new_year_grade, previous_section, new_section,
+						previous_strand, new_strand, previous_course, new_course,
+						previous_block, new_block, enrollment_year, notes, created_by
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+					
+					$currentYear = date('Y');
+					$notes = "Re-enrolled from {$previousLevel} to {$level}";
+					
+					$historyStmt->execute([
+						$reenrollmentStudent['id'],
+						're_enrollment',
+						$previousLevel,
+						$level,
+						$previousStatus,
+						'Active',
+						$previousYearGrade,
+						$year_grade,
+						$previousSection,
+						$section,
+						$previousStrand,
+						$strand,
+						$previousCourse,
+						$course,
+						$previousBlock,
+						$block,
+						$currentYear,
+						$notes,
+						$_SESSION['user']['id']
+					]);
+					
+					$info[] = 'Student re-enrolled successfully.';
+					
+					// Log activity
+					log_activity($pdo, (int)$_SESSION['user']['id'], 'student_reenroll', "Re-enrolled student: {$name} ({$level})", 'student_form');
+				} else {
+					// Register new student
+					$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, block, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts) VALUES (?,?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?)');
+					$ins->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson]);
+					
+					$newStudentId = $pdo->lastInsertId();
+					
+					// Record initial enrollment history
+					$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
+						student_id, enrollment_type, new_level, new_status,
+						new_year_grade, new_section, new_strand, new_course,
+						new_block, enrollment_year, notes, created_by
+					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+					
+					$currentYear = date('Y');
+					$notes = "Initial enrollment in {$level}";
+					
+					$historyStmt->execute([
+						$newStudentId,
+						'initial',
+						$level,
+						'Active',
+						$year_grade,
+						$section,
+						$strand,
+						$course,
+						$block,
+						$currentYear,
+						$notes,
+						$_SESSION['user']['id']
+					]);
+					
+					$info[] = 'Student registered successfully.';
+					
+					// Log activity
+					log_activity($pdo, (int)$_SESSION['user']['id'], 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
+				}
 			}
 			// Redirect to dashboard after successful save
 			header('Location: ../admin/dashboard.php?success=1');
@@ -145,6 +277,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</button>
 			</div>
 			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
+			
+			<!-- Re-enrollment Detection Notice -->
+			<?php if ($reenrollmentDetected && $reenrollmentStudent): ?>
+			<div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+				<div class="flex items-start gap-3">
+					<div class="flex-shrink-0">
+						<svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+					<div class="flex-1">
+						<h3 class="text-sm font-medium text-blue-800 mb-1">Re-enrollment Detected</h3>
+						<p class="text-sm text-blue-700">
+							Found a graduated student with RFID <strong><?= htmlspecialchars($reenrollmentStudent['rfid']) ?></strong> 
+							(Previously: <?= htmlspecialchars($reenrollmentStudent['name']) ?> - <?= htmlspecialchars($reenrollmentStudent['level']) ?>).
+							<br>
+							<strong>This will re-enroll the existing student instead of creating a new record.</strong>
+						</p>
+					</div>
+				</div>
+			</div>
+			<?php endif; ?>
+			
+			<!-- Re-enrollment Success Notice -->
+			<?php if ($reenrolled && $student): ?>
+			<div class="mb-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-2xl shadow-lg">
+				<div class="flex items-start gap-4">
+					<div class="flex-shrink-0">
+						<div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+							<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+							</svg>
+						</div>
+					</div>
+					<div class="flex-1">
+						<h3 class="text-xl font-bold text-green-800 mb-3">✅ Re-enrollment Completed Successfully!</h3>
+						<div class="space-y-2">
+							<p class="text-lg text-green-700 font-medium">
+								Student has been successfully re-enrolled with new information.
+							</p>
+							<?php if (!empty($newRfid)): ?>
+							<div class="bg-white/60 backdrop-blur-sm rounded-lg p-4 border border-green-200">
+								<p class="text-base text-green-800 font-semibold">
+									🆔 RFID Updated: <span class="text-green-600"><?= htmlspecialchars($student['rfid']) ?></span>
+								</p>
+								<p class="text-sm text-green-700 mt-1">
+									Level: <span class="font-medium"><?= htmlspecialchars($student['level']) ?></span>
+									<?php if (!empty($student['year_grade'])): ?>
+										| Grade/Year: <span class="font-medium"><?= htmlspecialchars($student['year_grade']) ?></span>
+									<?php endif; ?>
+									<?php if (!empty($student['section'])): ?>
+										| Section: <span class="font-medium"><?= htmlspecialchars($student['section']) ?></span>
+									<?php endif; ?>
+								</p>
+							</div>
+							<?php endif; ?>
+							<p class="text-base text-green-700 font-medium">
+								📝 The form below has been pre-populated with the new information.
+								<br>
+								<strong class="text-green-800">You can now make additional updates if needed.</strong>
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+			<?php endif; ?>
+			
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
 			<form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
@@ -1033,6 +1232,120 @@ function goBack() {
         window.location.href = '../admin/dashboard.php';
     }
 }
+
+// Re-enrollment detection system
+let reenrollmentCheckTimeout;
+let currentReenrollmentStudent = null;
+
+function checkForReenrollment() {
+    const rfidInput = document.querySelector('input[name="rfid"]');
+    const nameInput = document.querySelector('input[name="name"]');
+    const dobInput = document.querySelector('input[name="dob"]');
+    
+    if (!rfidInput || !nameInput) return;
+    
+    const rfid = rfidInput.value.trim();
+    const name = nameInput.value.trim();
+    const dob = dobInput.value.trim();
+    
+    // Clear previous timeout
+    if (reenrollmentCheckTimeout) {
+        clearTimeout(reenrollmentCheckTimeout);
+    }
+    
+    // Only check if we have meaningful input
+    if (rfid.length < 3 && name.length < 3) {
+        hideReenrollmentNotice();
+        return;
+    }
+    
+    // Debounce the check
+    reenrollmentCheckTimeout = setTimeout(() => {
+        fetch('../api/check_reenrollment.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                rfid: rfid,
+                name: name,
+                dob: dob
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.found && data.student) {
+                currentReenrollmentStudent = data.student;
+                showReenrollmentNotice(data.student);
+            } else {
+                currentReenrollmentStudent = null;
+                hideReenrollmentNotice();
+            }
+        })
+        .catch(error => {
+            console.log('Re-enrollment check error:', error);
+            hideReenrollmentNotice();
+        });
+    }, 500);
+}
+
+function showReenrollmentNotice(student) {
+    // Remove existing notice
+    hideReenrollmentNotice();
+    
+    // Create notice element
+    const notice = document.createElement('div');
+    notice.id = 'reenrollment-notice';
+    notice.className = 'mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl';
+    notice.innerHTML = `
+        <div class="flex items-start gap-3">
+            <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="flex-1">
+                <h3 class="text-sm font-medium text-blue-800 mb-1">Re-enrollment Detected</h3>
+                <p class="text-sm text-blue-700">
+                    Found a graduated student with RFID <strong>${student.rfid}</strong> 
+                    (Previously: ${student.name} - ${student.level}).
+                    <br>
+                    <strong>This will re-enroll the existing student instead of creating a new record.</strong>
+                </p>
+            </div>
+        </div>
+    `;
+    
+    // Insert after the header
+    const header = document.querySelector('h1');
+    if (header) {
+        header.parentNode.insertBefore(notice, header.nextSibling);
+    }
+}
+
+function hideReenrollmentNotice() {
+    const existingNotice = document.getElementById('reenrollment-notice');
+    if (existingNotice) {
+        existingNotice.remove();
+    }
+}
+
+// Add event listeners when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    const rfidInput = document.querySelector('input[name="rfid"]');
+    const nameInput = document.querySelector('input[name="name"]');
+    const dobInput = document.querySelector('input[name="dob"]');
+    
+    if (rfidInput) {
+        rfidInput.addEventListener('input', checkForReenrollment);
+    }
+    if (nameInput) {
+        nameInput.addEventListener('input', checkForReenrollment);
+    }
+    if (dobInput) {
+        dobInput.addEventListener('input', checkForReenrollment);
+    }
+});
 </script>
 
 <script src="../core/validation.js"></script>

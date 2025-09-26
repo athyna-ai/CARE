@@ -164,9 +164,14 @@ include __DIR__ . '/../partials/header.php';
                                             <p class="text-xs font-poppins text-clinic-dark/60">Created: <?= htmlspecialchars(date('M j, Y g:i A', strtotime($record['created_at']))) ?></p>
                                             <p class="text-xs font-poppins text-clinic-dark/50 mt-1">Archived: <?= htmlspecialchars(date('M j, Y g:i A', strtotime($record['archived_at']))) ?></p>
                                         </div>
-                                        <button onclick="viewArchivedMedicalRecord(<?= $record['id'] ?>, '<?= $patientType ?>')" class="px-3 py-1 bg-clinic-tea/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-tea/30 transition-colors">
-                                            View
-                                        </button>
+                                        <div class="flex gap-2">
+                                            <button onclick="viewArchivedMedicalRecord(<?= $record['id'] ?>, '<?= $patientType ?>')" class="px-3 py-1 bg-clinic-tea/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-tea/30 transition-colors">
+                                                View
+                                            </button>
+                                            <button onclick="restoreMedicalRecord(<?= $record['id'] ?>, <?= $patientId ?>, '<?= $patientType ?>')" class="px-3 py-1 bg-green-100 text-green-700 text-xs font-medium rounded-lg hover:bg-green-200 transition-colors">
+                                                Restore
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
@@ -191,6 +196,24 @@ include __DIR__ . '/../partials/header.php';
             </button>
         </div>
         <div id="archivedVisitationContent">
+            <!-- Content will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Archived Medical Record Details Modal -->
+<div id="archivedMedicalModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Archived Medical Record Details</h2>
+            <button onclick="closeArchivedMedicalModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div id="archivedMedicalContent">
             <!-- Content will be loaded here -->
         </div>
     </div>
@@ -222,8 +245,65 @@ function closeArchivedVisitationModal() {
 }
 
 function viewArchivedMedicalRecord(recordId, patientType) {
-    // For now, just show an alert - you can implement this later
-    alert('Medical record viewing not implemented yet. Record ID: ' + recordId);
+    // Show loading
+    document.getElementById('archivedMedicalContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-slate-600">Loading details...</p></div>';
+    
+    // Show modal
+    document.getElementById('archivedMedicalModal').classList.remove('hidden');
+    document.getElementById('archivedMedicalModal').classList.add('flex');
+    
+    // Load details
+    fetch(`get_archived_medical_details.php?id=${recordId}&type=${patientType}`)
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('archivedMedicalContent').innerHTML = data;
+        })
+        .catch(error => {
+            document.getElementById('archivedMedicalContent').innerHTML = '<div class="text-center py-8 text-red-600">Error loading details. Please try again.</div>';
+        });
+}
+
+function closeArchivedMedicalModal() {
+    document.getElementById('archivedMedicalModal').classList.add('hidden');
+    document.getElementById('archivedMedicalModal').classList.remove('flex');
+}
+
+function restoreMedicalRecord(archiveId, patientId, patientType) {
+    if (confirm('Are you sure you want to restore this archived medical record? It will be moved back to the active medical records.')) {
+        // Show loading on the button
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Restoring...';
+        button.disabled = true;
+        
+        // Restore medical record
+        fetch('../admin/restore_medical_record.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `archive_id=${archiveId}&patient_id=${patientId}&patient_type=${patientType}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message and reload the page
+                alert('Medical record restored successfully!');
+                window.location.reload();
+            } else {
+                // Show error message
+                alert('Error restoring medical record: ' + data.message);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error restoring medical record:', error);
+            alert('Error restoring medical record. Please try again.');
+            button.textContent = originalText;
+            button.disabled = false;
+        });
+    }
 }
 
 function restoreVisitation(archiveId, patientId, patientType) {

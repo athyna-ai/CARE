@@ -41,6 +41,274 @@ if (!$record) {
     exit;
 }
 
+// Handle AJAX request for popup content
+if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+    // Parse form data
+    $formData = json_decode($record['form_data'], true);
+    
+    // Get patient information
+    $patient = null;
+    if ($record['patient_type'] === 'student') {
+        $stmt = $pdo->prepare('SELECT * FROM students WHERE id = ?');
+        $stmt->execute([$record['patient_id']]);
+        $patient = $stmt->fetch();
+    } else {
+        $stmt = $pdo->prepare('SELECT * FROM faculty WHERE id = ?');
+        $stmt->execute([$record['patient_id']]);
+        $patient = $stmt->fetch();
+    }
+    
+    // Helper functions for status calculations
+    function getBMIStatus($bmi) {
+        if ($bmi < 18.5) return ['status' => 'Underweight', 'color' => 'blue'];
+        if ($bmi < 25) return ['status' => 'Normal', 'color' => 'green'];
+        if ($bmi < 30) return ['status' => 'Overweight', 'color' => 'yellow'];
+        return ['status' => 'Obese', 'color' => 'red'];
+    }
+    
+    function getHeartRateStatus($hr) {
+        if ($hr < 60) return ['status' => 'Low', 'color' => 'blue'];
+        if ($hr <= 100) return ['status' => 'Normal', 'color' => 'green'];
+        return ['status' => 'High', 'color' => 'red'];
+    }
+    
+    function getTemperatureStatus($temp) {
+        if ($temp < 36.1) return ['status' => 'Low', 'color' => 'blue'];
+        if ($temp <= 37.2) return ['status' => 'Normal', 'color' => 'green'];
+        return ['status' => 'High', 'color' => 'red'];
+    }
+    
+    function getBloodPressureStatus($bp) {
+        if (empty($bp)) return ['status' => 'N/A', 'color' => 'gray'];
+        $parts = explode('/', $bp);
+        if (count($parts) !== 2) return ['status' => 'N/A', 'color' => 'gray'];
+        
+        $systolic = (int)$parts[0];
+        $diastolic = (int)$parts[1];
+        
+        if ($systolic < 90 || $diastolic < 60) return ['status' => 'Low', 'color' => 'blue'];
+        if ($systolic <= 120 && $diastolic <= 80) return ['status' => 'Normal', 'color' => 'green'];
+        if ($systolic <= 139 && $diastolic <= 89) return ['status' => 'Elevated', 'color' => 'yellow'];
+        return ['status' => 'High', 'color' => 'red'];
+    }
+    
+    // Calculate BMI if height and weight are available
+    $calculatedBMI = null;
+    $bmiStatus = null;
+    if (!empty($formData['height']) && !empty($formData['weight'])) {
+        $heightInMeters = $formData['height'] / 100;
+        $calculatedBMI = round($formData['weight'] / ($heightInMeters * $heightInMeters), 1);
+        $bmiStatus = getBMIStatus($calculatedBMI);
+    }
+    
+    // Calculate statuses for vital signs
+    $heartRateStatus = !empty($formData['heart_rate']) ? getHeartRateStatus($formData['heart_rate']) : null;
+    $temperatureStatus = !empty($formData['temperature']) ? getTemperatureStatus($formData['temperature']) : null;
+    $bloodPressureStatus = getBloodPressureStatus($formData['blood_pressure'] ?? '');
+    
+    // Return only the content part
+    ?>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="space-y-6">
+            <!-- Record Information -->
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-800 mb-3">Record Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
+                            <div class="text-xs text-slate-600 mb-1">Record ID</div>
+                            <div class="font-semibold text-slate-800">#<?= $record['id'] ?></div>
+                        </div>
+                        <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
+                            <div class="text-xs text-slate-600 mb-1">Form Type</div>
+                            <div class="font-semibold text-slate-800"><?= ucfirst($record['form_type']) ?></div>
+                        </div>
+                        <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
+                            <div class="text-xs text-slate-600 mb-1">Created</div>
+                            <div class="font-semibold text-slate-800"><?= date('M j, Y g:i A', strtotime($record['created_at'])) ?></div>
+                        </div>
+                        <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
+                            <div class="text-xs text-slate-600 mb-1">Last Updated</div>
+                            <div class="font-semibold text-slate-800"><?= date('M j, Y g:i A', strtotime($record['updated_at'])) ?></div>
+                        </div>
+                    </div>
+            </div>
+
+            <!-- Form Data -->
+            <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4">Form Data</h3>
+                <?php if ($record['form_type'] === 'general'): ?>
+                    <div class="space-y-4">
+                        <!-- Physical Measurements -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Physical Measurements</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">Height:</span>
+                                    <span class="font-semibold text-slate-800"><?= $formData['height'] ?? 'N/A' ?> cm</span>
+                                </div>
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">Weight:</span>
+                                    <span class="font-semibold text-slate-800"><?= $formData['weight'] ?? 'N/A' ?> kg</span>
+                                </div>
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">BMI:</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-slate-800"><?= $calculatedBMI ?? ($formData['bmi'] ?? 'N/A') ?></span>
+                                        <?php if ($bmiStatus): ?>
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-<?= $bmiStatus['color'] ?>-100 text-<?= $bmiStatus['color'] ?>-800">
+                                                <?= $bmiStatus['status'] ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vital Signs -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Vital Signs</h4>
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">Heart Rate:</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-slate-800"><?= $formData['heart_rate'] ?? 'N/A' ?> BPM</span>
+                                        <?php if ($heartRateStatus): ?>
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-<?= $heartRateStatus['color'] ?>-100 text-<?= $heartRateStatus['color'] ?>-800">
+                                                <?= $heartRateStatus['status'] ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">Temperature:</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-slate-800"><?= $formData['temperature'] ?? 'N/A' ?>°C</span>
+                                        <?php if ($temperatureStatus): ?>
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-<?= $temperatureStatus['color'] ?>-100 text-<?= $temperatureStatus['color'] ?>-800">
+                                                <?= $temperatureStatus['status'] ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
+                                    <span class="text-slate-600 font-medium">Blood Pressure:</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-semibold text-slate-800"><?= $formData['blood_pressure'] ?? 'N/A' ?></span>
+                                        <?php if ($bloodPressureStatus): ?>
+                                            <span class="px-2 py-1 text-xs font-medium rounded-full bg-<?= $bloodPressureStatus['color'] ?>-100 text-<?= $bloodPressureStatus['color'] ?>-800">
+                                                <?= $bloodPressureStatus['status'] ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assessment & Plan -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-2">Assessment & Plan</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <span class="text-slate-600">Assessment:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= $formData['assessment'] ?? 'N/A' ?></span>
+                            </div>
+                        </div>
+                    </div>
+                <?php elseif ($record['form_type'] === 'medical_history'): ?>
+                    <!-- Medical History Form Display (handles both old and new formats) -->
+                    <div class="space-y-4">
+                        <!-- Ongoing Conditions -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Ongoing Medical Conditions</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <?php 
+                                $ongoingConditions = '';
+                                if (isset($formData['ongoing_conditions'])) {
+                                    if (is_array($formData['ongoing_conditions'])) {
+                                        // Old format: array of conditions
+                                        $ongoingConditions = !empty($formData['ongoing_conditions']) ? implode(', ', $formData['ongoing_conditions']) : '';
+                                        if (!empty($formData['ongoing_conditions_other'])) {
+                                            $ongoingConditions .= ($ongoingConditions ? ', ' : '') . $formData['ongoing_conditions_other'];
+                                        }
+                                    } else {
+                                        // New format: string
+                                        $ongoingConditions = $formData['ongoing_conditions'];
+                                    }
+                                }
+                                ?>
+                                <span class="text-slate-600">Conditions:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= !empty($ongoingConditions) ? htmlspecialchars($ongoingConditions) : 'N/A' ?></span>
+                            </div>
+                        </div>
+
+                        <!-- Family History -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Family Medical History</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <?php 
+                                $familyHistory = '';
+                                if (isset($formData['family_history'])) {
+                                    // New format: string
+                                    $familyHistory = $formData['family_history'];
+                                } elseif (isset($formData['family_conditions'])) {
+                                    // Old format: array of conditions
+                                    if (is_array($formData['family_conditions'])) {
+                                        $familyHistory = !empty($formData['family_conditions']) ? implode(', ', $formData['family_conditions']) : '';
+                                        if (!empty($formData['family_conditions_other'])) {
+                                            $familyHistory .= ($familyHistory ? ', ' : '') . $formData['family_conditions_other'];
+                                        }
+                                    }
+                                }
+                                ?>
+                                <span class="text-slate-600">Family History:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= !empty($familyHistory) ? htmlspecialchars($familyHistory) : 'N/A' ?></span>
+                            </div>
+                        </div>
+
+                        <!-- Allergies -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Allergies</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <span class="text-slate-600">Allergies:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= !empty($formData['allergies']) ? htmlspecialchars($formData['allergies']) : 'N/A' ?></span>
+                            </div>
+                        </div>
+
+                        <!-- Current Medications -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Current Medications</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <span class="text-slate-600">Medications:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= !empty($formData['current_medications']) ? htmlspecialchars($formData['current_medications']) : 'N/A' ?></span>
+                            </div>
+                        </div>
+
+                        <!-- Additional Notes -->
+                        <div>
+                            <h4 class="font-medium text-slate-700 mb-3">Additional Notes</h4>
+                            <div class="py-2 px-3 bg-white rounded border">
+                                <span class="text-slate-600">Notes:</span>
+                                <span class="font-semibold text-slate-800 ml-2"><?= !empty($formData['additional_notes']) ? htmlspecialchars($formData['additional_notes']) : 'N/A' ?></span>
+                            </div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <!-- Other form types -->
+                    <div class="space-y-3">
+                        <?php foreach ($formData as $key => $value): ?>
+                            <div class="flex justify-between items-center py-2 px-3 bg-white rounded border">
+                                <span class="text-slate-600"><?= ucfirst(str_replace('_', ' ', $key)) ?>:</span>
+                                <span class="font-semibold text-slate-800"><?= is_array($value) ? json_encode($value) : $value ?></span>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    <?php
+    exit;
+}
+
 // Get patient information
 $patient = null;
 if ($record['patient_type'] === 'student') {
@@ -76,10 +344,11 @@ include __DIR__ . '/../partials/header.php';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <button onclick="history.back()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors mr-3">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    <button onclick="goBack()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200 mr-3">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
                         </svg>
+                        Back
                     </button>
                     <div>
                         <h1 class="text-xl font-semibold text-slate-800">Medical Record</h1>
@@ -135,136 +404,242 @@ include __DIR__ . '/../partials/header.php';
                     <h2 class="text-lg font-semibold text-slate-800 mb-6">Form Data</h2>
                     
                     <?php if ($record['form_type'] === 'medical_history'): ?>
-                        <!-- Medical History Form Display -->
+                        <!-- Medical History Form Display (handles both old and new formats) -->
                         <div class="space-y-6">
                             <!-- Ongoing Conditions -->
                             <div>
                                 <h3 class="text-md font-medium text-slate-700 mb-3">Ongoing Medical Conditions</h3>
                                 <div class="bg-slate-50 rounded-lg p-4">
-                                    <?php if (!empty($formData['ongoing_conditions']) && is_array($formData['ongoing_conditions'])): ?>
-                                        <div class="flex flex-wrap gap-2">
-                                            <?php foreach ($formData['ongoing_conditions'] as $condition): ?>
-                                                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"><?= htmlspecialchars($condition) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
+                                    <?php 
+                                    $ongoingConditions = '';
+                                    if (isset($formData['ongoing_conditions'])) {
+                                        if (is_array($formData['ongoing_conditions'])) {
+                                            // Old format: array of conditions
+                                            $ongoingConditions = !empty($formData['ongoing_conditions']) ? implode(', ', $formData['ongoing_conditions']) : '';
+                                            if (!empty($formData['ongoing_conditions_other'])) {
+                                                $ongoingConditions .= ($ongoingConditions ? ', ' : '') . $formData['ongoing_conditions_other'];
+                                            }
+                                        } else {
+                                            // New format: string
+                                            $ongoingConditions = $formData['ongoing_conditions'];
+                                        }
+                                    }
+                                    ?>
+                                    <?php if (!empty($ongoingConditions)): ?>
+                                        <p class="text-slate-800"><?= htmlspecialchars($ongoingConditions) ?></p>
                                     <?php else: ?>
-                                        <p class="text-slate-500 italic">None reported</p>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (!empty($formData['ongoing_conditions_other'])): ?>
-                                        <div class="mt-2">
-                                            <label class="text-sm font-medium text-slate-600">Other:</label>
-                                            <p class="text-slate-800"><?= htmlspecialchars($formData['ongoing_conditions_other']) ?></p>
-                                        </div>
+                                        <p class="text-slate-500 italic">N/A</p>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Surgery History -->
-                            <div>
-                                <h3 class="text-md font-medium text-slate-700 mb-3">Surgery History</h3>
-                                <div class="bg-slate-50 rounded-lg p-4">
-                                    <div class="flex items-center mb-2">
-                                        <span class="text-sm font-medium text-slate-600">Has had surgery:</span>
-                                        <span class="ml-2 px-2 py-1 rounded text-sm <?= $formData['surgery_status'] === 'yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' ?>">
-                                            <?= ucfirst($formData['surgery_status']) ?>
-                                        </span>
-                                    </div>
-                                    <?php if ($formData['surgery_status'] === 'yes' && !empty($formData['surgery_details'])): ?>
-                                        <div class="mt-2">
-                                            <label class="text-sm font-medium text-slate-600">Details:</label>
-                                            <p class="text-slate-800"><?= htmlspecialchars($formData['surgery_details']) ?></p>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-
-                            <!-- Family Medical History -->
+                            <!-- Family History -->
                             <div>
                                 <h3 class="text-md font-medium text-slate-700 mb-3">Family Medical History</h3>
                                 <div class="bg-slate-50 rounded-lg p-4">
-                                    <?php if (!empty($formData['family_conditions']) && is_array($formData['family_conditions'])): ?>
-                                        <div class="flex flex-wrap gap-2">
-                                            <?php foreach ($formData['family_conditions'] as $condition): ?>
-                                                <span class="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm"><?= htmlspecialchars($condition) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
+                                    <?php 
+                                    $familyHistory = '';
+                                    if (isset($formData['family_history'])) {
+                                        // New format: string
+                                        $familyHistory = $formData['family_history'];
+                                    } elseif (isset($formData['family_conditions'])) {
+                                        // Old format: array of conditions
+                                        if (is_array($formData['family_conditions'])) {
+                                            $familyHistory = !empty($formData['family_conditions']) ? implode(', ', $formData['family_conditions']) : '';
+                                            if (!empty($formData['family_conditions_other'])) {
+                                                $familyHistory .= ($familyHistory ? ', ' : '') . $formData['family_conditions_other'];
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <?php if (!empty($familyHistory)): ?>
+                                        <p class="text-slate-800"><?= htmlspecialchars($familyHistory) ?></p>
                                     <?php else: ?>
-                                        <p class="text-slate-500 italic">None reported</p>
-                                    <?php endif; ?>
-                                    
-                                    <?php if (!empty($formData['family_conditions_other'])): ?>
-                                        <div class="mt-2">
-                                            <label class="text-sm font-medium text-slate-600">Other:</label>
-                                            <p class="text-slate-800"><?= htmlspecialchars($formData['family_conditions_other']) ?></p>
-                                        </div>
+                                        <p class="text-slate-500 italic">N/A</p>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- Smoke Exposure -->
+                            <!-- Allergies -->
                             <div>
-                                <h3 class="text-md font-medium text-slate-700 mb-3">Smoke Exposure</h3>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Allergies</h3>
                                 <div class="bg-slate-50 rounded-lg p-4">
-                                    <span class="px-2 py-1 rounded text-sm <?= $formData['smoke_exposure'] === 'yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' ?>">
-                                        <?= ucfirst($formData['smoke_exposure']) ?>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <!-- Immunization -->
-                            <div>
-                                <h3 class="text-md font-medium text-slate-700 mb-3">Immunization History</h3>
-                                <div class="bg-slate-50 rounded-lg p-4">
-                                    <?php if (!empty($formData['immunization']) && is_array($formData['immunization'])): ?>
-                                        <div class="flex flex-wrap gap-2">
-                                            <?php foreach ($formData['immunization'] as $vaccine): ?>
-                                                <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $vaccine))) ?></span>
-                                            <?php endforeach; ?>
-                                        </div>
+                                    <?php if (!empty($formData['allergies'])): ?>
+                                        <p class="text-slate-800"><?= htmlspecialchars($formData['allergies']) ?></p>
                                     <?php else: ?>
-                                        <p class="text-slate-500 italic">None reported</p>
+                                        <p class="text-slate-500 italic">N/A</p>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
-                            <!-- COVID-19 Information -->
+                            <!-- Current Medications -->
                             <div>
-                                <h3 class="text-md font-medium text-slate-700 mb-3">COVID-19 Information</h3>
-                                <div class="bg-slate-50 rounded-lg p-4 space-y-3">
-                                    <div>
-                                        <label class="text-sm font-medium text-slate-600">Vaccination Status:</label>
-                                        <?php if (!empty($formData['covid_vaccine']) && is_array($formData['covid_vaccine'])): ?>
-                                            <div class="flex flex-wrap gap-2 mt-1">
-                                                <?php foreach ($formData['covid_vaccine'] as $dose): ?>
-                                                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $dose))) ?></span>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php else: ?>
-                                            <p class="text-slate-500 italic">Not vaccinated</p>
-                                        <?php endif; ?>
-                                    </div>
-                                    
-                                    <div>
-                                        <label class="text-sm font-medium text-slate-600">COVID-19 Positive:</label>
-                                        <span class="ml-2 px-2 py-1 rounded text-sm <?= $formData['covid_positive'] === 'yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800' ?>">
-                                            <?= ucfirst($formData['covid_positive']) ?>
-                                        </span>
-                                    </div>
-                                    
-                                    <?php if ($formData['covid_positive'] === 'yes' && !empty($formData['covid_details'])): ?>
-                                        <div>
-                                            <label class="text-sm font-medium text-slate-600">Details:</label>
-                                            <p class="text-slate-800"><?= htmlspecialchars($formData['covid_details']) ?></p>
-                                        </div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Current Medications</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <?php if (!empty($formData['current_medications'])): ?>
+                                        <p class="text-slate-800"><?= htmlspecialchars($formData['current_medications']) ?></p>
+                                    <?php else: ?>
+                                        <p class="text-slate-500 italic">N/A</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <!-- Additional Notes -->
+                            <div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Additional Notes</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <?php if (!empty($formData['additional_notes'])): ?>
+                                        <p class="text-slate-800"><?= htmlspecialchars($formData['additional_notes']) ?></p>
+                                    <?php else: ?>
+                                        <p class="text-slate-500 italic">N/A</p>
                                     <?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                    <?php else: ?>
+                    <?php endif; ?>
+                    
+                    <?php if ($record['form_type'] === 'general'): ?>
+                        <?php if (!empty($formData['height']) || !empty($formData['weight']) || !empty($formData['heart_rate']) || !empty($formData['temperature']) || !empty($formData['blood_pressure'])): ?>
+                            <div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">General Check Up</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <div class="mb-4">
+                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Physical Measurements</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">Height:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['height'] ?? 'N/A') ?> cm</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">Weight:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['weight'] ?? 'N/A') ?> kg</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">BMI:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['bmi'] ?? 'N/A') ?></p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">BMI Status:</label>
+                                                <span class="px-2 py-1 rounded text-sm <?= 
+                                                    ($formData['bmi_status'] ?? '') === 'Normal' ? 'bg-green-100 text-green-800' : 
+                                                    (in_array($formData['bmi_status'] ?? '', ['Underweight', 'Overweight', 'Obese']) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')
+                                                ?>">
+                                                    <?= htmlspecialchars($formData['bmi_status'] ?? 'N/A') ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vital Signs -->
+                                    <div class="mb-4">
+                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Vital Signs</h4>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">Heart Rate:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['heart_rate'] ?? 'N/A') ?> BPM</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">Temperature:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['temperature'] ?? 'N/A') ?>°C</p>
+                                            </div>
+                                            <div>
+                                                <label class="text-sm font-medium text-slate-600">Blood Pressure:</label>
+                                                <p class="text-slate-800"><?= htmlspecialchars($formData['blood_pressure'] ?? 'N/A') ?></p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Assessment & Plan -->
+                                    <?php if (!empty($formData['assessment_plan']) && $formData['assessment_plan'] !== 'N/A'): ?>
+                                    <div>
+                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Assessment & Plan</h4>
+                                        <p class="text-slate-800"><?= htmlspecialchars($formData['assessment_plan']) ?></p>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    <?php if ($record['form_type'] === 'general'): ?>
+                        <!-- General Check Up Form Display -->
+                        <div class="space-y-6">
+                            <!-- Physical Measurements -->
+                            <div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Physical Measurements</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">Height:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['height'] ?? 'N/A') ?> cm</p>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">Weight:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['weight'] ?? 'N/A') ?> kg</p>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">BMI:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['bmi'] ?? 'N/A') ?></p>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">BMI Status:</label>
+                                            <span class="px-2 py-1 rounded text-sm <?= 
+                                                ($formData['bmi_status'] ?? '') === 'Normal' ? 'bg-green-100 text-green-800' : 
+                                                (in_array($formData['bmi_status'] ?? '', ['Underweight', 'Overweight', 'Obese']) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')
+                                            ?>">
+                                                <?= htmlspecialchars($formData['bmi_status'] ?? 'N/A') ?>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Vital Signs -->
+                            <div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Vital Signs</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">Heart Rate:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['heart_rate'] ?? 'N/A') ?> BPM</p>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">Temperature:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['temperature'] ?? 'N/A') ?>°C</p>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm font-medium text-slate-600">Blood Pressure:</label>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['blood_pressure'] ?? 'N/A') ?></p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Assessment & Plan -->
+                            <div>
+                                <h3 class="text-md font-medium text-slate-700 mb-3">Assessment & Plan</h3>
+                                <div class="bg-slate-50 rounded-lg p-4">
+                                    <p class="text-slate-800"><?= htmlspecialchars($formData['assessment_plan'] ?? 'N/A') ?></p>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    <?php endif; ?>
+                    
+                    <?php if ($record['form_type'] !== 'medical_history' && $record['form_type'] !== 'general'): ?>
                         <!-- Other form types -->
                         <div class="bg-slate-50 rounded-lg p-4">
                             <pre class="text-sm text-slate-700 whitespace-pre-wrap"><?= htmlspecialchars(json_encode($formData, JSON_PRETTY_PRINT)) ?></pre>
+                        </div>
+                    <?php elseif ($record['form_type'] === 'medical_history' && (empty($formData['ongoing_conditions']) && empty($formData['family_history']) && empty($formData['allergies']) && empty($formData['current_medications']) && empty($formData['additional_notes']))): ?>
+                        <!-- Empty medical history -->
+                        <div class="text-center py-8 text-slate-500">
+                            <div class="w-16 h-16 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-lg font-medium">No medical history recorded</p>
+                            <p class="text-sm">This medical history form is empty.</p>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -535,6 +910,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Back button function
+function goBack() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        // Fallback to patient view if no history
+        window.location.href = 'patient_view.php?id=<?= $record['patient_id'] ?>&type=<?= $record['patient_type'] ?>';
+    }
+}
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

@@ -29,7 +29,7 @@ try {
     }
     
     // Validate form type
-    if (!in_array($formType, ['athlete', 'general', 'emergency'])) {
+    if (!in_array($formType, ['athlete', 'general', 'emergency', 'medical_history'])) {
         throw new Exception('Invalid form type');
     }
     
@@ -48,12 +48,19 @@ try {
         ];
     } elseif ($formType === 'general') {
         $formData = [
-            'chief_complaint' => $_POST['chief_complaint'] ?? '',
-            'duration' => $_POST['duration'] ?? '',
-            'history_present' => $_POST['history_present'] ?? '',
-            'past_medical' => $_POST['past_medical'] ?? '',
-            'physical_exam' => $_POST['physical_exam'] ?? '',
-            'assessment_plan' => $_POST['assessment_plan'] ?? ''
+            'assessment_plan' => !empty($_POST['assessment_plan']) ? $_POST['assessment_plan'] : 'N/A',
+            // Physical measurements
+            'height' => $_POST['height'] ?? '',
+            'weight' => $_POST['weight'] ?? '',
+            'bmi' => $_POST['bmi'] ?? '',
+            'bmi_status' => $_POST['bmi_status'] ?? '',
+            // Vital signs
+            'heart_rate' => $_POST['heart_rate'] ?? '',
+            'heart_rate_status' => $_POST['heart_rate_status'] ?? '',
+            'temperature' => $_POST['temperature'] ?? '',
+            'temperature_status' => $_POST['temperature_status'] ?? '',
+            'blood_pressure' => $_POST['blood_pressure'] ?? '',
+            'blood_pressure_status' => $_POST['blood_pressure_status'] ?? ''
         ];
     } elseif ($formType === 'emergency') {
         $formData = [
@@ -65,6 +72,23 @@ try {
             'blood_pressure' => $_POST['blood_pressure'] ?? '',
             'temperature' => $_POST['temperature'] ?? '',
             'follow_up' => $_POST['follow_up'] ?? ''
+        ];
+    } elseif ($formType === 'medical_history') {
+        // General Check Up form data saved as medical history
+        $formData = [
+            'assessment_plan' => !empty($_POST['assessment_plan']) ? $_POST['assessment_plan'] : 'N/A',
+            // Physical measurements
+            'height' => $_POST['height'] ?? '',
+            'weight' => $_POST['weight'] ?? '',
+            'bmi' => $_POST['bmi'] ?? '',
+            'bmi_status' => $_POST['bmi_status'] ?? '',
+            // Vital signs
+            'heart_rate' => $_POST['heart_rate'] ?? '',
+            'heart_rate_status' => $_POST['heart_rate_status'] ?? '',
+            'temperature' => $_POST['temperature'] ?? '',
+            'temperature_status' => $_POST['temperature_status'] ?? '',
+            'blood_pressure' => $_POST['blood_pressure'] ?? '',
+            'blood_pressure_status' => $_POST['blood_pressure_status'] ?? ''
         ];
     }
     
