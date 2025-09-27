@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Debug: Log the processed values
     error_log("Processed values - Patient ID: {$patientId}, Type: {$patientType}, Reason: {$reason}, Visit Date: {$visitDate}");
     error_log("Other fields - Other Reason: {$otherReason}, Medication Name: {$medicationName}, Other Medication: {$otherMedication}, First Aid Type: {$firstAidType}, Other First Aid: {$otherFirstAid}");
+    error_log("Raw POST data for visit_date: " . ($_POST['visit_date'] ?? 'NOT_SET'));
     
     // Debug: Check validation
     error_log("Validation check - Patient ID: {$patientId} (>0: " . ($patientId > 0 ? 'true' : 'false') . "), Type: '{$patientType}' (empty: " . (empty($patientType) ? 'true' : 'false') . "), Reason: '{$reason}' (empty: " . (empty($reason) ? 'true' : 'false') . "), Visit Date: '{$visitDate}' (empty: " . (empty($visitDate) ? 'true' : 'false') . ")");

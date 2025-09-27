@@ -966,7 +966,7 @@ window.closeNotification = closeNotification;
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Date *</label>
-                    <input type="date" name="date" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" value="<?= date('Y-m-d') ?>">
+                    <input type="date" name="visit_date" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" value="<?= date('Y-m-d') ?>">
                 </div>
             </div>
             <div id="otherReasonDiv" class="hidden mb-4">

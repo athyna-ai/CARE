@@ -198,24 +198,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = $_POST['action'] ?? '';
         
         switch ($action) {
-            case 'cleanup_logs':
+            case 'archive_all_logs':
                 try {
-                    $today = date('Y-m-d');
+                    // Get all unarchived activity logs grouped by date
+                    $activityLogsByDate = $pdo->query("
+                        SELECT DATE(timestamp) as log_date, 
+                               COUNT(*) as total_activities
+                        FROM activity_logs 
+                        WHERE archived = 0
+                        GROUP BY DATE(timestamp)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
                     
-                    // First, archive today's logs before cleanup
-                    // Get today's activity logs with user names
-                    $activityLogs = $pdo->prepare("
+                    // Get all unarchived visitation logs grouped by date
+                    $visitationLogsByDate = $pdo->query("
+                        SELECT DATE(visit_date) as log_date,
+                               COUNT(*) as total_visitations
+                        FROM visitation_logs 
+                        WHERE archived = 0
+                        GROUP BY DATE(visit_date)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Create daily_logs table if it doesn't exist
+                    $pdo->exec('CREATE TABLE IF NOT EXISTS daily_logs (
+                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        log_date DATE NOT NULL,
+                        activity_logs_data JSON NOT NULL,
+                        visitation_logs_data JSON NOT NULL,
+                        total_activities INT NOT NULL DEFAULT 0,
+                        total_visitations INT NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_log_date (log_date)
+                    ) ENGINE=InnoDB');
+                    
+                    $archivedDates = [];
+                    $totalActivities = 0;
+                    $totalVisitations = 0;
+                    
+                    // Process each date
+                    foreach ($activityLogsByDate as $activityLog) {
+                        $logDate = $activityLog['log_date'];
+                        $archivedDates[] = $logDate;
+                        $totalActivities += $activityLog['total_activities'];
+                        
+                        // Get detailed activity logs for this date
+                        $activityDetails = $pdo->prepare("
                         SELECT al.*, u.name as user_name, u.email as user_email, u.rfid as user_rfid
                         FROM activity_logs al
                         LEFT JOIN users u ON al.user_id = u.id
-                        WHERE DATE(al.timestamp) = ?
+                            WHERE DATE(al.timestamp) = ? AND al.archived = 0
                         ORDER BY al.timestamp
                     ");
-                    $activityLogs->execute([$today]);
-                    $activityData = $activityLogs->fetchAll(PDO::FETCH_ASSOC);
+                        $activityDetails->execute([$logDate]);
+                        $activityData = $activityDetails->fetchAll(PDO::FETCH_ASSOC);
                     
-                    // Get today's visitation logs with joined data
-                    $visitationLogs = $pdo->prepare("
+                        // Get detailed visitation logs for this date
+                        $visitationDetails = $pdo->prepare("
                         SELECT vl.*, 
                         CASE 
                             WHEN vl.patient_type = 'student' THEN s.name
@@ -247,96 +286,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         FROM visitation_logs vl
                         LEFT JOIN students s ON vl.patient_id = s.id AND vl.patient_type = 'student'
                         LEFT JOIN faculty f ON vl.patient_id = f.id AND vl.patient_type = 'faculty'
-                        WHERE DATE(vl.visit_date) = ?
-                    ");
-                    $visitationLogs->execute([$today]);
-                    $visitationData = $visitationLogs->fetchAll(PDO::FETCH_ASSOC);
-                    
-                    // Debug: Show what we're archiving
-                    echo "<!-- Debug: Archiving {$today} - Activity logs: " . count($activityData) . ", Visitation logs: " . count($visitationData) . " -->";
-                    
-                    if (!empty($activityData) || !empty($visitationData)) {
-                        // Create daily_logs table if it doesn't exist
-                        $pdo->exec('CREATE TABLE IF NOT EXISTS daily_logs (
-                            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                            log_date DATE NOT NULL,
-                            activity_logs_data JSON NOT NULL,
-                            visitation_logs_data JSON NOT NULL,
-                            total_activities INT NOT NULL DEFAULT 0,
-                            total_visitations INT NOT NULL DEFAULT 0,
-                            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            INDEX idx_log_date (log_date)
-                        ) ENGINE=InnoDB');
+                            WHERE DATE(vl.visit_date) = ? AND vl.archived = 0
+                            ORDER BY vl.visit_date
+                        ");
+                        $visitationDetails->execute([$logDate]);
+                        $visitationData = $visitationDetails->fetchAll(PDO::FETCH_ASSOC);
                         
-                        // Check if logs for today are already archived
-                        $checkArchived = $pdo->prepare("SELECT id, activity_logs_data, visitation_logs_data, total_activities, total_visitations FROM daily_logs WHERE log_date = ?");
-                        $checkArchived->execute([$today]);
-                        $existingArchive = $checkArchived->fetch();
+                        $totalVisitations += count($visitationData);
                         
-                        if (!$existingArchive) {
-                            // Insert into daily_logs
+                        // Check if already archived
+                        $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+                        $checkArchived->execute([$logDate]);
+                        
+                        if (!$checkArchived->fetch()) {
+                            // Insert new archive
                             $insertDaily = $pdo->prepare("
                                 INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
                                 VALUES (?, ?, ?, ?, ?, NOW())
                             ");
                             $insertDaily->execute([
-                                $today,
+                                $logDate,
                                 json_encode($activityData),
                                 json_encode($visitationData),
                                 count($activityData),
                                 count($visitationData)
                             ]);
-                        } else {
-                            // Merge with existing archive
-                            $existingActivityData = json_decode($existingArchive['activity_logs_data'], true) ?: [];
-                            $existingVisitationData = json_decode($existingArchive['visitation_logs_data'], true) ?: [];
-                            
-                            // Merge activity logs (avoid duplicates by ID)
-                            $existingActivityIds = array_column($existingActivityData, 'id');
-                            foreach ($activityData as $newLog) {
-                                if (!in_array($newLog['id'], $existingActivityIds)) {
-                                    $existingActivityData[] = $newLog;
-                                }
-                            }
-                            
-                            // Merge visitation logs (avoid duplicates by ID)
-                            $existingVisitationIds = array_column($existingVisitationData, 'id');
-                            foreach ($visitationData as $newLog) {
-                                if (!in_array($newLog['id'], $existingVisitationIds)) {
-                                    $existingVisitationData[] = $newLog;
-                                }
-                            }
-                            
-                            // Update the archive with merged data
-                            $updateDaily = $pdo->prepare("
-                                UPDATE daily_logs 
-                                SET activity_logs_data = ?, 
-                                    visitation_logs_data = ?, 
-                                    total_activities = ?, 
-                                    total_visitations = ?,
-                                    created_at = NOW()
-                                WHERE log_date = ?
-                            ");
-                            $updateDaily->execute([
-                                json_encode($existingActivityData),
-                                json_encode($existingVisitationData),
-                                count($existingActivityData),
-                                count($existingVisitationData),
-                                $today
-                            ]);
                         }
-                        
-                        // Mark today's logs as archived instead of deleting them
-                        $pdo->prepare("UPDATE activity_logs SET archived = 1 WHERE DATE(timestamp) = ?")->execute([$today]);
-                        $pdo->prepare("UPDATE visitation_logs SET archived = 1 WHERE DATE(visit_date) = ?")->execute([$today]);
                     }
                     
+                    // Process remaining visitation dates that don't have activity logs
+                    foreach ($visitationLogsByDate as $visitationLog) {
+                        $logDate = $visitationLog['log_date'];
+                        if (!in_array($logDate, $archivedDates)) {
+                            $archivedDates[] = $logDate;
+                            
+                            // Get detailed visitation logs for this date
+                            $visitationDetails = $pdo->prepare("
+                                SELECT vl.*, 
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN s.name
+                                    WHEN vl.patient_type = 'faculty' THEN f.name
+                                END as patient_name,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN s.rfid
+                                    WHEN vl.patient_type = 'faculty' THEN f.rfid
+                                END as patient_rfid,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN 
+                                        CASE 
+                                            WHEN s.level IN ('Elementary', 'High School', 'Senior High School') THEN s.year_grade
+                                            WHEN s.level = 'College' THEN s.year_grade
+                                            ELSE s.level
+                                        END
+                                    WHEN vl.patient_type = 'faculty' THEN f.department
+                                END as grade_level_department,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN 
+                                        CASE 
+                                            WHEN s.level IN ('Elementary', 'High School') THEN s.section
+                                            WHEN s.level = 'Senior High School' THEN s.strand
+                                            WHEN s.level = 'College' THEN s.course
+                                            ELSE s.section
+                                        END
+                                    WHEN vl.patient_type = 'faculty' THEN f.position
+                                END as course_section_strand
+                                FROM visitation_logs vl
+                                LEFT JOIN students s ON vl.patient_id = s.id AND vl.patient_type = 'student'
+                                LEFT JOIN faculty f ON vl.patient_id = f.id AND vl.patient_type = 'faculty'
+                                WHERE DATE(vl.visit_date) = ? AND vl.archived = 0
+                                ORDER BY vl.visit_date
+                            ");
+                            $visitationDetails->execute([$logDate]);
+                            $visitationData = $visitationDetails->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            $totalVisitations += count($visitationData);
+                            
+                            // Check if already archived
+                            $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+                            $checkArchived->execute([$logDate]);
+                            
+                            if (!$checkArchived->fetch()) {
+                                // Insert new archive with empty activity data
+                                $insertDaily = $pdo->prepare("
+                                    INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
+                                    VALUES (?, ?, ?, ?, ?, NOW())
+                                ");
+                                $insertDaily->execute([
+                                    $logDate,
+                                    json_encode([]),
+                                    json_encode($visitationData),
+                                    0,
+                                    count($visitationData)
+                                ]);
+                            }
+                        }
+                    }
+                    
+                    // Mark all unarchived logs as archived
+                    $pdo->prepare("UPDATE activity_logs SET archived = 1 WHERE archived = 0")->execute();
+                    $pdo->prepare("UPDATE visitation_logs SET archived = 1 WHERE archived = 0")->execute();
+                    
                      // Log this action
-                     log_activity($pdo, (int)$user['id'], 'logs_archived', "Archived today's logs to main logs display", 'settings');
+                    log_activity($pdo, (int)$user['id'], 'logs_all_archived', "Archived all unarchived logs (" . count($archivedDates) . " dates, {$totalActivities} activities, {$totalVisitations} visitations)", 'settings');
                      
-                     $success = "Today's logs have been archived to main logs and cleared from individual pages. Patient view logs remain unchanged.";
+                    $success = "All unarchived logs have been archived successfully! (" . count($archivedDates) . " dates processed)";
                 } catch (Throwable $e) {
-                    $errors[] = "Error cleaning up logs: " . $e->getMessage();
+                    $errors[] = "Error archiving all logs: " . $e->getMessage();
                 }
                 break;
                 
@@ -557,11 +612,11 @@ try {
                         <button onclick="clearFilters()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm">
                         Clear Filters
                     </button>
-                         <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to archive today\'s logs? This will move today\'s logs to the main logs display and clear them from the individual pages.')">
-                             <input type="hidden" name="action" value="cleanup_logs">
+                         <form method="POST" class="inline" onsubmit="return confirm('Are you sure you want to archive ALL unarchived logs? This will move all unarchived logs to the main logs display and clear them from the individual pages. This action cannot be undone.')">
+                             <input type="hidden" name="action" value="archive_all_logs">
                              <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
-                             <button type="submit" class="px-3 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-blue/90 transition-colors text-sm">
-                                 Archive Today's Logs
+                             <button type="submit" class="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
+                                 Archive All Logs
                              </button>
                          </form>
                     </div>
