@@ -642,14 +642,21 @@ window.closeNotification = closeNotification;
                                         </svg>
                                         Status: <?= htmlspecialchars($patient['status'] ?? 'Active') ?>
                                     </span>
-                                    <div class="ml-2 inline-block">
-                                        <select onchange="changeStatus(this.value)" class="text-xs px-2 py-1 bg-clinic-blue/10 text-clinic-blue rounded-lg border border-clinic-blue/20 hover:bg-clinic-blue/20 transition-colors duration-200">
-                                            <option value="">Change Status</option>
-                                            <option value="Active" <?= ($patient['status'] ?? 'Active') === 'Active' ? 'disabled' : '' ?>>Active</option>
-                                            <option value="Graduated" <?= ($patient['status'] ?? 'Active') === 'Graduated' ? 'disabled' : '' ?>>Graduated</option>
-                                            <option value="Transferred" <?= ($patient['status'] ?? 'Active') === 'Transferred' ? 'disabled' : '' ?>>Transferred</option>
-                                            <option value="Inactive" <?= ($patient['status'] ?? 'Active') === 'Inactive' ? 'disabled' : '' ?>>Inactive</option>
-                                        </select>
+                                    <div class="ml-3 inline-block">
+                                        <div class="relative group">
+                                            <select onchange="changeStatus(this.value)" class="appearance-none text-xs px-4 py-2 pr-8 bg-gradient-to-r from-clinic-blue/10 to-clinic-tea/10 text-clinic-blue rounded-xl border border-clinic-blue/30 hover:border-clinic-blue/50 hover:bg-gradient-to-r hover:from-clinic-blue/20 hover:to-clinic-tea/20 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-clinic-blue/30 focus:border-clinic-blue/50 shadow-sm hover:shadow-md">
+                                                <option value="">🔄 Change Status</option>
+                                                <option value="Active" <?= ($patient['status'] ?? 'Active') === 'Active' ? 'disabled' : '' ?>>✅ Active</option>
+                                                <option value="Graduated" <?= ($patient['status'] ?? 'Active') === 'Graduated' ? 'disabled' : '' ?>>🎓 Graduated</option>
+                                                <option value="Transferred" <?= ($patient['status'] ?? 'Active') === 'Transferred' ? 'disabled' : '' ?>>🔄 Transferred</option>
+                                                <option value="Inactive" <?= ($patient['status'] ?? 'Active') === 'Inactive' ? 'disabled' : '' ?>>⏸️ Inactive</option>
+                                            </select>
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                                <svg class="w-3 h-3 text-clinic-blue/60 group-hover:text-clinic-blue transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
                                     </div>
                                 <?php endif; ?>
                             </div>
