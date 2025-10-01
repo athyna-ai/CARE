@@ -101,6 +101,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
             <div class="text-center">
+                <!-- TODO: FIX REGISTER BUTTON FUNCTIONALITY - Lines 104-106 -->
                 <button class="px-8 py-4 rounded-xl bg-clinic-blue text-white hover:bg-clinic-tea transition-colors font-poppins font-medium text-lg" id="roleChooseBtn" type="button">Register New Patient</button>
             </div>
                 </div>
@@ -236,6 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Handle role selection
+    // TODO: FIX FORM SELECTION LINKS FOR NON-EXISTING STUDENTS - Lines 242-264
     const roleStudent = document.getElementById('roleStudent');
     const roleFaculty = document.getElementById('roleFaculty');
     
@@ -244,6 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const rfidValue = document.getElementById('rfidSearchInput').value;
             if (rfidValue) {
+                // ISSUE: This link needs fixing for proper form selection
                 window.location.href = `../patients/student_form.php?rfid=${encodeURIComponent(rfidValue)}`;
             } else {
                 window.location.href = '../patients/student_form.php';
@@ -256,6 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const rfidValue = document.getElementById('rfidSearchInput').value;
             if (rfidValue) {
+                // ISSUE: This link needs fixing for proper form selection
                 window.location.href = `../patients/faculty_form.php?rfid=${encodeURIComponent(rfidValue)}`;
             } else {
                 window.location.href = '../patients/faculty_form.php';

@@ -848,6 +848,7 @@ window.closeNotification = closeNotification;
             <!-- Right Sidebar -->
             <div class="lg:col-span-1">
                 <!-- Visitation Logs -->
+                <!-- TODO: FIX VISITATION LOG DETAILS VIEWING - Lines 850-902 -->
                 <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col h-full">
                     <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-3 py-2">
                         <h2 class="text-sm font-comfortaa font-bold text-white">Visitation Logs</h2>
@@ -1070,6 +1071,7 @@ window.closeNotification = closeNotification;
 </div>
 
 <!-- Visitation Details Modal -->
+<!-- TODO: FIX VISITATION DETAILS MODAL CONTENT AND VIEWING FORMAT - Lines 1072+ -->
 <div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
     <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
@@ -1594,6 +1596,7 @@ window.closeNotification = closeNotification;
 </div>
 
 <!-- Visitation Details Modal -->
+<!-- TODO: FIX VISITATION DETAILS MODAL CONTENT AND VIEWING FORMAT - Lines 1072+ -->
 <div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
     <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
