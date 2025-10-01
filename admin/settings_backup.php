@@ -707,11 +707,11 @@ try {
         </div>
 
         <!-- Settings Navigation - Single Row -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
             <!-- Main Logs -->
-            <a href="?section=main_logs" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
-                <div class="w-16 h-16 rounded-full bg-clinic-blue/10 flex items-center justify-center group-hover:bg-clinic-blue/20 transition-colors duration-200 mb-3">
-                    <svg class="w-8 h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="?section=main_logs" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-clinic-blue/10 flex items-center justify-center group-hover:bg-clinic-blue/20 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                 </div>
@@ -720,9 +720,9 @@ try {
             </a>
 
             <!-- Account Settings -->
-            <a href="?section=account_settings" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_settings' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
-                <div class="w-16 h-16 rounded-full bg-clinic-tea/20 flex items-center justify-center group-hover:bg-clinic-tea/30 transition-colors duration-200 mb-3">
-                    <svg class="w-8 h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="?section=account_settings" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'account_settings' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-clinic-tea/20 flex items-center justify-center group-hover:bg-clinic-tea/30 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
                 </div>
@@ -731,9 +731,9 @@ try {
             </a>
 
             <!-- Register Admin -->
-            <a href="?section=register_admin" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
-                <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors duration-200 mb-3">
-                    <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="?section=register_admin" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
                 </div>
@@ -742,9 +742,9 @@ try {
             </a>
 
             <!-- Account Management -->
-            <a href="?section=account_management" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
-                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
-                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="?section=account_management" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
                     </svg>
                 </div>
@@ -753,9 +753,9 @@ try {
             </a>
 
             <!-- Keyboard Shortcuts -->
-            <a href="?section=keyboard_toggles" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'keyboard_toggles' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
-                <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors duration-200 mb-3">
-                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <a href="?section=keyboard_toggles" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'keyboard_toggles' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                     </svg>
                 </div>
@@ -763,6 +763,16 @@ try {
                 <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Keyboard guide</p>
             </a>
 
+            <!-- Security Monitoring -->
+            <a href="?section=security_monitoring" class="group flex flex-col items-center p-3 sm:p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[100px] <?= $currentSection === 'security_monitoring' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-orange-100 flex items-center justify-center group-hover:bg-orange-200 transition-colors duration-200 mb-3">
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Security</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Monitoring</p>
+            </a>
         </div>
 
         <!-- Notifications -->
@@ -1331,6 +1341,413 @@ try {
             </div>
         <?php endif; ?>
 
+        <!-- Security Monitoring Section -->
+        <?php if ($currentSection === 'security_monitoring'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-clinic-dark">🔒 Security Monitoring</h2>
+                    <p class="text-clinic-dark/60 mt-2">Monitor login activity and account security status</p>
+                </div>
+
+                <!-- Security Monitoring Content -->
+                <div class="space-y-6">
+                    <!-- Account Security Status -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <?php
+                                try {
+                                    $userSecurity = $pdo->prepare('SELECT failed_attempts, locked_until, last_login FROM users WHERE id = ?');
+                                    $userSecurity->execute([$user['id']]);
+                                    $security = $userSecurity->fetch();
+                                    
+                                    if ($security) {
+                                        // Failed attempts status
+                                        $failedAttempts = $security['failed_attempts'] ?? 0;
+                                        $statusColor = $failedAttempts >= 3 ? 'text-red-600' : ($failedAttempts >= 1 ? 'text-yellow-600' : 'text-green-600');
+                                        $statusIcon = $failedAttempts >= 3 ? '⚠️' : ($failedAttempts >= 1 ? '⚡' : '✅');
+                                        
+                                        echo '<div class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">';
+                                        echo '<span class="text-2xl">' . $statusIcon . '</span>';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-sm font-medium text-slate-800">Failed Login Attempts</p>';
+                                        echo '<p class="text-lg font-semibold ' . $statusColor . '">' . $failedAttempts . ' / 5 attempts</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                        
+                                        // Account lock status
+                                        if ($security['locked_until'] && strtotime($security['locked_until']) > time()) {
+                                            $lockTimeRemaining = strtotime($security['locked_until']) - time();
+                                            $minutesRemaining = ceil($lockTimeRemaining / 60);
+                                            echo '<div class="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">';
+                                            echo '<span class="text-2xl">🔒</span>';
+                                            echo '<div class="flex-1">';
+                                            echo '<p class="text-sm font-medium text-red-800">Account Locked</p>';
+                                            echo '<p class="text-lg font-semibold text-red-600">Unlocks in ' . $minutesRemaining . ' minutes</p>';
+                                            echo '</div>';
+                                            echo '</div>';
+                                        } else {
+                                            echo '<div class="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">';
+                                            echo '<span class="text-2xl">🔓</span>';
+                                            echo '<div class="flex-1">';
+                                            echo '<p class="text-sm font-medium text-green-800">Account Status</p>';
+                                            echo '<p class="text-lg font-semibold text-green-600">Account is unlocked and secure</p>';
+                                            echo '</div>';
+                                            echo '</div>';
+                                        }
+                                        
+                                        // Last login
+                                        if ($security['last_login']) {
+                                            $lastLogin = strtotime($security['last_login']);
+                                            $timeAgo = time() - $lastLogin;
+                                            $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                       ($timeAgo < 3600 ? floor($timeAgo/60) . ' minutes ago' : 
+                                                       floor($timeAgo/3600) . ' hours ago');
+                                            echo '<div class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">';
+                                            echo '<span class="text-2xl">🕒</span>';
+                                            echo '<div class="flex-1">';
+                                            echo '<p class="text-sm font-medium text-slate-800">Last Login</p>';
+                                            echo '<p class="text-lg font-semibold text-slate-600">' . $timeText . '</p>';
+                                            echo '</div>';
+                                            echo '</div>';
+                                        }
+                                    }
+                                } catch (Exception $e) {
+                                    echo '<p class="text-red-500 text-sm">Error loading security status</p>';
+                                }
+                                ?>
+                            </div>
+                        </div>
+
+                        <!-- Activity Logs Tab -->
+                        <div id="activity-content" class="security-tab-content hidden">
+                            <h3 class="text-lg font-semibold text-clinic-dark mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Recent Login Activity
+                            </h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Fixed query with correct column names
+                                $recentLogins = $pdo->query('
+                                    SELECT action, description, timestamp, ip_address, success
+                                    FROM activity_logs 
+                                    WHERE action IN ("login_success", "login_failed", "account_locked", "rfid_verification_failed")
+                                    ORDER BY timestamp DESC 
+                                    LIMIT 5
+                                ')->fetchAll();
+                                
+                                if ($recentLogins) {
+                                    foreach ($recentLogins as $log) {
+                                        $icon = match($log['action']) {
+                                            'login_success' => '✅',
+                                            'login_failed' => '❌',
+                                            'account_locked' => '🔒',
+                                            'rfid_verification_failed' => '📱',
+                                            default => 'ℹ️'
+                                        };
+                                        
+                                        $timeAgo = time() - strtotime($log['timestamp']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        // Color coding based on success/failure
+                                        $bgColor = $log['success'] ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                                        $textColor = $log['success'] ? 'text-green-800' : 'text-red-800';
+                                        
+                                        echo '<div class="flex items-center gap-3 p-3 rounded-lg border ' . $bgColor . '">';
+                                        echo '<span class="text-lg">' . $icon . '</span>';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-sm font-medium ' . $textColor . '">' . htmlspecialchars($log['description']) . '</p>';
+                                        echo '<p class="text-xs text-slate-500">' . $timeText . ' • ' . htmlspecialchars($log['ip_address'] ?? 'Unknown IP') . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<p class="text-slate-500 text-sm">No recent login activity</p>';
+                                }
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading login activity: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Suspicious Activity Detection -->
+                    <div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-clinic-dark mb-4 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                            Suspicious Activity
+                        </h3>
+                        <div class="space-y-3 max-h-[150px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Check for suspicious IPs with multiple failed attempts
+                                $suspiciousIPs = $pdo->query('
+                                    SELECT ip_address, COUNT(*) as failed_count, MAX(timestamp) as last_attempt
+                                    FROM activity_logs 
+                                    WHERE action = "login_failed" 
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                    GROUP BY ip_address 
+                                    HAVING failed_count >= 5
+                                    ORDER BY failed_count DESC
+                                    LIMIT 3
+                                ')->fetchAll();
+                                
+                                if ($suspiciousIPs) {
+                                    foreach ($suspiciousIPs as $suspicious) {
+                                        $timeAgo = time() - strtotime($suspicious['last_attempt']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        $severity = $suspicious['failed_count'] >= 10 ? 'bg-red-100 border-red-300' : 
+                                                   ($suspicious['failed_count'] >= 5 ? 'bg-orange-100 border-orange-300' : 'bg-yellow-100 border-yellow-300');
+                                        $severityText = $suspicious['failed_count'] >= 10 ? 'text-red-800' : 
+                                                       ($suspicious['failed_count'] >= 5 ? 'text-orange-800' : 'text-yellow-800');
+                                        
+                                        echo '<div class="flex items-center gap-3 p-3 rounded-lg border ' . $severity . '">';
+                                        echo '<span class="text-lg">⚠️</span>';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-sm font-medium ' . $severityText . '">' . $suspicious['failed_count'] . ' failed attempts</p>';
+                                        echo '<p class="text-xs text-slate-500">' . htmlspecialchars($suspicious['ip_address']) . ' • ' . $timeText . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">';
+                                    echo '<span class="text-lg">✅</span>';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-sm font-medium text-green-800">No suspicious activity detected</p>';
+                                    echo '<p class="text-xs text-slate-500">All login attempts appear normal</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                                // Check for non-existent account enumeration attempts
+                                $enumerationAttempts = $pdo->query('
+                                    SELECT COUNT(*) as count
+                                    FROM activity_logs 
+                                    WHERE description LIKE "%non-existent account%" 
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                ')->fetch();
+                                
+                                if ($enumerationAttempts['count'] > 0) {
+                                    echo '<div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">';
+                                    echo '<div class="flex items-center gap-2">';
+                                    echo '<span class="text-lg">🚨</span>';
+                                    echo '<div>';
+                                    echo '<p class="text-sm font-medium text-red-800">Account Enumeration Detected</p>';
+                                    echo '<p class="text-xs text-red-600">' . $enumerationAttempts['count'] . ' attempts to enumerate accounts in the last hour</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading suspicious activity: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Account Security Status - Full Width -->
+                <div class="mb-6 bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-clinic-dark mb-4 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                        </svg>
+                        Account Security Status
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <?php
+                        try {
+                            $userSecurity = $pdo->prepare('SELECT failed_attempts, locked_until, last_login FROM users WHERE id = ?');
+                            $userSecurity->execute([$user['id']]);
+                            $security = $userSecurity->fetch();
+                            
+                            if ($security) {
+                                // Failed attempts status
+                                $failedAttempts = $security['failed_attempts'] ?? 0;
+                                $statusColor = $failedAttempts >= 3 ? 'text-red-600' : ($failedAttempts >= 1 ? 'text-yellow-600' : 'text-green-600');
+                                $statusIcon = $failedAttempts >= 3 ? '⚠️' : ($failedAttempts >= 1 ? '⚡' : '✅');
+                                
+                                echo '<div class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">';
+                                echo '<span class="text-2xl">' . $statusIcon . '</span>';
+                                echo '<div class="flex-1">';
+                                echo '<p class="text-sm font-medium text-slate-800">Failed Login Attempts</p>';
+                                echo '<p class="text-lg font-semibold ' . $statusColor . '">' . $failedAttempts . ' / 5 attempts</p>';
+                                echo '</div>';
+                                echo '</div>';
+                                
+                                // Account lock status
+                                if ($security['locked_until'] && strtotime($security['locked_until']) > time()) {
+                                    $lockTimeRemaining = strtotime($security['locked_until']) - time();
+                                    $minutesRemaining = ceil($lockTimeRemaining / 60);
+                                    echo '<div class="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">';
+                                    echo '<span class="text-2xl">🔒</span>';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-sm font-medium text-red-800">Account Locked</p>';
+                                    echo '<p class="text-lg font-semibold text-red-600">Unlocks in ' . $minutesRemaining . ' minutes</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">';
+                                    echo '<span class="text-2xl">🔓</span>';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-sm font-medium text-green-800">Account Status</p>';
+                                    echo '<p class="text-lg font-semibold text-green-600">Account is unlocked and secure</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                                // Last login
+                                if ($security['last_login']) {
+                                    $lastLogin = strtotime($security['last_login']);
+                                    $timeAgo = time() - $lastLogin;
+                                    $timeText = $timeAgo < 60 ? 'Just now' : 
+                                               ($timeAgo < 3600 ? floor($timeAgo/60) . ' minutes ago' : 
+                                               floor($timeAgo/3600) . ' hours ago');
+                                    echo '<div class="flex items-center gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">';
+                                    echo '<span class="text-2xl">🕒</span>';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-sm font-medium text-slate-800">Last Login</p>';
+                                    echo '<p class="text-lg font-semibold text-slate-600">' . $timeText . '</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                            }
+                        } catch (Exception $e) {
+                            echo '<p class="text-red-500 text-sm">Error loading security status</p>';
+                        }
+                        ?>
+                    </div>
+                            </div>
+                        </div>
+
+                        <!-- Threats Tab -->
+                        <div id="threats-content" class="security-tab-content hidden">
+                            <h3 class="text-lg font-semibold text-clinic-dark mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                Suspicious Activity Detection
+                            </h3>
+                            <div class="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                                <?php
+                                try {
+                                    // Check for suspicious IPs with multiple failed attempts
+                                    $suspiciousIPs = $pdo->query('
+                                        SELECT ip_address, COUNT(*) as failed_count, MAX(timestamp) as last_attempt
+                                        FROM activity_logs 
+                                        WHERE action = "login_failed" 
+                                        AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                        GROUP BY ip_address 
+                                        HAVING failed_count >= 5
+                                        ORDER BY failed_count DESC
+                                        LIMIT 3
+                                    ')->fetchAll();
+                                    
+                                    if ($suspiciousIPs) {
+                                        foreach ($suspiciousIPs as $suspicious) {
+                                            $timeAgo = time() - strtotime($suspicious['last_attempt']);
+                                            $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                       ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                       floor($timeAgo/3600) . 'h ago');
+                                            
+                                            $severity = $suspicious['failed_count'] >= 10 ? 'bg-red-100 border-red-300' : 
+                                                       ($suspicious['failed_count'] >= 5 ? 'bg-orange-100 border-orange-300' : 'bg-yellow-100 border-yellow-300');
+                                            $severityText = $suspicious['failed_count'] >= 10 ? 'text-red-800' : 
+                                                           ($suspicious['failed_count'] >= 5 ? 'text-orange-800' : 'text-yellow-800');
+                                            
+                                            echo '<div class="flex items-center gap-3 p-3 rounded-lg border ' . $severity . '">';
+                                            echo '<span class="text-lg">⚠️</span>';
+                                            echo '<div class="flex-1">';
+                                            echo '<p class="text-sm font-medium ' . $severityText . '">' . $suspicious['failed_count'] . ' failed attempts</p>';
+                                            echo '<p class="text-xs text-slate-500">' . htmlspecialchars($suspicious['ip_address']) . ' • ' . $timeText . '</p>';
+                                            echo '</div>';
+                                            echo '</div>';
+                                        }
+                                    } else {
+                                        echo '<div class="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">';
+                                        echo '<span class="text-lg">✅</span>';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-sm font-medium text-green-800">No suspicious activity detected</p>';
+                                        echo '<p class="text-xs text-slate-500">All login attempts appear normal</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                    
+                                    // Check for non-existent account enumeration attempts
+                                    $enumerationAttempts = $pdo->query('
+                                        SELECT COUNT(*) as count
+                                        FROM activity_logs 
+                                        WHERE description LIKE "%non-existent account%" 
+                                        AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                    ')->fetch();
+                                    
+                                    if ($enumerationAttempts['count'] > 0) {
+                                        echo '<div class="mt-4 p-3 bg-red-50 rounded-lg border border-red-200">';
+                                        echo '<div class="flex items-center gap-2">';
+                                        echo '<span class="text-lg">🚨</span>';
+                                        echo '<div>';
+                                        echo '<p class="text-sm font-medium text-red-800">Account Enumeration Detected</p>';
+                                        echo '<p class="text-xs text-red-600">' . $enumerationAttempts['count'] . ' attempts to enumerate accounts in the last hour</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                    
+                                } catch (Exception $e) {
+                                    echo '<p class="text-red-500 text-sm">Error loading suspicious activity: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                                }
+                                ?>
+                            </div>
+                        </div>
+
+                        <!-- Actions Tab -->
+                        <div id="actions-content" class="security-tab-content hidden">
+                            <h3 class="text-lg font-semibold text-clinic-dark mb-4 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                Security Actions
+                            </h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <button onclick="clearFailedAttempts()" class="flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors">
+                                    <span class="text-lg">🔄</span>
+                                    <div class="text-left">
+                                        <p class="text-sm font-medium text-blue-800">Clear Failed Attempts</p>
+                                        <p class="text-xs text-blue-600">Reset all failed login counters</p>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="viewSecurityLogs()" class="flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors">
+                                    <span class="text-lg">📋</span>
+                                    <div class="text-left">
+                                        <p class="text-sm font-medium text-green-800">View Security Logs</p>
+                                        <p class="text-xs text-green-600">Detailed security event history</p>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="exportSecurityReport()" class="flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors">
+                                    <span class="text-lg">📊</span>
+                                    <div class="text-left">
+                                        <p class="text-sm font-medium text-purple-800">Export Report</p>
+                                        <p class="text-xs text-purple-600">Download security report</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -1743,6 +2160,27 @@ function exportSecurityReport() {
     });
 }
 
+// Security tab functions
+function showSecurityTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.security-tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.security-tab').forEach(tab => {
+        tab.classList.remove('active', 'border-clinic-blue', 'text-clinic-blue');
+        tab.classList.add('border-transparent', 'text-clinic-dark/60');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + '-content').classList.remove('hidden');
+    
+    // Add active class to selected tab
+    const activeTab = document.getElementById(tabName + '-tab');
+    activeTab.classList.add('active', 'border-clinic-blue', 'text-clinic-blue');
+    activeTab.classList.remove('border-transparent', 'text-clinic-dark/60');
+}
 
 </script>
 

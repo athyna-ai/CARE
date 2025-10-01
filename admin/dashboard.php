@@ -71,6 +71,7 @@ $success = isset($_GET['success']) ? (int)$_GET['success'] : 0;
 				</a>
 			</div>
 		</div>
+		
 	</div>
 <?php include __DIR__ . '/../partials/footer.php'; ?>
 

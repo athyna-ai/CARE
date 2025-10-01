@@ -6,44 +6,124 @@ require_once __DIR__ . '/../core/helpers.php';
 $errors = [];
 $info = [];
 
+// Clear any pending login session if this is a GET request (page refresh) 
+// BUT NOT if we just processed a form submission (POST data still exists)
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['pending_login']) && !isset($_POST['identifier'])) {
+	error_log('Clearing pending login session on GET request (no POST data)');
+	unset($_SESSION['pending_login']);
+}
+
+// Also clear if there's a cancel parameter in URL
+if (isset($_GET['cancelled']) && $_GET['cancelled'] === '1') {
+	if (isset($_SESSION['pending_login'])) {
+		unset($_SESSION['pending_login']);
+	}
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 	if (!verify_csrf($_POST['csrf_token'] ?? null)) {
 		$errors[] = 'Invalid request.';
 	} else {
-		$identifier = sanitize_string($_POST['identifier'] ?? ''); // name or email
-		$password = (string)($_POST['password'] ?? '');
-
-		if ($identifier === '' || $password === '') {
-			$errors[] = 'Please fill in all fields.';
+		// IP-based rate limiting for security
+		$clientIP = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+		$pdo = get_pdo();
+		
+		// Check for suspicious IP activity
+		$suspiciousCheck = $pdo->prepare('
+			SELECT COUNT(*) as failed_count 
+			FROM activity_logs 
+			WHERE ip_address = ? 
+			AND action = "login_failed" 
+			AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+		');
+		$suspiciousCheck->execute([$clientIP]);
+		$failedAttempts = $suspiciousCheck->fetch()['failed_count'];
+		
+		// Block IP if too many failed attempts
+		if ($failedAttempts >= 10) {
+			$errors[] = 'Too many failed login attempts from this IP. Access temporarily blocked.';
+			log_activity($pdo, null, 'ip_blocked', "IP {$clientIP} blocked due to {$failedAttempts} failed attempts in 1 hour", 'auth/login');
 		} else {
+			$identifier = sanitize_string($_POST['identifier'] ?? ''); // name or email
+			$password = (string)($_POST['password'] ?? '');
+
+			if ($identifier === '' || $password === '') {
+				$errors[] = 'Please fill in all fields.';
+			} else {
 			try {
 				$pdo = get_pdo();
-				$stmt = $pdo->prepare('SELECT id, name, email, password_hash, is_admin, rfid FROM users WHERE (email = ? OR name = ?) AND is_admin = 1 LIMIT 1');
+				$stmt = $pdo->prepare('SELECT id, name, email, password_hash, is_admin, rfid, failed_attempts, locked_until FROM users WHERE (email = ? OR name = ?) AND is_admin = 1 LIMIT 1');
 				$stmt->execute([$identifier, $identifier]);
 				$user = $stmt->fetch();
-				if (!$user || !password_verify($password, $user['password_hash'])) {
-					log_activity($pdo, null, 'login_failed', 'Invalid credentials for: ' . $identifier, 'auth/login');
-					$errors[] = 'Invalid credentials.';
+				
+				// Check if account is locked
+				if ($user && $user['locked_until'] && strtotime($user['locked_until']) > time()) {
+					$lockTimeRemaining = strtotime($user['locked_until']) - time();
+					$minutesRemaining = ceil($lockTimeRemaining / 60);
+					log_activity($pdo, null, 'account_locked', 'Attempted login to locked account: ' . $identifier . ' (locked for ' . $minutesRemaining . ' more minutes)', 'auth/login');
+					$errors[] = "Account is locked due to too many failed attempts. Try again in {$minutesRemaining} minutes.";
+				} else if (!$user || !password_verify($password, $user['password_hash'])) {
+					// Handle failed login
+					if ($user) {
+						// Increment failed attempts for existing user
+						$newFailedAttempts = $user['failed_attempts'] + 1;
+						$stmt = $pdo->prepare('UPDATE users SET failed_attempts = ? WHERE id = ?');
+						$stmt->execute([$newFailedAttempts, $user['id']]);
+						
+						// Lock account if too many failed attempts
+						if ($newFailedAttempts >= 5) {
+							$stmt = $pdo->prepare('UPDATE users SET locked_until = DATE_ADD(NOW(), INTERVAL 15 MINUTE) WHERE id = ?');
+							$stmt->execute([$user['id']]);
+							log_activity($pdo, null, 'account_locked', 'Account locked due to 5 failed attempts: ' . $identifier, 'auth/login');
+							$errors[] = 'Too many failed attempts. Account locked for 15 minutes.';
+						} else {
+							log_activity($pdo, null, 'login_failed', 'Invalid credentials for: ' . $identifier . ' (attempt ' . $newFailedAttempts . '/5)', 'auth/login');
+							$errors[] = 'Invalid credentials.';
+						}
+					} else {
+						// User doesn't exist
+						log_activity($pdo, null, 'login_failed', 'Login attempt for non-existent account: ' . $identifier, 'auth/login');
+						$errors[] = 'Account does not exist.';
+					}
 				} else {
-					// Store user data temporarily for RFID verification
-					$_SESSION['pending_login'] = [
-						'id' => (int)$user['id'],
-						'name' => $user['name'],
-						'email' => $user['email'],
-						'is_admin' => (int)$user['is_admin'],
-						'rfid' => $user['rfid']
-					];
-					// Don't log in yet, wait for RFID verification
-					$info[] = 'Credentials verified. RFID verification required.';
+					// Successful login - reset failed attempts and unlock account
+					$stmt = $pdo->prepare('UPDATE users SET failed_attempts = 0, locked_until = NULL, last_login = NOW() WHERE id = ?');
+					$stmt->execute([$user['id']]);
 					
-					// Debug: Log that session was set
-					error_log('Pending login session set for user: ' . $user['name'] . ' (ID: ' . $user['id'] . ')');
+					// Check if user has RFID set up
+					if (!empty($user['rfid'])) {
+						// Store user data temporarily for RFID verification
+						$_SESSION['pending_login'] = [
+							'id' => (int)$user['id'],
+							'name' => $user['name'],
+							'email' => $user['email'],
+							'is_admin' => (int)$user['is_admin'],
+							'rfid' => $user['rfid']
+						];
+						// Don't log in yet, wait for RFID verification
+						$info[] = 'Credentials verified. RFID verification required.';
+						
+					} else {
+						// No RFID set up - log in directly
+						$_SESSION['user'] = [
+							'id' => (int)$user['id'],
+							'name' => $user['name'],
+							'email' => $user['email'],
+							'is_admin' => (int)$user['is_admin']
+						];
+						$_SESSION['last_activity'] = time();
+						
+						log_activity($pdo, (int)$user['id'], 'login_success', 'Successful login without RFID verification', 'auth/login');
+						header('Location: ../admin/dashboard.php');
+						exit;
+					}
                 }
 			} catch (Throwable $e) {
 				error_log('Login error: ' . $e->getMessage());
 				$errors[] = 'Server error: ' . $e->getMessage();
 			}
 		}
+		} // Close IP rate limiting else block
 	}
 }
 ?>
@@ -132,7 +212,7 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 				</ul>
 			</div>
 		<?php endif; ?>
-		<?php if ($info): ?>
+		<?php if ($info && empty($errors)): ?>
 			<div class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm p-3" id="infoBox">
 				<ul class="list-disc pl-5">
 					<?php foreach ($info as $msg): ?>
@@ -141,16 +221,18 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 				</ul>
 			</div>
 		<?php endif; ?>
+		
+		
 		<form method="post" id="loginForm" novalidate class="space-y-4" autocomplete="on">
 			<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
 			<div>
 				<label for="identifier" class="block text-slate-700 mb-1">Name or Email</label>
-				<input type="text" id="identifier" name="identifier" required autofocus class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800 placeholder-slate-400" placeholder="you@example.com or Admin" />
+				<input type="text" id="identifier" name="identifier" value="<?= htmlspecialchars($_POST['identifier'] ?? '') ?>" required autofocus class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800 placeholder-slate-400" placeholder="you@example.com or Admin" />
 			</div>
 			<div>
 				<label for="password" class="block text-slate-700 mb-1">Password</label>
 				<div class="relative">
-					<input type="password" id="password" name="password" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 pr-16 text-slate-800" />
+					<input type="password" id="password" name="password" value="<?= htmlspecialchars($_POST['password'] ?? '') ?>" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 pr-16 text-slate-800" />
 					<button class="absolute inset-y-0 right-2 my-auto text-sky-700 text-sm px-2" data-toggle="password" data-target="password" tabindex="-1" type="button">Show</button>
 				</div>
 			</div>
@@ -215,34 +297,28 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 		const cancelRfidBtn = document.getElementById('cancelRfid');
 		const rfidStatus = document.getElementById('rfidStatus');
 		
-		// Show RFID modal if there's a pending login (only after form submission)
-		// Don't auto-show on page load
+		// Check if there's a pending login session (credentials verified, RFID needed)
+		const hasPendingLogin = <?= isset($_SESSION['pending_login']) && !empty($_SESSION['pending_login']) ? 'true' : 'false' ?>;
 		
-		// Handle form submission
+		if (hasPendingLogin) {
+			// Show RFID modal - credentials were verified
+			rfidModal.style.display = 'flex';
+			rfidModal.classList.remove('hidden');
+			rfidModal.classList.add('flex');
+			
+			setTimeout(() => {
+				rfidInput.focus();
+			}, 100);
+		} else {
+			// Hide modal - no pending login
+			rfidModal.style.display = 'none';
+			rfidModal.classList.add('hidden');
+		}
+		
+		// Simple form submission - let PHP handle everything
 		loginForm.addEventListener('submit', function(e) {
-			e.preventDefault();
-			
-			const formData = new FormData(loginForm);
-			
-			fetch('login.php', {
-				method: 'POST',
-				body: formData
-			})
-			.then(response => response.text())
-			.then(html => {
-				// Check if there's a pending login (RFID required)
-				if (html.includes('Credentials verified') || html.includes('rfidModal')) {
-					rfidModal.classList.remove('hidden');
-					rfidInput.focus();
-				} else {
-					// No RFID required, reload page to show result
-					location.reload();
-				}
-			})
-			.catch(error => {
-				console.error('Error:', error);
-				location.reload();
-			});
+			// Allow normal form submission
+			// PHP will handle the logic and set session if needed
 		});
 		
 		// Handle RFID verification
@@ -300,17 +376,13 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			console.log('Cancel button clicked');
 			
 			// Hide modal immediately
+			rfidModal.style.display = 'none';
 			rfidModal.classList.add('hidden');
 			rfidInput.value = '';
 			rfidStatus.classList.add('hidden');
 			
-			// Clear pending login and reload
-			fetch('clear_pending_login.php', {
-				method: 'POST'
-			}).finally(() => {
-				// Always reload regardless of fetch result
-				location.reload();
-			});
+			// Redirect to login page with cancel parameter
+			window.location.href = 'login.php?cancelled=1';
 		});
 		
 		// Handle Enter key in RFID input
