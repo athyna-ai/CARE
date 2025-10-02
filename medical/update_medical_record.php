@@ -37,7 +37,7 @@ try {
         throw new Exception('Medical record not found');
     }
     
-    // Prepare updated medical history data based on form type
+    // Prepare updated data based on form type
     if ($record['form_type'] === 'medical_history') {
         $medicalHistoryData = [
             'ongoing_conditions' => $_POST['ongoing_conditions'] ?? [],
@@ -55,6 +55,29 @@ try {
         
         // Convert to JSON
         $formDataJson = json_encode($medicalHistoryData, JSON_PRETTY_PRINT);
+    } elseif ($record['form_type'] === 'general' || $record['form_type'] === 'general_checkup') {
+        // Handle general checkup form data
+        $generalCheckupData = [
+            'assessment_plan' => !empty($_POST['assessment_plan']) ? $_POST['assessment_plan'] : 'N/A',
+            'height' => $_POST['height'] ?? '',
+            'weight' => $_POST['weight'] ?? '',
+            'bmi' => $_POST['bmi'] ?? '',
+            'bmi_status' => $_POST['bmi_status'] ?? '',
+            'heart_rate' => $_POST['heart_rate'] ?? '',
+            'heart_rate_status' => $_POST['heart_rate_status'] ?? '',
+            'temperature' => $_POST['temperature'] ?? '',
+            'temperature_status' => $_POST['temperature_status'] ?? '',
+            'blood_pressure' => $_POST['blood_pressure'] ?? '',
+            'blood_pressure_status' => $_POST['blood_pressure_status'] ?? ''
+        ];
+        
+        // Remove empty values
+        $generalCheckupData = array_filter($generalCheckupData, function($value) {
+            return $value !== '';
+        });
+        
+        // Convert to JSON
+        $formDataJson = json_encode($generalCheckupData, JSON_PRETTY_PRINT);
     } else {
         // For other form types, update the form_data directly
         $formDataJson = $_POST['form_data'] ?? '';

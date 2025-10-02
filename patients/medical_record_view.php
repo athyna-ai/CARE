@@ -498,69 +498,7 @@ include __DIR__ . '/../partials/header.php';
                         </div>
                     <?php endif; ?>
                     
-                    <?php if ($record['form_type'] === 'general'): ?>
-                        <?php if (!empty($formData['height']) || !empty($formData['weight']) || !empty($formData['heart_rate']) || !empty($formData['temperature']) || !empty($formData['blood_pressure'])): ?>
-                            <div>
-                                <h3 class="text-md font-medium text-slate-700 mb-3">General Check Up</h3>
-                                <div class="bg-slate-50 rounded-lg p-4">
-                                    <div class="mb-4">
-                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Physical Measurements</h4>
-                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">Height:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['height'] ?? 'N/A') ?> cm</p>
-                                            </div>
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">Weight:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['weight'] ?? 'N/A') ?> kg</p>
-                                            </div>
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">BMI:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['bmi'] ?? 'N/A') ?></p>
-                                            </div>
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">BMI Status:</label>
-                                                <span class="px-2 py-1 rounded text-sm <?= 
-                                                    ($formData['bmi_status'] ?? '') === 'Normal' ? 'bg-green-100 text-green-800' : 
-                                                    (in_array($formData['bmi_status'] ?? '', ['Underweight', 'Overweight', 'Obese']) ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800')
-                                                ?>">
-                                                    <?= htmlspecialchars($formData['bmi_status'] ?? 'N/A') ?>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Vital Signs -->
-                                    <div class="mb-4">
-                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Vital Signs</h4>
-                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">Heart Rate:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['heart_rate'] ?? 'N/A') ?> BPM</p>
-                                            </div>
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">Temperature:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['temperature'] ?? 'N/A') ?>°C</p>
-                                            </div>
-                                            <div>
-                                                <label class="text-sm font-medium text-slate-600">Blood Pressure:</label>
-                                                <p class="text-slate-800"><?= htmlspecialchars($formData['blood_pressure'] ?? 'N/A') ?></p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Assessment & Plan -->
-                                    <?php if (!empty($formData['assessment_plan']) && $formData['assessment_plan'] !== 'N/A'): ?>
-                                    <div>
-                                        <h4 class="text-sm font-medium text-slate-600 mb-2">Assessment & Plan</h4>
-                                        <p class="text-slate-800"><?= htmlspecialchars($formData['assessment_plan']) ?></p>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            <?php endif; ?>
-                        </div>
-                    <?php if ($record['form_type'] === 'general'): ?>
+                    <?php if ($record['form_type'] === 'general' || $record['form_type'] === 'general_checkup'): ?>
                         <!-- General Check Up Form Display -->
                         <div class="space-y-6">
                             <!-- Physical Measurements -->
@@ -622,10 +560,9 @@ include __DIR__ . '/../partials/header.php';
                                 </div>
                             </div>
                         </div>
-                        <?php endif; ?>
                     <?php endif; ?>
                     
-                    <?php if ($record['form_type'] !== 'medical_history' && $record['form_type'] !== 'general'): ?>
+                    <?php if ($record['form_type'] !== 'medical_history' && $record['form_type'] !== 'general' && $record['form_type'] !== 'general_checkup'): ?>
                         <!-- Other form types -->
                         <div class="bg-slate-50 rounded-lg p-4">
                             <pre class="text-sm text-slate-700 whitespace-pre-wrap"><?= htmlspecialchars(json_encode($formData, JSON_PRETTY_PRINT)) ?></pre>
@@ -870,11 +807,109 @@ function generateMedicalHistoryEditForm(data) {
 }
 
 function generateGenericEditForm(data) {
+    const formType = '<?= $record['form_type'] ?>';
+    
+    if (formType === 'general' || formType === 'general_checkup') {
+        return generateGeneralCheckupEditForm(data);
+    }
+    
     return `
         <div class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-slate-700 mb-2">Form Data (JSON)</label>
                 <textarea name="form_data" class="w-full px-3 py-2 border border-slate-300 rounded-lg" rows="10">${JSON.stringify(data, null, 2)}</textarea>
+            </div>
+        </div>
+    `;
+}
+
+function generateGeneralCheckupEditForm(data) {
+    return `
+        <div class="space-y-6">
+            <!-- Assessment & Plan -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Assessment & Plan</label>
+                <textarea name="assessment_plan" class="w-full px-3 py-2 border border-slate-300 rounded-lg" rows="3" placeholder="Enter assessment and plan...">${data.assessment_plan || ''}</textarea>
+            </div>
+
+            <!-- Physical Measurements -->
+            <div>
+                <h3 class="text-lg font-medium text-slate-700 mb-4">Physical Measurements</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Height (cm)</label>
+                        <input type="number" name="height" value="${data.height || ''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter height in cm">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Weight (kg)</label>
+                        <input type="number" name="weight" value="${data.weight || ''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter weight in kg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">BMI</label>
+                        <input type="number" name="bmi" value="${data.bmi || ''}" step="0.1" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="BMI will be calculated automatically">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">BMI Status</label>
+                        <select name="bmi_status" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                            <option value="">Select BMI Status</option>
+                            <option value="Underweight" ${data.bmi_status === 'Underweight' ? 'selected' : ''}>Underweight</option>
+                            <option value="Normal" ${data.bmi_status === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="Overweight" ${data.bmi_status === 'Overweight' ? 'selected' : ''}>Overweight</option>
+                            <option value="Obese" ${data.bmi_status === 'Obese' ? 'selected' : ''}>Obese</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vital Signs -->
+            <div>
+                <h3 class="text-lg font-medium text-slate-700 mb-4">Vital Signs</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate (BPM)</label>
+                        <input type="number" name="heart_rate" value="${data.heart_rate || ''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter heart rate">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Temperature (°C)</label>
+                        <input type="number" name="temperature" value="${data.temperature || ''}" step="0.1" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter temperature">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure</label>
+                        <input type="text" name="blood_pressure" value="${data.blood_pressure || ''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="e.g., 120/80">
+                    </div>
+                </div>
+                
+                <!-- Status fields -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate Status</label>
+                        <select name="heart_rate_status" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                            <option value="">Select Status</option>
+                            <option value="Low" ${data.heart_rate_status === 'Low' ? 'selected' : ''}>Low</option>
+                            <option value="Normal" ${data.heart_rate_status === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="High" ${data.heart_rate_status === 'High' ? 'selected' : ''}>High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Temperature Status</label>
+                        <select name="temperature_status" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                            <option value="">Select Status</option>
+                            <option value="Low" ${data.temperature_status === 'Low' ? 'selected' : ''}>Low</option>
+                            <option value="Normal" ${data.temperature_status === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="High" ${data.temperature_status === 'High' ? 'selected' : ''}>High</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure Status</label>
+                        <select name="blood_pressure_status" class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                            <option value="">Select Status</option>
+                            <option value="Low" ${data.blood_pressure_status === 'Low' ? 'selected' : ''}>Low</option>
+                            <option value="Normal" ${data.blood_pressure_status === 'Normal' ? 'selected' : ''}>Normal</option>
+                            <option value="Elevated" ${data.blood_pressure_status === 'Elevated' ? 'selected' : ''}>Elevated</option>
+                            <option value="High" ${data.blood_pressure_status === 'High' ? 'selected' : ''}>High</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     `;
@@ -909,6 +944,39 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // BMI calculation for general checkup forms
+    const heightInput = document.querySelector('input[name="height"]');
+    const weightInput = document.querySelector('input[name="weight"]');
+    const bmiInput = document.querySelector('input[name="bmi"]');
+    const bmiStatusSelect = document.querySelector('select[name="bmi_status"]');
+    
+    function calculateBMI() {
+        if (heightInput && weightInput && bmiInput) {
+            const height = parseFloat(heightInput.value);
+            const weight = parseFloat(weightInput.value);
+            
+            if (height > 0 && weight > 0) {
+                const heightInMeters = height / 100;
+                const bmi = weight / (heightInMeters * heightInMeters);
+                bmiInput.value = bmi.toFixed(1);
+                
+                // Auto-set BMI status
+                if (bmiStatusSelect) {
+                    let status = '';
+                    if (bmi < 18.5) status = 'Underweight';
+                    else if (bmi < 25) status = 'Normal';
+                    else if (bmi < 30) status = 'Overweight';
+                    else status = 'Obese';
+                    
+                    bmiStatusSelect.value = status;
+                }
+            }
+        }
+    }
+    
+    if (heightInput) heightInput.addEventListener('input', calculateBMI);
+    if (weightInput) weightInput.addEventListener('input', calculateBMI);
 });
 
 // Back button function
