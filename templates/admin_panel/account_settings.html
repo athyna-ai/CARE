@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla p-4 md:p-6">
+    <div class="w-full max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-clinic-dark">Account Settings</h1>
+            <p class="text-clinic-dark/70 mt-2">Manage your account and create new admin accounts</p>
+        </div>
+
+        <!-- Current Profile -->
+        <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 mb-6">
+            <h2 class="text-xl font-semibold text-clinic-dark mb-4">Current Profile</h2>
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Full Name</label>
+                        <input type="text" name="name" value="{{ user.get_full_name|default:user.username }}" 
+                               class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Email</label>
+                        <input type="email" name="email" value="{{ user.email }}" 
+                               class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-clinic-dark/70 mb-2">RFID</label>
+                    <input type="text" name="rfid" value="{{ admin_profile.rfid|default:'' }}" 
+                           class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                </div>
+                <button type="submit" name="update_profile" 
+                        class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors font-medium">
+                    Update Profile
+                </button>
+            </form>
+        </div>
+
+        <!-- Change Password -->
+        <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 mb-6">
+            <h2 class="text-xl font-semibold text-clinic-dark mb-4">Change Password</h2>
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Current Password</label>
+                    <input type="password" name="current_password" 
+                           class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">New Password</label>
+                        <input type="password" name="new_password" 
+                               class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Confirm New Password</label>
+                        <input type="password" name="confirm_password" 
+                               class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                    </div>
+                </div>
+                <button type="submit" name="change_password" 
+                        class="px-6 py-2 bg-clinic-tea text-white rounded-lg hover:bg-clinic-vanilla transition-colors font-medium">
+                    Change Password
+                </button>
+            </form>
+        </div>
+
+        <!-- Create New Account -->
+        <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold text-clinic-dark">Create New Account</h2>
+                <button onclick="toggleRegisterForm()" 
+                        class="px-4 py-2 bg-clinic-vanilla text-clinic-dark rounded-lg hover:bg-clinic-tea hover:text-white transition-colors font-medium">
+                    <span id="toggleText">Show Form</span>
+                </button>
+            </div>
+            
+            <div id="registerForm" class="hidden">
+                <form method="POST" class="space-y-4">
+                    {% csrf_token %}
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Full Name</label>
+                            <input type="text" name="new_name" 
+                                   class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Email</label>
+                            <input type="email" name="new_email" 
+                                   class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Password</label>
+                            <input type="password" name="new_account_password" 
+                                   class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-clinic-dark/70 mb-2">RFID</label>
+                            <input type="text" name="new_rfid" 
+                                   class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" name="is_admin" id="is_admin" class="mr-2">
+                        <label for="is_admin" class="text-sm font-medium text-clinic-dark/70">Make this account an admin</label>
+                    </div>
+                    <button type="submit" name="create_account" 
+                            class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors font-medium">
+                        Create Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleRegisterForm() {
+    const form = document.getElementById('registerForm');
+    const toggleText = document.getElementById('toggleText');
+    
+    if (form.classList.contains('hidden')) {
+        form.classList.remove('hidden');
+        toggleText.textContent = 'Hide Form';
+    } else {
+        form.classList.add('hidden');
+        toggleText.textContent = 'Show Form';
+    }
+}
+</script>
+{% endblock %}
