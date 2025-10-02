@@ -288,6 +288,12 @@ html, body {
     opacity: 1 !important;
 }
 
+/* Spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 </style>
 
 <script>
@@ -894,7 +900,7 @@ window.closeNotification = closeNotification;
                                                 </td>
                                                 <td class="py-2 px-3">
                                                     <div class="flex gap-2 justify-center">
-                                                        <button onclick="viewVisitationRecord(<?= $visit['id'] ?>)" class="px-3 py-1 bg-clinic-blue/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-blue/30 transition-colors">
+                                                        <button onclick="viewVisitationDetails(<?= $visit['id'] ?>)" class="px-3 py-1 bg-clinic-blue/20 text-clinic-blue text-xs font-medium rounded-lg hover:bg-clinic-blue/30 transition-colors">
                                                             View
                                                         </button>
                                                         <button onclick="archiveVisitation(<?= $visit['id'] ?>)" class="px-3 py-1 bg-red-100 text-red-700 text-xs font-medium rounded-lg hover:bg-red-200 transition-colors">
@@ -1071,14 +1077,12 @@ window.closeNotification = closeNotification;
 </div>
 
 <!-- Visitation Details Modal -->
-<!-- TODO: FIX VISITATION DETAILS MODAL CONTENT AND VIEWING FORMAT - Lines 1072+ -->
-<div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
-    <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-slate-800">Visitation Details</h2>
-            <button onclick="closeVisitationDetailsModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div id="visitationDetailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
+    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 800px; max-height: 90vh; overflow-y: auto; margin: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="font-size: 24px; font-weight: 600; color: #1f2937; margin: 0;">Visitation Details</h2>
+            <button onclick="closeVisitationDetailsModal()" style="background: #f3f4f6; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <svg style="width: 20px; height: 20px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
@@ -1595,24 +1599,6 @@ window.closeNotification = closeNotification;
     </div>
 </div>
 
-<!-- Visitation Details Modal -->
-<!-- TODO: FIX VISITATION DETAILS MODAL CONTENT AND VIEWING FORMAT - Lines 1072+ -->
-<div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
-    <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-2xl font-semibold text-slate-800">Visitation Details</h2>
-            <button onclick="closeVisitationDetailsModal()" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div id="visitationDetailsContent">
-            <!-- Content will be loaded here -->
-        </div>
-    </div>
-</div>
 
 
 <script>
@@ -1791,46 +1777,124 @@ function viewVisitationRecord(visitId) {
 }
 
 function viewVisitationDetails(visitId) {
-    // Directly show visitation details without RFID verification
     showVisitationDetails(visitId);
 }
 
 function closeVisitationDetailsModal() {
-    document.getElementById('visitationDetailsModal').classList.add('hidden');
-    document.getElementById('visitationDetailsModal').classList.remove('flex');
+    const modal = document.getElementById('visitationDetailsModal');
+    if (modal) {
+        document.body.removeChild(modal);
+    }
 }
 
-
 function showVisitationDetails(visitId) {
-    // Show loading
-    document.getElementById('visitationDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-slate-600">Loading details...</p></div>';
+    // Remove any existing modal first
+    const existingModal = document.getElementById('visitationDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
     
-    // Show modal
-    document.getElementById('visitationDetailsModal').classList.remove('hidden');
-    document.getElementById('visitationDetailsModal').classList.add('flex');
+    // Create new modal dynamically with improved layout
+    const modal = document.createElement('div');
+    modal.id = 'visitationDetailsModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+    `;
     
-    // Load details using iframe method to maintain session
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = `../logs/get_visitation_details.php?id=${visitId}`;
-    iframe.onload = function() {
-        try {
-            const content = iframe.contentDocument.body.innerHTML;
-            document.getElementById('visitationDetailsContent').innerHTML = content;
-            document.body.removeChild(iframe);
-        } catch (e) {
-            // Fallback to fetch if iframe fails
-            fetch(`../logs/get_visitation_details.php?id=${visitId}`)
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('visitationDetailsContent').innerHTML = data;
-                })
-                .catch(error => {
-                    document.getElementById('visitationDetailsContent').innerHTML = '<div class="text-center py-8 text-red-600">Error loading details. Please try again.</div>';
-                });
-        }
-    };
-    document.body.appendChild(iframe);
+    const content = document.createElement('div');
+    content.style.cssText = `
+        background: white;
+        border-radius: 16px;
+        padding: 0;
+        width: 100%;
+        max-width: 900px;
+        max-height: 90vh;
+        overflow: hidden;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    `;
+    
+    content.innerHTML = `
+        <div style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 16px 16px 0 0;
+        ">
+            <h2 style="font-size: 20px; font-weight: 600; margin: 0;">Visitation Details</h2>
+            <button onclick="closeVisitationDetailsModal()" style="
+                background: rgba(255,255,255,0.2);
+                border: none;
+                border-radius: 8px;
+                width: 36px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                color: white;
+                transition: background 0.2s;
+            " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
+                <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div id="visitationDetailsContent" style="
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            background: #f8fafc;
+        ">
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="
+                    border: 3px solid #e2e8f0;
+                    border-top: 3px solid #3b82f6;
+                    border-radius: 50%;
+                    width: 48px;
+                    height: 48px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 20px;
+                "></div>
+                <p style="margin: 0; color: #64748b; font-size: 16px; font-weight: 500;">Loading visitation details...</p>
+            </div>
+        </div>
+    `;
+    
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+    
+    // Load details
+    fetch(`../logs/get_visitation_details.php?id=${visitId}`)
+        .then(response => response.text())
+        .then(data => {
+            document.getElementById('visitationDetailsContent').innerHTML = data;
+        })
+        .catch(error => {
+            document.getElementById('visitationDetailsContent').innerHTML = `
+                <div style="text-align: center; padding: 60px 20px;">
+                    <div style="color: #ef4444; font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <h3 style="color: #dc2626; margin: 0 0 8px 0; font-size: 18px;">Error Loading Details</h3>
+                    <p style="color: #6b7280; margin: 0;">Please try again or contact support if the problem persists.</p>
+                </div>
+            `;
+        });
 }
 
 function archiveVisitation(visitId) {
