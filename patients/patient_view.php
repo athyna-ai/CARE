@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-require_admin_auth();
+// No authentication required for public patient viewing
 $pdo = get_pdo();
 
 // Get patient ID and type from URL

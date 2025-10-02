@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-require_admin_auth();
+// No authentication required for public patient registration
 $pdo = get_pdo();
 
 // Ensure faculty table exists
@@ -78,18 +78,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$upd->execute([$name,$department,$gender,$rfid,$address,$age,$sr,$dob,$religion,$emergency,$allergies,$id]);
 				$info[] = 'Faculty updated successfully.';
 				
-				// Log activity
-				log_activity($pdo, (int)$_SESSION['user']['id'], 'faculty_update', "Updated faculty: {$name} ({$department})", 'faculty_form');
+				// Log activity (public registration - no user session)
+				log_activity($pdo, 0, 'faculty_update', "Updated faculty: {$name} ({$department})", 'faculty_form');
 			} else {
 				$ins = $pdo->prepare('INSERT INTO faculty (name, department, gender, rfid, address, age, sr, dob, religion, emergency_contact, allergies) VALUES (?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?)');
 				$ins->execute([$name,$department,$gender,$rfid,$address,$age,$sr,$dob,$religion,$emergency,$allergies]);
 				$info[] = 'Faculty registered successfully.';
 				
-				// Log activity
-				log_activity($pdo, (int)$_SESSION['user']['id'], 'faculty_register', "Registered new faculty: {$name} ({$department})", 'faculty_form');
+				// Log activity (public registration - no user session)
+				log_activity($pdo, 0, 'faculty_register', "Registered new faculty: {$name} ({$department})", 'faculty_form');
 			}
-			// Redirect to dashboard after successful save
-			header('Location: ../admin/dashboard.php?success=1');
+			// Redirect back to RFID portal after successful registration
+			header('Location: ../rfid/rfid_portal.php?success=1&type=faculty');
 			exit;
 		}
 	}

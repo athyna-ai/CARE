@@ -3,7 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-require_admin_auth();
+// No authentication required for public patient registration
 $pdo = get_pdo();
 
 // Ensure students table exists
@@ -163,8 +163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$upd->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$id]);
 				$info[] = 'Student updated successfully.';
 				
-				// Log activity
-				log_activity($pdo, (int)$_SESSION['user']['id'], 'student_update', "Updated student: {$name} ({$level})", 'student_form');
+				// Log activity (public registration - no user session)
+				log_activity($pdo, 0, 'student_update', "Updated student: {$name} ({$level})", 'student_form');
 			} else {
 				// Handle re-enrollment or new registration
 				if ($reenrollmentStudent) {
@@ -211,13 +211,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						$block,
 						$currentYear,
 						$notes,
-						$_SESSION['user']['id']
+						0
 					]);
 					
 					$info[] = 'Student re-enrolled successfully.';
 					
-					// Log activity
-					log_activity($pdo, (int)$_SESSION['user']['id'], 'student_reenroll', "Re-enrolled student: {$name} ({$level})", 'student_form');
+					// Log activity (public registration - no user session)
+					log_activity($pdo, 0, 'student_reenroll', "Re-enrolled student: {$name} ({$level})", 'student_form');
 				} else {
 					// Register new student
 					$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, block, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts) VALUES (?,?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?)');
@@ -247,17 +247,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						$block,
 						$currentYear,
 						$notes,
-						$_SESSION['user']['id']
+						0
 					]);
 					
 					$info[] = 'Student registered successfully.';
 					
-					// Log activity
-					log_activity($pdo, (int)$_SESSION['user']['id'], 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
+					// Log activity (public registration - no user session)
+					log_activity($pdo, 0, 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
 				}
 			}
-			// Redirect to dashboard after successful save
-			header('Location: ../admin/dashboard.php?success=1');
+			// Redirect back to RFID portal after successful registration
+			header('Location: ../rfid/rfid_portal.php?success=1&type=student');
 			exit;
 		}
 	}
