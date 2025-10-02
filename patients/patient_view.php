@@ -277,16 +277,6 @@ html, body {
     color: #374151;
 }
 
-/* Debug modal visibility */
-#visitationModal, #generalCheckUpModal {
-    z-index: 9999 !important;
-}
-
-#visitationModal.flex, #generalCheckUpModal.flex {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
 
 /* Spinner animation */
 @keyframes spin {
@@ -426,6 +416,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const newUrl = window.location.pathname + '?id=' + urlParams.get('id') + '&type=' + urlParams.get('type');
         window.history.replaceState({}, document.title, newUrl);
     }
+    
+    // Initialize medical history form behavior
+    initializeMedicalHistoryForm();
+    
     
     // Auto-capitalization functions
     function toTitleCase(str) {
@@ -720,11 +714,11 @@ window.closeNotification = closeNotification;
                     <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-6 py-4">
                         <div class="flex items-center justify-between">
                             <h2 class="text-2xl font-comfortaa font-bold text-white">Patient Information</h2>
-                            <button onclick="editPatientInfo()" class="px-6 py-3 bg-white text-clinic-blue rounded-xl hover:bg-gray-100 transition-all duration-300 flex items-center gap-3 font-bold text-base border-2 border-white shadow-lg">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button onclick="openEditModal()" class="px-4 py-2 bg-white/20 border border-white/30 text-slate-800 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                 </svg>
-                                EDIT PATIENT
+                                Edit Information
                             </button>
                         </div>
                     </div>
@@ -920,6 +914,176 @@ window.closeNotification = closeNotification;
             </div>
         </div>
     </div>
+    </div>
+</div>
+
+<!-- Edit Patient Information Modal -->
+<div id="editModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Edit Patient Information</h2>
+            <button onclick="closeEditModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="editPatientForm" method="POST" action="update_patient_info.php" onsubmit="return submitEditPatientForm(event);">
+            <input type="hidden" name="patient_id" value="<?= $patientId ?>">
+            <input type="hidden" name="patient_type" value="<?= $patientType ?>">
+            
+            <div class="space-y-6">
+                <!-- Personal Information -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Personal Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Full Name *</label>
+                            <input type="text" name="name" value="<?= htmlspecialchars($patient['name']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">RFID *</label>
+                            <input type="text" name="rfid" value="<?= htmlspecialchars($patient['rfid']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Date of Birth</label>
+                            <input type="date" name="date_of_birth" value="<?= $patient['dob'] ? date('Y-m-d', strtotime($patient['dob'])) : '' ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Gender *</label>
+                            <select name="gender" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                                <option value="">Select Gender</option>
+                                <option value="Male" <?= ($patient['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                                <option value="Female" <?= ($patient['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Religion</label>
+                            <input type="text" name="religion" value="<?= htmlspecialchars($patient['religion'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Address</label>
+                            <textarea name="address" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200"><?= htmlspecialchars($patient['address'] ?? '') ?></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Information (for students) -->
+                <?php if ($patientType === 'student'): ?>
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Academic Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Level</label>
+                            <select name="level" id="editLevel" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="updateStudentFields()">
+                                <option value="">Select Level</option>
+                                <option value="Pre-school" <?= ($patient['level'] ?? '') === 'Pre-school' ? 'selected' : '' ?>>Pre-school</option>
+                                <option value="Elementary" <?= ($patient['level'] ?? '') === 'Elementary' ? 'selected' : '' ?>>Elementary</option>
+                                <option value="High School" <?= ($patient['level'] ?? '') === 'High School' ? 'selected' : '' ?>>High School</option>
+                                <option value="Senior High School" <?= ($patient['level'] ?? '') === 'Senior High School' ? 'selected' : '' ?>>Senior High School</option>
+                                <option value="College" <?= ($patient['level'] ?? '') === 'College' ? 'selected' : '' ?>>College</option>
+                            </select>
+                        </div>
+                        <div id="editYearGradeField" class="<?= in_array($patient['level'] ?? '', ['Elementary', 'High School', 'Senior High School', 'College']) ? '' : 'hidden' ?>">
+                            <label id="editYearGradeLabel" class="block text-sm font-medium text-slate-700 mb-2"><?= ($patient['level'] ?? '') === 'College' ? 'Year' : 'Grade' ?></label>
+                            <input type="text" name="year_grade" id="editYearGrade" value="<?= htmlspecialchars($patient['year_grade'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div id="editCourseField" class="<?= ($patient['level'] ?? '') === 'College' ? '' : 'hidden' ?>">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Course</label>
+                            <input type="text" name="course" id="editCourse" value="<?= htmlspecialchars($patient['course'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div id="editBlockField" class="<?= ($patient['level'] ?? '') === 'College' ? '' : 'hidden' ?>">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Block</label>
+                            <input type="text" name="block" id="editBlock" value="<?= htmlspecialchars($patient['block'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div id="editStrandField" class="<?= ($patient['level'] ?? '') === 'Senior High School' ? '' : 'hidden' ?>">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Strand</label>
+                            <input type="text" name="strand" id="editStrand" value="<?= htmlspecialchars($patient['strand'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div id="editSectionField" class="<?= in_array($patient['level'] ?? '', ['Pre-school', 'Elementary', 'High School']) ? '' : 'hidden' ?>">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Section</label>
+                            <input type="text" name="section" id="editSection" value="<?= htmlspecialchars($patient['section'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Guardian/Parent</label>
+                            <input type="text" name="guardian" value="<?= htmlspecialchars($patient['guardian'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <!-- Faculty Information -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Faculty Information</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Department</label>
+                            <input type="text" name="department" value="<?= htmlspecialchars($patient['department'] ?? '') ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Contact Information -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Contact Information</h3>
+                    <div id="editContactNumbersContainer">
+                        <?php 
+                        $contacts = $patient['contacts'] ?? [];
+                        if (is_string($contacts)) {
+                            $contacts = json_decode($contacts, true) ?: [];
+                        }
+                        if (empty($contacts)) {
+                            $contacts = [''];
+                        }
+                        foreach ($contacts as $index => $contact): 
+                        ?>
+                        <div class="mb-3">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Contact Number <?= $index + 1 ?> *</label>
+                            <div class="flex gap-2">
+                                <input type="tel" name="contacts[]" value="<?= htmlspecialchars($contact) ?>" required class="flex-1 rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                                <?php if ($index > 0): ?>
+                                <button type="button" onclick="removeContactNumber(this)" class="px-3 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button type="button" onclick="addContactNumber()" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        Add Contact Number
+                    </button>
+                </div>
+
+                <!-- Medical Information -->
+                <div class="bg-slate-50 rounded-xl p-6">
+                    <h3 class="text-lg font-semibold text-slate-800 mb-4">Medical Information</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Allergies</label>
+                        <textarea name="allergies" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Leave blank if none - List any allergies..."><?= htmlspecialchars($patient['allergies'] ?? '') ?></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-end space-x-3 mt-8">
+                <button type="button" onclick="closeEditModal()" class="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Full Screen Medical Form Modal -->
 <div id="medicalFormFullScreen" class="fixed inset-0 z-50 hidden bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
     <div class="h-full flex flex-col">
@@ -1019,62 +1183,7 @@ window.closeNotification = closeNotification;
         </form>
     </div>
 </div>
-<!-- Edit Patient Information Modal -->
-<div id="editPatientModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
-    <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex items-center justify-between mb-8">
-            <h2 class="text-3xl font-bold text-slate-800">Edit Patient Information</h2>
-            <button onclick="closeEditPatientModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <form id="editPatientForm" method="POST" action="update_patient_info.php">
-            <input type="hidden" name="patient_id" value="<?= $patientId ?>">
-            <input type="hidden" name="patient_type" value="<?= $patientType ?>">
-            
-            <div class="space-y-6">
-                <!-- Basic Information -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Basic Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Full Name *</label>
-                            <input type="text" name="name" value="<?= htmlspecialchars($patient['name']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">RFID Number *</label>
-                            <input type="text" name="rfid" value="<?= htmlspecialchars($patient['rfid']) ?>" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Status Information -->
-                <div class="bg-slate-50 rounded-xl p-6">
-                    <h3 class="text-xl font-semibold text-slate-800 mb-4">Status Information</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Current Status *</label>
-                            <select name="status" required class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
-                                <option value="enrolled" <?= $patient['status'] === 'enrolled' ? 'selected' : '' ?>>Enrolled</option>
-                                <option value="graduated" <?= $patient['status'] === 'graduated' ? 'selected' : '' ?>>Graduated</option>
-                                <option value="transferred" <?= $patient['status'] === 'transferred' ? 'selected' : '' ?>>Transferred</option>
-                                <option value="dropped" <?= $patient['status'] === 'dropped' ? 'selected' : '' ?>>Dropped</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            <div class="flex justify-end gap-3 mt-8">
-                <button type="button" onclick="closeEditPatientModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" class="px-8 py-3 bg-clinic-blue text-white rounded-xl hover:bg-clinic-tea transition-colors font-medium" onclick="console.log('Submit button clicked'); return true;">
-                    Update Patient
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <!-- Visitation Details Modal -->
 <div id="visitationDetailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
@@ -1237,6 +1346,7 @@ window.closeNotification = closeNotification;
     </div>
 </div>
 
+
 <!-- Visitation Form Modal -->
 <div id="visitationModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
@@ -1378,226 +1488,6 @@ window.closeNotification = closeNotification;
     </div>
 </div>
 
-<!-- Edit Patient Information Modal -->
-<div id="editPatientModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
-    <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <div class="flex items-center justify-between mb-8">
-            <h2 class="text-3xl font-bold text-slate-800">Edit Patient Information</h2>
-            <button onclick="closeEditPatientModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        
-        <form id="editPatientForm" method="POST" action="update_patient.php">
-            <input type="hidden" name="patient_id" value="<?= $patientId ?>">
-            <input type="hidden" name="patient_type" value="<?= $patientType ?>">
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Basic Information -->
-                <div>
-                    <label class="block text-slate-700 mb-1">Name *</label>
-                    <input type="text" name="name" value="<?= htmlspecialchars($patient['name']) ?>" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                </div>
-                
-                <?php if ($patientType === 'student'): ?>
-                    <div>
-                        <label class="block text-slate-700 mb-1">Level *</label>
-                        <select name="level" id="levelSelect" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                            <option value="">Select Level</option>
-                            <option value="Pre-school" <?= ($patient['level'] ?? '') === 'Pre-school' ? 'selected' : '' ?>>Pre-school</option>
-                            <option value="Elementary" <?= ($patient['level'] ?? '') === 'Elementary' ? 'selected' : '' ?>>Elementary</option>
-                            <option value="High School" <?= ($patient['level'] ?? '') === 'High School' ? 'selected' : '' ?>>High School</option>
-                            <option value="Senior High School" <?= ($patient['level'] ?? '') === 'Senior High School' ? 'selected' : '' ?>>Senior High School</option>
-                            <option value="College" <?= ($patient['level'] ?? '') === 'College' ? 'selected' : '' ?>>College</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Year/Grade field (dynamic based on level) -->
-                    <div id="yearGradeField" class="<?= in_array($patient['level'] ?? '', ['Elementary', 'High School', 'Senior High School', 'College']) ? '' : 'hidden' ?>">
-                        <label class="block text-slate-700 mb-1" id="yearGradeLabel">Year/Grade</label>
-                        <select name="year_grade" id="yearGradeInput" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" data-existing-value="<?= htmlspecialchars($patient['year_grade'] ?? '') ?>">
-                            <option value="">Select Grade/Year</option>
-                            <?php
-                            $currentLevel = $patient['level'] ?? '';
-                            $currentYearGrade = $patient['year_grade'] ?? '';
-                            
-                            if ($currentLevel === 'Elementary') {
-                                for ($i = 1; $i <= 6; $i++) {
-                                    $grade = "Grade $i";
-                                    $selected = ($currentYearGrade === $grade) ? 'selected' : '';
-                                    echo "<option value=\"$grade\" $selected>$grade</option>";
-                                }
-                            } elseif ($currentLevel === 'High School') {
-                                for ($i = 7; $i <= 10; $i++) {
-                                    $grade = "Grade $i";
-                                    $selected = ($currentYearGrade === $grade) ? 'selected' : '';
-                                    echo "<option value=\"$grade\" $selected>$grade</option>";
-                                }
-                            } elseif ($currentLevel === 'Senior High School') {
-                                for ($i = 11; $i <= 12; $i++) {
-                                    $grade = "Grade $i";
-                                    $selected = ($currentYearGrade === $grade) ? 'selected' : '';
-                                    echo "<option value=\"$grade\" $selected>$grade</option>";
-                                }
-                            } elseif ($currentLevel === 'College') {
-                                for ($i = 1; $i <= 5; $i++) {
-                                    $year = $i === 1 ? '1st Year' : ($i === 2 ? '2nd Year' : ($i === 3 ? '3rd Year' : ($i === 4 ? '4th Year' : '5th Year (Irregular)')));
-                                    $selected = ($currentYearGrade === $year) ? 'selected' : '';
-                                    echo "<option value=\"$year\" $selected>$year</option>";
-                                }
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    
-                    <!-- Course field (for College) -->
-                    <div id="courseField" class="<?= ($patient['level'] ?? '') === 'College' ? '' : 'hidden' ?>">
-                        <label class="block text-slate-700 mb-1">Course</label>
-                        <select name="course" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                            <option value="">Select Course</option>
-                            <option value="BS in Information Technology" <?= ($patient['course'] ?? '') === 'BS in Information Technology' ? 'selected' : '' ?>>BS in Information Technology</option>
-                            <option value="BS in Education" <?= ($patient['course'] ?? '') === 'BS in Education' ? 'selected' : '' ?>>BS in Education</option>
-                            <option value="BS in Criminology" <?= ($patient['course'] ?? '') === 'BS in Criminology' ? 'selected' : '' ?>>BS in Criminology</option>
-                            <option value="BS in Hospitality Management" <?= ($patient['course'] ?? '') === 'BS in Hospitality Management' ? 'selected' : '' ?>>BS in Hospitality Management</option>
-                            <option value="BS in Office Administration" <?= ($patient['course'] ?? '') === 'BS in Office Administration' ? 'selected' : '' ?>>BS in Office Administration</option>
-                            <option value="BS in Business Administration" <?= ($patient['course'] ?? '') === 'BS in Business Administration' ? 'selected' : '' ?>>BS in Business Administration</option>
-                            <option value="BS in Psychology" <?= ($patient['course'] ?? '') === 'BS in Psychology' ? 'selected' : '' ?>>BS in Psychology</option>
-                            <option value="BS in Accountancy" <?= ($patient['course'] ?? '') === 'BS in Accountancy' ? 'selected' : '' ?>>BS in Accountancy</option>
-                            <option value="BS in Computer Science" <?= ($patient['course'] ?? '') === 'BS in Computer Science' ? 'selected' : '' ?>>BS in Computer Science</option>
-                            <option value="BS in Nursing" <?= ($patient['course'] ?? '') === 'BS in Nursing' ? 'selected' : '' ?>>BS in Nursing</option>
-                            <option value="BS in Engineering" <?= ($patient['course'] ?? '') === 'BS in Engineering' ? 'selected' : '' ?>>BS in Engineering</option>
-                            <option value="Other" <?= ($patient['course'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Block field (for College) -->
-                    <div id="blockField" class="<?= ($patient['level'] ?? '') === 'College' ? '' : 'hidden' ?>">
-                        <label class="block text-slate-700 mb-1">Block</label>
-                        <select name="block" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                            <option value="">Select Block</option>
-                            <option value="A" <?= ($patient['block'] ?? '') === 'A' ? 'selected' : '' ?>>Block A</option>
-                            <option value="B" <?= ($patient['block'] ?? '') === 'B' ? 'selected' : '' ?>>Block B</option>
-                            <option value="C" <?= ($patient['block'] ?? '') === 'C' ? 'selected' : '' ?>>Block C</option>
-                            <option value="D" <?= ($patient['block'] ?? '') === 'D' ? 'selected' : '' ?>>Block D</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Strand field (for Senior High School) -->
-                    <div id="strandField" class="<?= ($patient['level'] ?? '') === 'Senior High School' ? '' : 'hidden' ?>">
-                        <label class="block text-slate-700 mb-1">Strand</label>
-                        <select name="strand" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                            <option value="">Select Strand</option>
-                            <option value="STEM" <?= ($patient['strand'] ?? '') === 'STEM' ? 'selected' : '' ?>>STEM (Science, Technology, Engineering, and Mathematics)</option>
-                            <option value="ABM" <?= ($patient['strand'] ?? '') === 'ABM' ? 'selected' : '' ?>>ABM (Accountancy, Business, and Management)</option>
-                            <option value="HUMSS" <?= ($patient['strand'] ?? '') === 'HUMSS' ? 'selected' : '' ?>>HUMSS (Humanities and Social Sciences)</option>
-                            <option value="GAS" <?= ($patient['strand'] ?? '') === 'GAS' ? 'selected' : '' ?>>GAS (General Academic Strand)</option>
-                            <option value="TVL" <?= ($patient['strand'] ?? '') === 'TVL' ? 'selected' : '' ?>>TVL (Technical-Vocational-Livelihood)</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Section field (for Elementary, High School) -->
-                    <div id="sectionField" class="<?= in_array($patient['level'] ?? '', ['Elementary', 'High School']) ? '' : 'hidden' ?>">
-                        <label class="block text-slate-700 mb-1">Section</label>
-                        <input type="text" name="section" value="<?= htmlspecialchars($patient['section'] ?? '') ?>" placeholder="e.g., Grade 1-A, Grade 7-B" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                    </div>
-                <?php else: ?>
-                    <div>
-                        <label class="block text-slate-700 mb-1">Department *</label>
-                        <input type="text" name="department" value="<?= htmlspecialchars($patient['department'] ?? '') ?>" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                    </div>
-                <?php endif; ?>
-                
-                <div>
-                    <label class="block text-slate-700 mb-1">Date of Birth *</label>
-                    <input type="text" name="date_of_birth" value="<?= htmlspecialchars($patient['dob'] ?? '') ?>" placeholder="DD/MM/YYYY" maxlength="10" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" oninput="formatDateInput(this)" onkeypress="return isNumberKey(event)">
-                </div>
-                
-                <div>
-                    <label class="block text-slate-700 mb-1">Gender *</label>
-                    <select name="gender" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                        <option value="">Select Gender</option>
-                        <option value="Male" <?= ($patient['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                        <option value="Female" <?= ($patient['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <label class="block text-slate-700 mb-1">Religion</label>
-                    <input type="text" name="religion" value="<?= htmlspecialchars($patient['religion'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-slate-700 mb-1">Address *</label>
-                    <input type="text" name="address" value="<?= htmlspecialchars($patient['address'] ?? '') ?>" placeholder="Barangay, Municipality/City, Province" required class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800 text-base leading-relaxed" style="min-height: 48px; line-height: 1.5;" />
-                </div>
-                
-                <?php if ($patientType === 'student'): ?>
-                <div class="md:col-span-2">
-                    <label class="block text-slate-700 mb-1">Guardian/Parent</label>
-                    <input type="text" name="guardian" value="<?= htmlspecialchars($patient['guardian'] ?? '') ?>" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                </div>
-                <?php endif; ?>
-                
-                <!-- Contact Numbers -->
-                <div class="md:col-span-2">
-                    <label class="block text-slate-700 mb-2"><?= $patientType === 'student' ? 'Parent/Guardian Contact Numbers' : 'Emergency Contact Numbers' ?></label>
-                    <div id="contactNumbersContainer">
-                        <?php 
-                        $contacts = $patient['contacts'] ?? [];
-                        
-                        // If no contacts in array, check if there's an emergency_contact field (legacy data)
-                        if (empty($contacts) && !empty($patient['emergency_contact'])) {
-                            $contacts = [$patient['emergency_contact']];
-                        }
-                        
-                        // If still no contacts, show one empty field
-                        if (empty($contacts)) {
-                            $contacts = [''];
-                        }
-                        
-                        foreach ($contacts as $index => $contact): 
-                        ?>
-                        <div class="contact-number-item flex items-center space-x-2 mb-2">
-                            <input type="text" name="contacts[]" value="<?= htmlspecialchars($contact) ?>" placeholder="09xxxxxxxxx" class="flex-1 rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-                            <?php if ($index > 0): ?>
-                            <button type="button" onclick="removeContactNumber(this)" class="p-2 text-red-500 hover:text-red-700 transition-colors">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                </svg>
-                            </button>
-                            <?php endif; ?>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <button type="button" onclick="addContactNumber()" class="mt-2 inline-flex items-center px-3 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors text-sm">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                        </svg>
-                        Add Contact Number
-                    </button>
-                </div>
-                
-                <div class="md:col-span-2">
-                    <label class="block text-slate-700 mb-1">Allergies</label>
-                    <textarea name="allergies" rows="3" placeholder="List any known allergies (e.g., peanuts, shellfish, medications). Leave blank if none." class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800"><?= htmlspecialchars($patient['allergies'] ?? 'N/A') ?></textarea>
-                    <p class="mt-1 text-xs text-slate-500">Enter "None" or leave blank if the patient has no known allergies.</p>
-                </div>
-            </div>
-            
-            <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-slate-200">
-                <button type="button" onclick="closeEditPatientModal()" class="px-8 py-3 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors font-medium">
-                    Cancel
-                </button>
-                <button type="submit" class="px-8 py-3 bg-clinic-blue text-white rounded-xl hover:bg-clinic-tea transition-colors font-medium" onclick="console.log('Submit button clicked'); return true;">
-                    Update Patient
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
 
 
 
@@ -1611,9 +1501,26 @@ function openVisitationModal() {
     }
 }
 
+
 function closeVisitationModal() {
     document.getElementById('visitationModal').classList.add('hidden');
     document.getElementById('visitationModal').classList.remove('flex');
+}
+
+// Edit modal functions
+function openEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Initialize the edit form when opening
+        initializeEditForm();
+    }
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    document.getElementById('editModal').classList.remove('flex');
 }
 
 function toggleOtherReason() {
@@ -2694,15 +2601,6 @@ function removeNotification(button) {
     }, 300);
 }
 
-// Initialize page on load
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize medical history form behavior
-    initializeMedicalHistoryForm();
-    
-    // No need to initialize remove buttons anymore
-    
-    // Edit form will be initialized when modal opens
-});
 
 function initializeMedicalHistoryForm() {
     // Surgery status toggle
@@ -2735,9 +2633,83 @@ function initializeMedicalHistoryForm() {
 }
 
 
-function closeEditPatientModal() {
-    document.getElementById('editPatientModal').classList.add('hidden');
-    document.getElementById('editPatientModal').classList.remove('flex');
+
+function submitEditPatientForm(event) {
+    event.preventDefault();
+    console.log('Form submission started...');
+    
+    // Get form data
+    const form = document.getElementById('editPatientForm');
+    const formData = new FormData(form);
+    
+    // Log form data for debugging
+    console.log('Form data:');
+    for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+    }
+    
+    // Validate required fields
+    const requiredFields = ['name', 'rfid', 'gender'];
+    const missingFields = [];
+    
+    for (const field of requiredFields) {
+        if (!formData.get(field) || formData.get(field).trim() === '') {
+            missingFields.push(field);
+        }
+    }
+    
+    // Validate contacts
+    const contacts = formData.getAll('contacts[]').filter(contact => contact.trim() !== '');
+    if (contacts.length === 0) {
+        missingFields.push('contacts');
+    }
+    
+    if (missingFields.length > 0) {
+        alert('Please fill in all required fields: ' + missingFields.join(', '));
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Updating...';
+    submitBtn.disabled = true;
+    
+    // Submit via AJAX
+    fetch('update_patient_info.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (response.ok) {
+            return response.text();
+        } else {
+            throw new Error('Server error: ' + response.status);
+        }
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        // Check if response contains success redirect
+        if (data.includes('Location:') && data.includes('message_type=success')) {
+            alert('Patient information updated successfully!');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            alert('Error updating patient information. Please try again.');
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating patient information: ' + error.message);
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+    
+    return false;
 }
 
 function changeStatus(newStatus) {
@@ -2784,16 +2756,16 @@ function changeStatus(newStatus) {
 
 // Dynamic field visibility for edit form (same as registration forms)
 function initializeEditForm() {
-    const levelSelect = document.getElementById('levelSelect');
+    const levelSelect = document.getElementById('editLevel');
     if (!levelSelect) return;
     
-    const yearGradeField = document.getElementById('yearGradeField');
-    const yearGradeInput = document.getElementById('yearGradeInput');
-    const yearGradeLabel = document.getElementById('yearGradeLabel');
-    const courseField = document.getElementById('courseField');
-    const blockField = document.getElementById('blockField');
-    const strandField = document.getElementById('strandField');
-    const sectionField = document.getElementById('sectionField');
+    const yearGradeField = document.getElementById('editYearGradeField');
+    const yearGradeInput = document.getElementById('editYearGrade');
+    const yearGradeLabel = document.getElementById('editYearGradeLabel');
+    const courseField = document.getElementById('editCourseField');
+    const blockField = document.getElementById('editBlockField');
+    const strandField = document.getElementById('editStrandField');
+    const sectionField = document.getElementById('editSectionField');
     
     // Check if event listener is already attached
     if (levelSelect.hasAttribute('data-listener-attached')) return;
@@ -2875,84 +2847,59 @@ function initializeEditForm() {
     updateFields();
 }
 
-// Initialize edit form when modal opens
-function editPatientInfo() {
-    const modal = document.getElementById('editPatientModal');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    
-    // Add form submission listener for debugging
-    const form = document.getElementById('editPatientForm');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            console.log('Form submission event triggered');
-            console.log('Form data:', new FormData(form));
-        });
-    }
-    
-    // No need to initialize remove buttons when modal opens
-    
-    // Form is already populated by PHP, no need to initialize JavaScript
-    // The form will work correctly as-is
+function updateStudentFields() {
+    // This function is called from the onchange event in the edit modal
+    initializeEditForm();
 }
 
-    // Contact number management functions
-    function addContactNumber() {
-        const container = document.getElementById('contactNumbersContainer');
-        const addBtn = document.querySelector('button[onclick="addContactNumber()"]');
-        
-        // Check if we already have 2 contacts (1 default + 1 added)
-        const existingContacts = container.querySelectorAll('input[name="contacts[]"]');
-        if (existingContacts.length >= 2) {
-            return; // Don't add more than 2 total
-        }
-        
-        const contactItem = document.createElement('div');
-        contactItem.className = 'contact-number-item flex items-center space-x-2 mb-2';
-        
-        // Create remove button for the new contact
-        const removeBtn = document.createElement('button');
-        removeBtn.type = 'button';
-        removeBtn.className = 'p-2 text-red-500 hover:text-red-700 transition-colors';
-        removeBtn.innerHTML = `
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-            </svg>
-        `;
-        removeBtn.addEventListener('click', () => {
-            contactItem.remove();
-            // Re-enable the add button when extra contact is removed
-            addBtn.disabled = false;
-            addBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            addBtn.classList.add('hover:bg-sky-600');
-        });
-        
-        contactItem.innerHTML = `
-            <input type="text" name="contacts[]" value="" placeholder="09xxxxxxxxx" class="flex-1 rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800">
-        `;
-        
-        contactItem.appendChild(removeBtn);
-        container.appendChild(contactItem);
-        
-        // Disable the add button after adding extra contact
-        addBtn.disabled = true;
-        addBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        addBtn.classList.remove('hover:bg-sky-600');
+
+// Contact number management functions
+function addContactNumber() {
+    const container = document.getElementById('editContactNumbersContainer');
+    const addBtn = document.querySelector('button[onclick="addContactNumber()"]');
+    
+    // Check if we already have 2 contacts (1 default + 1 added)
+    const existingContacts = container.querySelectorAll('input[name="contacts[]"]');
+    if (existingContacts.length >= 2) {
+        return; // Don't add more than 2 total
     }
     
-    function removeContactNumber(button) {
-        const contactItem = button.closest('.contact-number-item');
-        const addBtn = document.querySelector('button[onclick="addContactNumber()"]');
-        
-        contactItem.remove();
-        
-        // Re-enable the add button when extra contact is removed
-        addBtn.disabled = false;
-        addBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        addBtn.classList.add('hover:bg-sky-600');
-    }
+    const contactItem = document.createElement('div');
+    contactItem.className = 'mb-3';
     
-    // No need for remove button functions anymore
+    const contactNumber = existingContacts.length + 1;
+    
+    contactItem.innerHTML = `
+        <label class="block text-sm font-medium text-slate-700 mb-2">Contact Number ${contactNumber} *</label>
+        <div class="flex gap-2">
+            <input type="tel" name="contacts[]" value="" required class="flex-1 rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+            <button type="button" onclick="removeContactNumber(this)" class="px-3 py-3 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    container.appendChild(contactItem);
+    
+    // Disable the add button after adding extra contact
+    addBtn.disabled = true;
+    addBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    addBtn.classList.remove('hover:bg-blue-200');
+}
+
+function removeContactNumber(button) {
+    const contactItem = button.closest('.mb-3');
+    const addBtn = document.querySelector('button[onclick="addContactNumber()"]');
+    
+    contactItem.remove();
+    
+    // Re-enable the add button when extra contact is removed
+    addBtn.disabled = false;
+    addBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    addBtn.classList.add('hover:bg-blue-200');
+}
 
     // Date formatting function
     function formatDateInput(input) {
