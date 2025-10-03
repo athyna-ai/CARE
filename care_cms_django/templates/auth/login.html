@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-comfortaa font-bold text-clinic-dark">
+                Admin Login
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Enter your credentials to access the CARE system
+            </p>
+        </div>
+        
+        <form class="mt-8 space-y-6" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            
+            <div class="space-y-4">
+                <div>
+                    <label for="identifier" class="block text-sm font-medium text-gray-700">
+                        Username or Email
+                    </label>
+                    <input id="identifier" name="identifier" type="text" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-clinic-blue focus:border-clinic-blue focus:z-10 sm:text-sm"
+                           placeholder="Enter your username or email">
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">
+                        Password
+                    </label>
+                    <input id="password" name="password" type="password" required 
+                           class="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-clinic-blue focus:border-clinic-blue focus:z-10 sm:text-sm"
+                           placeholder="Enter your password">
+                </div>
+            </div>
+            
+            <div>
+                <button type="submit" 
+                        class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-clinic-blue hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-clinic-blue transition-colors duration-200">
+                    <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+                        <svg class="h-5 w-5 text-blue-500 group-hover:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    Sign In
+                </button>
+            </div>
+        </form>
+        
+        <!-- RFID Verification Modal -->
+        <div id="rfidModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3 text-center">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">RFID Verification Required</h3>
+                    <p class="text-sm text-gray-500 mb-4">
+                        Please tap your RFID card to complete the login process.
+                    </p>
+                    
+                    <form id="rfidForm" method="post" action="{% url 'auth:rfid_verification' %}">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <input type="text" id="rfidInput" name="rfid" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Enter RFID or tap card" autofocus>
+                        </div>
+                        
+                        <div class="flex justify-center space-x-4">
+                            <button type="submit" 
+                                    class="px-4 py-2 bg-clinic-blue text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Verify RFID
+                            </button>
+                            <button type="button" id="cancelRfid" 
+                                    class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rfidModal = document.getElementById('rfidModal');
+    const rfidInput = document.getElementById('rfidInput');
+    const cancelRfid = document.getElementById('cancelRfid');
+    const hasPendingLogin = {{ pending_login|yesno:"true,false" }};
+    
+    // Show RFID modal if there's a pending login
+    if (hasPendingLogin) {
+        rfidModal.style.display = 'flex';
+        rfidModal.classList.remove('hidden');
+        rfidModal.classList.add('flex');
+        setTimeout(() => { rfidInput.focus(); }, 100);
+    }
+    
+    // Handle RFID form submission
+    const rfidForm = document.getElementById('rfidForm');
+    if (rfidForm) {
+        rfidForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const rfid = rfidInput.value.trim();
+            if (!rfid) {
+                alert('Please enter your RFID number.');
+                return;
+            }
+            
+            // Submit RFID verification
+            fetch('{% url "auth:rfid_verification" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'rfid=' + encodeURIComponent(rfid)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Redirect to dashboard
+                    window.location.href = data.redirect_url || '/admin/dashboard/';
+                } else {
+                    alert(data.message || 'RFID verification failed. Please try again.');
+                    rfidInput.focus();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred during RFID verification.');
+            });
+        });
+    }
+    
+    // Handle cancel button
+    if (cancelRfid) {
+        cancelRfid.addEventListener('click', function() {
+            rfidModal.style.display = 'none';
+            rfidModal.classList.add('hidden');
+            rfidModal.classList.remove('flex');
+            // Redirect to login page
+            window.location.href = '{% url "auth:login" %}';
+        });
+    }
+    
+    // Auto-focus RFID input when modal opens
+    if (rfidInput) {
+        rfidInput.addEventListener('input', function() {
+            // Auto-submit if RFID looks complete (adjust length as needed)
+            if (this.value.length >= 8) {
+                setTimeout(() => {
+                    rfidForm.dispatchEvent(new Event('submit'));
+                }, 500);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-comfortaa font-bold text-clinic-dark mb-2">Patient Details</h1>
+            <p class="text-gray-600">Complete patient information and medical records</p>
+        </div>
+        
+        <!-- Patient Information Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 h-16 w-16">
+                        <div class="h-16 w-16 rounded-full {% if patient_type == 'student' %}bg-blue-600{% else %}bg-green-600{% endif %} flex items-center justify-center">
+                            <span class="text-xl font-medium text-white">
+                                {{ patient.name|first|upper }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="ml-4">
+                        <h2 class="text-2xl font-semibold text-gray-900">{{ patient.name }}</h2>
+                        <p class="text-gray-600">{{ patient_type|title }} • RFID: {{ patient.rfid }}</p>
+                    </div>
+                </div>
+                
+                <div class="mt-4 md:mt-0 flex space-x-3">
+                    {% if patient_type == 'student' %}
+                    <a href="{% url 'patients:student_form' patient.id %}" 
+                       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Edit Student
+                    </a>
+                    {% else %}
+                    <a href="{% url 'patients:faculty_form' patient.id %}" 
+                       class="inline-flex items-center px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                        Edit Faculty
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'medical:medical_form' patient.id patient_type %}" 
+                       class="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        Medical Form
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Patient Details -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Personal Information</h4>
+                    <div class="mt-2 space-y-2">
+                        <p><span class="font-medium">Name:</span> {{ patient.name }}</p>
+                        <p><span class="font-medium">Gender:</span> {{ patient.gender }}</p>
+                        <p><span class="font-medium">Age:</span> {{ patient.age|default:"Not specified" }}</p>
+                        <p><span class="font-medium">Date of Birth:</span> {{ patient.date_of_birth|date:"M d, Y"|default:"Not specified" }}</p>
+                        <p><span class="font-medium">Address:</span> {{ patient.address|default:"Not specified" }}</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider">Contact Information</h4>
+                    <div class="mt-2 space-y-2">
+                        <p><span class="font-medium">Phone:</span> {{ patient.phone|default:"Not specified" }}</p>
+                        <p><span class="font-medium">Email:</span> {{ patient.email|default:"Not specified" }}</p>
+                        <p><span class="font-medium">Emergency Contact:</span> {{ patient.emergency_contact|default:"Not specified" }}</p>
+                        <p><span class="font-medium">Emergency Phone:</span> {{ patient.emergency_phone|default:"Not specified" }}</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider">System Information</h4>
+                    <div class="mt-2 space-y-2">
+                        <p><span class="font-medium">RFID:</span> {{ patient.rfid }}</p>
+                        <p><span class="font-medium">Status:</span> 
+                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium
+                                {% if patient.status == 'Active' %}bg-green-100 text-green-800
+                                {% elif patient.status == 'Inactive' %}bg-yellow-100 text-yellow-800
+                                {% elif patient.status == 'Graduated' %}bg-blue-100 text-blue-800
+                                {% elif patient.status == 'Retired' %}bg-gray-100 text-gray-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ patient.status }}
+                            </span>
+                        </p>
+                        <p><span class="font-medium">Registered:</span> {{ patient.created_at|date:"M d, Y" }}</p>
+                        <p><span class="font-medium">Last Updated:</span> {{ patient.updated_at|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Student-specific Information -->
+            {% if patient_type == 'student' %}
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Academic Information</h4>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div>
+                        <p><span class="font-medium">Education Level:</span> {{ patient.level|default:"Not specified" }}</p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Year/Grade:</span> {{ patient.year_grade|default:"Not specified" }}</p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Course:</span> {{ patient.course|default:"Not specified" }}</p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Section:</span> {{ patient.section|default:"Not specified" }}</p>
+                    </div>
+                    {% if patient.strand %}
+                    <div>
+                        <p><span class="font-medium">Strand:</span> {{ patient.strand }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Faculty-specific Information -->
+            {% if patient_type == 'faculty' %}
+            <div class="mt-6 pt-6 border-t border-gray-200">
+                <h4 class="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Employment Information</h4>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <p><span class="font-medium">Department:</span> {{ patient.department|default:"Not specified" }}</p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Position:</span> {{ patient.position|default:"Not specified" }}</p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Employee ID:</span> {{ patient.employee_id|default:"Not specified" }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Medical Records -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-semibold text-clinic-dark">Medical Records</h3>
+                <a href="{% url 'medical:medical_form' patient.id patient_type %}" 
+                   class="inline-flex items-center px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Add Medical Record
+                </a>
+            </div>
+            
+            {% if medical_records %}
+            <div class="space-y-4">
+                {% for record in medical_records %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h4 class="font-medium text-gray-900">{{ record.form_type|title }} Form</h4>
+                            <p class="text-sm text-gray-500">Created on {{ record.created_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="viewMedicalRecord({{ record.id }})" 
+                                    class="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="View Details">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <p class="text-lg font-medium text-gray-500">No medical records found</p>
+                <p class="text-sm text-gray-400">Start by adding a medical record</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Visitation History -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <h3 class="text-lg font-semibold text-clinic-dark mb-6">Recent Visits</h3>
+            
+            {% if visitations %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symptoms</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Treatment</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nurse</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for visit in visitations %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ visit.visit_date|date:"M d, Y" }}</div>
+                                <div class="text-sm text-gray-500">{{ visit.visit_date|time:"H:i" }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">{{ visit.reason }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900">
+                                    {% if visit.symptoms %}
+                                        {{ visit.symptoms|truncatechars:50 }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col space-y-1">
+                                    {% if visit.medication_given %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Medication: {{ visit.medication_name|default:"Given" }}
+                                    </span>
+                                    {% endif %}
+                                    {% if visit.injury %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Injury
+                                    </span>
+                                    {% endif %}
+                                    {% if visit.first_aid_given %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        First Aid
+                                    </span>
+                                    {% endif %}
+                                    {% if not visit.medication_given and not visit.injury and not visit.first_aid_given %}
+                                    <span class="text-sm text-gray-500">-</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-900">{{ visit.nurse_name|default:"-" }}</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <p class="text-lg font-medium text-gray-500">No visit history found</p>
+                <p class="text-sm text-gray-400">Visitation records will appear here</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Back Button -->
+        <div class="text-center mt-8">
+            {% if patient_type == 'student' %}
+            <a href="{% url 'patients:school_listing' patient.level %}" 
+               class="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Student List
+            </a>
+            {% else %}
+            <a href="{% url 'patients:faculty_listing' %}" 
+               class="inline-flex items-center px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Faculty List
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Medical Record Details Modal -->
+<div id="medicalRecordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Medical Record Details</h3>
+                <button id="closeMedicalModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div id="medicalRecordDetails" class="space-y-4">
+                <!-- Details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const medicalModal = document.getElementById('medicalRecordModal');
+    const closeMedicalModal = document.getElementById('closeMedicalModal');
+    
+    // Close medical modal
+    closeMedicalModal.addEventListener('click', function() {
+        medicalModal.classList.add('hidden');
+        medicalModal.classList.remove('flex');
+    });
+    
+    // Close medical modal when clicking outside
+    medicalModal.addEventListener('click', function(e) {
+        if (e.target === medicalModal) {
+            medicalModal.classList.add('hidden');
+            medicalModal.classList.remove('flex');
+        }
+    });
+});
+
+// View medical record details
+function viewMedicalRecord(recordId) {
+    // This would typically fetch details via AJAX
+    // For now, we'll show a placeholder
+    const detailsDiv = document.getElementById('medicalRecordDetails');
+    detailsDiv.innerHTML = `
+        <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="font-medium text-gray-900 mb-2">Medical Record #${recordId}</h4>
+            <p class="text-sm text-gray-600">Detailed medical record information would be loaded here.</p>
+            <p class="text-sm text-gray-500 mt-2">This feature would connect to the backend to fetch complete medical record details.</p>
+        </div>
+    `;
+    
+    const modal = document.getElementById('medicalRecordModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-comfortaa font-bold text-clinic-dark mb-2">
+                {% if student %}Edit Student{% else %}Student Registration{% endif %}
+            </h1>
+            <p class="text-gray-600">Complete the form below to register a new student</p>
+        </div>
+        
+        <!-- Student Registration Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
+                {% csrf_token %}
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                
+                <!-- Full Name -->
+                <div class="md:col-span-2">
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Full Name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="name" 
+                           name="name" 
+                           value="{{ student.name|default:'' }}"
+                           required 
+                           autofocus
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter full name">
+                </div>
+                
+                <!-- Gender -->
+                <div>
+                    <label for="gender" class="block text-sm font-medium text-gray-700 mb-2">
+                        Gender <span class="text-red-500">*</span>
+                    </label>
+                    <select id="gender" 
+                            name="gender" 
+                            required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        <option value="">Select Gender</option>
+                        <option value="Male" {% if student.gender == 'Male' %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if student.gender == 'Female' %}selected{% endif %}>Female</option>
+                    </select>
+                </div>
+                
+                <!-- Education Level -->
+                <div>
+                    <label for="level" class="block text-sm font-medium text-gray-700 mb-2">
+                        Education Level <span class="text-red-500">*</span>
+                    </label>
+                    <select id="levelSelect" 
+                            name="level" 
+                            required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        <option value="">Select Level</option>
+                        <option value="Pre-school" {% if student.level == 'Pre-school' %}selected{% endif %}>Pre-school</option>
+                        <option value="Elementary" {% if student.level == 'Elementary' %}selected{% endif %}>Elementary</option>
+                        <option value="High School" {% if student.level == 'High School' %}selected{% endif %}>High School</option>
+                        <option value="Senior High School" {% if student.level == 'Senior High School' %}selected{% endif %}>Senior High School</option>
+                        <option value="College" {% if student.level == 'College' %}selected{% endif %}>College</option>
+                    </select>
+                </div>
+                
+                <!-- Year/Grade Field (Dynamic) -->
+                <div id="yearGradeField" class="hidden">
+                    <label for="year_grade" class="block text-sm font-medium text-gray-700 mb-2">
+                        Year/Grade <span class="text-red-500">*</span>
+                    </label>
+                    <select id="year_grade" 
+                            name="year_grade"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        <option value="">Select Year/Grade</option>
+                    </select>
+                </div>
+                
+                <!-- Course Field (Dynamic) -->
+                <div id="courseField" class="hidden">
+                    <label for="course" class="block text-sm font-medium text-gray-700 mb-2">
+                        Course
+                    </label>
+                    <input type="text" 
+                           id="course" 
+                           name="course" 
+                           value="{{ student.course|default:'' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter course">
+                </div>
+                
+                <!-- Block Field (Dynamic) -->
+                <div id="blockField" class="hidden">
+                    <label for="block" class="block text-sm font-medium text-gray-700 mb-2">
+                        Block
+                    </label>
+                    <input type="text" 
+                           id="block" 
+                           name="block" 
+                           value="{{ student.block|default:'' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter block">
+                </div>
+                
+                <!-- Section Field (Dynamic) -->
+                <div id="sectionField" class="hidden">
+                    <label for="section" class="block text-sm font-medium text-gray-700 mb-2">
+                        Section
+                    </label>
+                    <input type="text" 
+                           id="section" 
+                           name="section" 
+                           value="{{ student.section|default:'' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter section">
+                </div>
+                
+                <!-- Strand Field (Dynamic) -->
+                <div id="strandField" class="hidden">
+                    <label for="strand" class="block text-sm font-medium text-gray-700 mb-2">
+                        Strand
+                    </label>
+                    <input type="text" 
+                           id="strand" 
+                           name="strand" 
+                           value="{{ student.strand|default:'' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter strand">
+                </div>
+                
+                <!-- RFID Number -->
+                <div>
+                    <label for="rfid" class="block text-sm font-medium text-gray-700 mb-2">
+                        RFID Number <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" 
+                           id="rfid" 
+                           name="rfid" 
+                           value="{{ prefill_rfid|default:student.rfid|default:'' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter RFID number">
+                </div>
+                
+                <!-- Complete Address -->
+                <div class="md:col-span-2">
+                    <label for="address" class="block text-sm font-medium text-gray-700 mb-2">
+                        Complete Address
+                    </label>
+                    <textarea id="address" 
+                              name="address" 
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                              placeholder="Enter complete address">{{ student.address|default:'' }}</textarea>
+                </div>
+                
+                <!-- Date of Birth -->
+                <div>
+                    <label for="dob" class="block text-sm font-medium text-gray-700 mb-2">
+                        Date of Birth <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" 
+                           id="dob" 
+                           name="dob" 
+                           value="{{ student.dob|default:'' }}"
+                           required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                </div>
+                
+                <!-- Age (Auto-calculated) -->
+                <div>
+                    <label for="age" class="block text-sm font-medium text-gray-700 mb-2">
+                        Age
+                    </label>
+                    <input type="number" 
+                           id="ageInput" 
+                           name="age" 
+                           value="{{ student.age|default:'' }}"
+                           readonly
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                </div>
+                
+                <!-- Religion -->
+                <div>
+                    <label for="religion" class="block text-sm font-medium text-gray-700 mb-2">
+                        Religion
+                    </label>
+                    <select id="religion" 
+                            name="religion"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        <option value="">Select Religion</option>
+                        <option value="Catholic" {% if student.religion == 'Catholic' %}selected{% endif %}>Catholic</option>
+                        <option value="Protestant" {% if student.religion == 'Protestant' %}selected{% endif %}>Protestant</option>
+                        <option value="Muslim" {% if student.religion == 'Muslim' %}selected{% endif %}>Muslim</option>
+                        <option value="Buddhist" {% if student.religion == 'Buddhist' %}selected{% endif %}>Buddhist</option>
+                        <option value="Hindu" {% if student.religion == 'Hindu' %}selected{% endif %}>Hindu</option>
+                        <option value="Other" {% if student.religion == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+                </div>
+                
+                <!-- Parent/Guardian Name -->
+                <div>
+                    <label for="guardian" class="block text-sm font-medium text-gray-700 mb-2">
+                        Parent/Guardian Name
+                    </label>
+                    <input type="text" 
+                           id="guardian" 
+                           name="guardian" 
+                           value="{{ student.guardian|default:'' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                           placeholder="Enter parent/guardian name">
+                </div>
+                
+                <!-- Emergency Contacts -->
+                <div class="md:col-span-2">
+                    <h3 class="text-lg font-semibold text-clinic-dark mb-4">Emergency Contacts</h3>
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <!-- Contact 1 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contact 1 Name</label>
+                            <input type="text" 
+                                   name="contact_1_name" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                            <input type="tel" 
+                                   name="contact_1_phone" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Phone number">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Relation</label>
+                            <input type="text" 
+                                   name="contact_1_relation" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Relation">
+                        </div>
+                        
+                        <!-- Contact 2 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contact 2 Name</label>
+                            <input type="text" 
+                                   name="contact_2_name" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                            <input type="tel" 
+                                   name="contact_2_phone" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Phone number">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Relation</label>
+                            <input type="text" 
+                                   name="contact_2_relation" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Relation">
+                        </div>
+                        
+                        <!-- Contact 3 -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Contact 3 Name</label>
+                            <input type="text" 
+                                   name="contact_3_name" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                            <input type="tel" 
+                                   name="contact_3_phone" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Phone number">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Relation</label>
+                            <input type="text" 
+                                   name="contact_3_relation" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                                   placeholder="Relation">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Allergies & Medical Notes -->
+                <div class="md:col-span-2">
+                    <label for="allergies" class="block text-sm font-medium text-gray-700 mb-2">
+                        Allergies
+                    </label>
+                    <textarea id="allergies" 
+                              name="allergies" 
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                              placeholder="List any known allergies">{{ student.allergies|default:'' }}</textarea>
+                </div>
+                
+                <div class="md:col-span-2">
+                    <label for="medical_notes" class="block text-sm font-medium text-gray-700 mb-2">
+                        Medical Notes
+                    </label>
+                    <textarea id="medical_notes" 
+                              name="medical_notes" 
+                              rows="3"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue"
+                              placeholder="Additional medical information">{{ student.medical_notes|default:'' }}</textarea>
+                </div>
+                
+                <!-- Data Privacy Consent -->
+                <div class="md:col-span-2">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <input type="checkbox" 
+                                   id="data_privacy_consent" 
+                                   name="data_privacy_consent" 
+                                   required
+                                   class="mt-1 h-4 w-4 text-clinic-blue focus:ring-clinic-blue border-gray-300 rounded">
+                            <label for="data_privacy_consent" class="ml-3 text-sm text-gray-700">
+                                <span class="font-medium text-red-500">*</span> I consent to the collection, processing, and storage of my personal data for medical and administrative purposes. I understand that this information will be used solely for healthcare services and will be kept confidential in accordance with data protection regulations.
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Submit Button -->
+                <div class="md:col-span-2 text-center">
+                    <button type="submit" 
+                            id="saveStudentBtn" 
+                            disabled
+                            class="px-8 py-3 bg-clinic-blue text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-clinic-blue focus:ring-offset-2 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        {% if student %}Update Student{% else %}Register Student{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const levelSelect = document.getElementById('levelSelect');
+    const yearGradeField = document.getElementById('yearGradeField');
+    const courseField = document.getElementById('courseField');
+    const blockField = document.getElementById('blockField');
+    const sectionField = document.getElementById('sectionField');
+    const strandField = document.getElementById('strandField');
+    const dobInput = document.getElementById('dob');
+    const ageInput = document.getElementById('ageInput');
+    const saveBtn = document.getElementById('saveStudentBtn');
+    const consentCheckbox = document.getElementById('data_privacy_consent');
+    
+    // Dynamic field visibility based on education level
+    function updateFieldsVisibility() {
+        const level = levelSelect.value;
+        
+        // Hide all dynamic fields first
+        yearGradeField.classList.add('hidden');
+        courseField.classList.add('hidden');
+        blockField.classList.add('hidden');
+        sectionField.classList.add('hidden');
+        strandField.classList.add('hidden');
+        
+        // Show relevant fields based on level
+        if (level === 'Pre-school') {
+            yearGradeField.classList.remove('hidden');
+            populateYearGrade(['Nursery', 'Kinder 1', 'Kinder 2']);
+        } else if (level === 'Elementary') {
+            yearGradeField.classList.remove('hidden');
+            sectionField.classList.remove('hidden');
+            populateYearGrade(['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6']);
+        } else if (level === 'High School') {
+            yearGradeField.classList.remove('hidden');
+            sectionField.classList.remove('hidden');
+            populateYearGrade(['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10']);
+        } else if (level === 'Senior High School') {
+            yearGradeField.classList.remove('hidden');
+            strandField.classList.remove('hidden');
+            sectionField.classList.remove('hidden');
+            populateYearGrade(['Grade 11', 'Grade 12']);
+        } else if (level === 'College') {
+            courseField.classList.remove('hidden');
+            blockField.classList.remove('hidden');
+            sectionField.classList.remove('hidden');
+            populateYearGrade(['1st Year', '2nd Year', '3rd Year', '4th Year', '5th Year']);
+        }
+    }
+    
+    function populateYearGrade(options) {
+        const yearGradeSelect = document.getElementById('year_grade');
+        yearGradeSelect.innerHTML = '<option value="">Select Year/Grade</option>';
+        options.forEach(option => {
+            const optionElement = document.createElement('option');
+            optionElement.value = option;
+            optionElement.textContent = option;
+            yearGradeSelect.appendChild(optionElement);
+        });
+    }
+    
+    // Age calculation
+    function calculateAge() {
+        if (dobInput.value) {
+            const today = new Date();
+            const birthDate = new Date(dobInput.value);
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            
+            ageInput.value = age;
+        }
+    }
+    
+    // Enable/disable save button based on consent
+    function updateSaveButton() {
+        if (consentCheckbox.checked) {
+            saveBtn.disabled = false;
+        } else {
+            saveBtn.disabled = true;
+        }
+    }
+    
+    // Event listeners
+    levelSelect.addEventListener('change', updateFieldsVisibility);
+    dobInput.addEventListener('change', calculateAge);
+    consentCheckbox.addEventListener('change', updateSaveButton);
+    
+    // Auto-capitalize name fields
+    const nameInput = document.getElementById('name');
+    const guardianInput = document.getElementById('guardian');
+    
+    [nameInput, guardianInput].forEach(input => {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/\b\w/g, l => l.toUpperCase());
+        });
+    });
+    
+    // Initialize fields visibility if editing
+    if (levelSelect.value) {
+        updateFieldsVisibility();
+    }
+    
+    // Initialize save button state
+    updateSaveButton();
+});
+</script>
+{% endblock %}
