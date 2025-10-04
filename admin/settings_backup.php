@@ -2131,7 +2131,7 @@ function clearFailedAttempts() {
 
 function viewSecurityLogs() {
     // Open security logs in a new window or redirect to detailed logs
-    window.open('security_logs.php', '_blank');
+    window.open('../logs/logs.php?filter=security', '_blank');
 }
 
 function exportSecurityReport() {

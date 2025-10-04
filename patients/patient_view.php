@@ -3,12 +3,27 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-// No authentication required for public patient viewing
+// Include security breach detection
+require_once __DIR__ . '/../security_breach_detector.php';
+
+// REQUIRE ADMIN AUTHENTICATION for patient data access
+require_admin_auth();
 $pdo = get_pdo();
 
-// Get patient ID and type from URL
-$patientId = (int)($_GET['id'] ?? 0);
-$patientType = sanitize_string($_GET['type'] ?? 'student'); // student or faculty
+// Get patient ID and type from URL with enhanced security validation
+try {
+    $patientId = validate_patient_id($_GET['id'] ?? 0);
+    $patientType = validate_patient_type($_GET['type'] ?? 'student');
+} catch (InvalidArgumentException $e) {
+    logSecurityBreach('INVALID_PATIENT_PARAMS', 'Invalid patient parameters attempted', [
+        'invalid_id' => $_GET['id'] ?? 'null',
+        'invalid_type' => $_GET['type'] ?? 'null',
+        'error' => $e->getMessage(),
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    header('Location: ../admin/dashboard.php?error=invalid_patient_params');
+    exit;
+}
 
 // Debug: Log the URL parameters
 error_log("Patient view - ID: {$patientId}, Type: {$patientType}");
@@ -57,14 +72,25 @@ if ($patient && !empty($patient['contacts'])) {
 // For this fix, we'll assume the contacts field contains the original contact data
 
 if (!$patient) {
-    error_log("Patient not found - ID: {$patientId}, Type: {$patientType}, Converted ID: {$patientIdInt}, redirecting to dashboard");
+    logSecurityBreach('PATIENT_NOT_FOUND', 'Attempted to access non-existent patient', [
+        'patient_id' => $patientId,
+        'patient_type' => $patientType,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
     header('Location: ../admin/dashboard.php?error=patient_not_found');
     exit;
 } else {
+    // Log successful patient access
+    log_patient_access($pdo, $patientId, $patientType, 'view');
+    
     error_log("Patient found - ID: {$patientId}, Type: {$patientType}, Name: " . ($patient['name'] ?? 'Unknown'));
     // Ensure patient data is valid
     if (empty($patient['name'])) {
-        error_log("Patient data is incomplete, redirecting to dashboard");
+        logSecurityBreach('INCOMPLETE_PATIENT_DATA', 'Patient data is incomplete', [
+            'patient_id' => $patientId,
+            'patient_type' => $patientType,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
         header('Location: ../admin/dashboard.php?error=incomplete_patient_data');
         exit;
     }
@@ -931,6 +957,7 @@ window.closeNotification = closeNotification;
         </div>
         
         <form id="editPatientForm" method="POST" action="update_patient_info.php" onsubmit="return submitEditPatientForm(event);">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             
@@ -1105,6 +1132,7 @@ window.closeNotification = closeNotification;
         <!-- Content Area -->
         <div class="flex-1 overflow-y-auto p-6">
             <form id="fullScreenMedicalForm" method="POST" action="../medical/save_medical_history.php">
+                <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                 <input type="hidden" name="patient_id" value="<?= $patientId ?>">
                 <input type="hidden" name="patient_type" value="<?= $patientType ?>">
                 <input type="hidden" name="form_type" id="formType">
@@ -1133,6 +1161,7 @@ window.closeNotification = closeNotification;
         </div>
 
         <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="return submitVisitationForm(event);">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             
@@ -1373,6 +1402,7 @@ window.closeNotification = closeNotification;
         </div>
         
         <form id="generalCheckUpForm" method="POST" action="../medical/save_medical_history.php">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             <input type="hidden" name="form_type" value="general_checkup">
@@ -1512,6 +1542,7 @@ window.closeNotification = closeNotification;
     <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
         <h2 class="text-xl font-semibold mb-4">Add Visitation Record</h2>
         <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="return submitVisitationForm(event);">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             

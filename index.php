@@ -3,6 +3,34 @@ declare(strict_types=1);
 require_once __DIR__ . '/core/config.php';
 require_once __DIR__ . '/core/helpers.php';
 
+// Include security breach detection
+require_once __DIR__ . '/security_breach_detector.php';
+
+// Additional SQL injection check and logging
+$query_string = $_SERVER['QUERY_STRING'] ?? '';
+if (!empty($query_string)) {
+    $sql_patterns = [
+        'union.*select', 'drop.*table', 'insert.*into', 'delete.*from',
+        'update.*set', 'create.*table', 'alter.*table', 'exec.*\(',
+        'load_file', 'information_schema', 'or.*1.*=.*1', 'and.*1.*=.*1'
+    ];
+    
+    foreach ($sql_patterns as $pattern) {
+        if (preg_match('/' . $pattern . '/i', $query_string)) {
+            // Log the attempt
+            logSecurityBreach('SQL_INJECTION_ATTEMPT', 'SQL injection attempt detected in query string', [
+                'malicious_query' => $query_string,
+                'pattern_matched' => $pattern,
+                'url' => $_SERVER['REQUEST_URI']
+            ]);
+            
+            // Show 403 error
+            http_response_code(403);
+            die('403 Forbidden - Security violation detected');
+        }
+    }
+}
+
 // Check if user is already logged in
 if (isset($_SESSION['user'])) {
     header('Location: admin/dashboard.php');

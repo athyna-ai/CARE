@@ -3,8 +3,15 @@ session_start();
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
+// Include security breach detection
+require_once __DIR__ . '/../security_breach_detector.php';
+
 // Check if user is logged in
 if (empty($_SESSION['user'])) {
+    logSecurityBreach('UNAUTHORIZED_MEDICAL_ACCESS', 'Unauthorized access attempt to medical forms', [
+        'url' => $_SERVER['REQUEST_URI'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
     header('Location: ../auth/login.php');
     exit;
 }

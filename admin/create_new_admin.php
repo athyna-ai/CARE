@@ -1,5 +1,7 @@
 <?php
-// Create new admin with your email
+// Create new admin with your email - SECURITY PROTECTED
+require_once __DIR__ . '/../security_breach_detector.php';
+
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 

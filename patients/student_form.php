@@ -3,7 +3,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-// No authentication required for public patient registration
+// Include security breach detection
+require_once __DIR__ . '/../security_breach_detector.php';
+
+// REQUIRE ADMIN AUTHENTICATION for patient registration
+require_admin_auth();
 $pdo = get_pdo();
 
 // Ensure students table exists

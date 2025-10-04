@@ -3,12 +3,77 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
+// Include security breach detection
+require_once __DIR__ . '/../security_breach_detector.php';
+
 require_admin_auth();
 $pdo = get_pdo();
 $user = $_SESSION['user'];
 $errors = [];
 $info = [];
+// Validate section parameter to prevent unauthorized access
+$allowedSections = ['main_logs', 'account_settings', 'create_admin', 'account_management', 'shortcuts'];
 $currentSection = $_GET['section'] ?? 'main_logs';
+
+// Additional validation for section parameter
+if (!is_string($currentSection) || strlen($currentSection) > 50) {
+    logSecurityBreach('INVALID_SETTINGS_SECTION_FORMAT', 'Invalid section parameter format', [
+        'section' => $currentSection,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    $currentSection = 'main_logs';
+} elseif (!in_array($currentSection, $allowedSections)) {
+    logSecurityBreach('INVALID_SETTINGS_SECTION', 'Invalid settings section attempted', [
+        'invalid_section' => $currentSection,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    $currentSection = 'main_logs'; // Default to safe section
+}
+
+// Rate limiting for settings page access
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+$rateLimitKey = 'settings_access_' . $ip;
+$rateLimitFile = __DIR__ . '/../logs/rate_limits.json';
+
+// Check rate limit (max 10 requests per minute)
+$rateLimits = [];
+if (file_exists($rateLimitFile)) {
+    $rateLimits = json_decode(file_get_contents($rateLimitFile), true) ?? [];
+}
+
+$currentTime = time();
+$minuteAgo = $currentTime - 60;
+
+// Clean old entries
+$rateLimits = array_filter($rateLimits, function($timestamp) use ($minuteAgo) {
+    return $timestamp > $minuteAgo;
+});
+
+// Check if IP is rate limited
+$ipRequests = array_filter($rateLimits, function($timestamp, $key) use ($ip) {
+    return strpos($key, $ip) === 0;
+}, ARRAY_FILTER_USE_BOTH);
+
+if (count($ipRequests) >= 10) {
+    logSecurityBreach('SETTINGS_RATE_LIMIT_EXCEEDED', 'Settings page rate limit exceeded', [
+        'ip' => $ip,
+        'requests_count' => count($ipRequests),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
+    ]);
+    http_response_code(429);
+    die('Rate limit exceeded. Please try again later.');
+}
+
+// Add current request to rate limit
+$rateLimits[$rateLimitKey . '_' . $currentTime] = $currentTime;
+file_put_contents($rateLimitFile, json_encode($rateLimits));
+
+// Log all settings page access
+logSecurityBreach('SETTINGS_PAGE_ACCESS', 'Settings page accessed', [
+    'section' => $currentSection,
+    'ip' => $ip,
+    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
+]);
 
         // Auto-clear logs functionality (runs automatically)
 try {
@@ -190,25 +255,61 @@ try {
 }
 
 
-// Handle form submissions
+// Handle form submissions with enhanced security
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Log all POST attempts to settings
+    logSecurityBreach('SETTINGS_POST_ATTEMPT', 'POST request to settings page', [
+        'action' => $_POST['action'] ?? 'unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
+    ]);
+    
     if (!verify_csrf($_POST['csrf_token'] ?? null)) {
-        $errors[] = 'Invalid request.';
+        logSecurityBreach('CSRF_TOKEN_INVALID', 'Invalid CSRF token in settings', [
+            'provided_token' => $_POST['csrf_token'] ?? 'none',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+        $errors[] = 'Invalid security token. Please try again.';
     } else {
         $action = $_POST['action'] ?? '';
+        
+        // Validate action parameter
+        $allowedActions = ['archive_all_logs', 'update_account', 'create_admin', 'delete_user', 'activate_user', 'deactivate_user'];
+        if (!in_array($action, $allowedActions)) {
+            logSecurityBreach('INVALID_SETTINGS_ACTION', 'Invalid action attempted in settings', [
+                'invalid_action' => $action,
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+            ]);
+            $errors[] = 'Invalid action specified.';
+            $action = ''; // Reset to prevent processing
+        }
         
         switch ($action) {
             case 'archive_all_logs':
                 try {
-                    // Get all unarchived activity logs grouped by date
+                    // Get all activity logs grouped by date (including already archived ones for today)
+                    $today = date('Y-m-d');
                     $activityLogsByDate = $pdo->query("
                         SELECT DATE(timestamp) as log_date, 
                                COUNT(*) as total_activities
                         FROM activity_logs 
-                        WHERE archived = 0
+                        WHERE DATE(timestamp) = '$today'
                         GROUP BY DATE(timestamp)
                         ORDER BY log_date DESC
                     ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Also get unarchived logs from other dates
+                    $otherDatesLogs = $pdo->query("
+                        SELECT DATE(timestamp) as log_date, 
+                               COUNT(*) as total_activities
+                        FROM activity_logs 
+                        WHERE archived = 0 AND DATE(timestamp) != '$today'
+                        GROUP BY DATE(timestamp)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Merge the results
+                    $activityLogsByDate = array_merge($activityLogsByDate, $otherDatesLogs);
                     
                     // Get all unarchived visitation logs grouped by date
                     $visitationLogsByDate = $pdo->query("
@@ -242,12 +343,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $archivedDates[] = $logDate;
                         $totalActivities += $activityLog['total_activities'];
                         
-                        // Get detailed activity logs for this date
+                        // Get detailed activity logs for this date (ALL logs, not just unarchived)
                         $activityDetails = $pdo->prepare("
                             SELECT al.*, u.name as user_name, u.email as user_email, u.rfid as user_rfid
                             FROM activity_logs al
                             LEFT JOIN users u ON al.user_id = u.id
-                            WHERE DATE(al.timestamp) = ? AND al.archived = 0
+                            WHERE DATE(al.timestamp) = ?
                             ORDER BY al.timestamp
                         ");
                         $activityDetails->execute([$logDate]);
@@ -295,10 +396,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $totalVisitations += count($visitationData);
                         
                         // Check if already archived
-                        $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+                        $checkArchived = $pdo->prepare("SELECT id, activity_logs_data, total_activities FROM daily_logs WHERE log_date = ?");
                         $checkArchived->execute([$logDate]);
+                        $existingArchive = $checkArchived->fetch(PDO::FETCH_ASSOC);
                         
-                        if (!$checkArchived->fetch()) {
+                        if (!$existingArchive) {
                             // Insert new archive
                             $insertDaily = $pdo->prepare("
                                 INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
@@ -310,6 +412,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 json_encode($visitationData),
                                 count($activityData),
                                 count($visitationData)
+                            ]);
+                        } else {
+                            // Update existing archive with new logs
+                            $existingActivityData = json_decode($existingArchive['activity_logs_data'], true) ?: [];
+                            $mergedActivityData = array_merge($existingActivityData, $activityData);
+                            
+                            $updateDaily = $pdo->prepare("
+                                UPDATE daily_logs 
+                                SET activity_logs_data = ?, total_activities = ?
+                                WHERE log_date = ?
+                            ");
+                            $updateDaily->execute([
+                                json_encode($mergedActivityData),
+                                count($mergedActivityData),
+                                $logDate
                             ]);
                         }
                     }
@@ -382,14 +499,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
+                    // Also archive file-based security alerts
+                    $alertsFile = __DIR__ . '/../logs/alerts.log';
+                    if (file_exists($alertsFile)) {
+                        $alertLines = file($alertsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                        $fileAlertsCount = 0;
+                        
+                        foreach ($alertLines as $line) {
+                            $parts = explode(' - ', $line, 3);
+                            if (count($parts) >= 3) {
+                                // Insert file-based alerts into activity_logs as archived
+                                $insertAlert = $pdo->prepare("
+                                    INSERT INTO activity_logs (user_id, user_type, action, description, action_description, location, ip_address, user_agent, success, error_message, timestamp, archived) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ");
+                                $insertAlert->execute([
+                                    null, // user_id
+                                    'system', // user_type
+                                    $parts[1], // action
+                                    $parts[2], // description
+                                    $parts[2], // action_description
+                                    'Security Framework', // location
+                                    'System', // ip_address
+                                    'File-based Alert', // user_agent
+                                    0, // success (false for security alerts)
+                                    'File-based security alert', // error_message
+                                    $parts[0], // timestamp
+                                    1 // archived (mark as already archived)
+                                ]);
+                                $fileAlertsCount++;
+                            }
+                        }
+                        
+                        if ($fileAlertsCount > 0) {
+                            // Clear the alerts file after archiving
+                            file_put_contents($alertsFile, '');
+                        }
+                    }
+                    
                     // Mark all unarchived logs as archived
                     $pdo->prepare("UPDATE activity_logs SET archived = 1 WHERE archived = 0")->execute();
                     $pdo->prepare("UPDATE visitation_logs SET archived = 1 WHERE archived = 0")->execute();
                     
                     // Log this action
-                    log_activity($pdo, (int)$user['id'], 'logs_all_archived', "Archived all unarchived logs (" . count($archivedDates) . " dates, {$totalActivities} activities, {$totalVisitations} visitations)", 'settings');
+                    $fileAlertsCount = isset($fileAlertsCount) ? $fileAlertsCount : 0;
+                    log_activity($pdo, (int)$user['id'], 'logs_all_archived', "Archived all unarchived logs (" . count($archivedDates) . " dates, {$totalActivities} activities, {$totalVisitations} visitations, {$fileAlertsCount} file alerts)", 'settings');
                     
-                    $success = "All unarchived logs have been archived successfully! (" . count($archivedDates) . " dates processed)";
+                    $success = "All unarchived logs have been archived successfully! (" . count($archivedDates) . " dates processed, {$fileAlertsCount} file alerts archived)";
                 } catch (Throwable $e) {
                     $errors[] = "Error archiving all logs: " . $e->getMessage();
                 }
@@ -452,6 +608,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'create_admin':
+                // Log admin creation attempt
+                logSecurityBreach('ADMIN_CREATION_ATTEMPT', 'Admin creation attempt in settings', [
+                    'admin_name' => $_POST['new_name'] ?? 'unknown',
+                    'admin_email' => $_POST['new_email'] ?? 'unknown',
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+                ]);
+                
                 $newName = sanitize_string($_POST['new_name'] ?? '');
                 $newEmail = sanitize_string($_POST['new_email'] ?? '');
                 $newPassword = (string)($_POST['new_password'] ?? '');
@@ -485,6 +648,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'delete_user':
                 $userId = (int)($_POST['user_id'] ?? 0);
+                
+                // Log user deletion attempt
+                logSecurityBreach('USER_DELETION_ATTEMPT', 'User deletion attempt in settings', [
+                    'target_user_id' => $userId,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+                ]);
                 
                 if ($userId <= 0) {
                     $errors[] = 'Invalid user ID.';
@@ -1714,7 +1883,7 @@ function clearFailedAttempts() {
 
 function viewSecurityLogs() {
     // Open security logs in a new window or redirect to detailed logs
-    window.open('security_logs.php', '_blank');
+    window.open('../logs/logs.php?filter=security', '_blank');
 }
 
 function exportSecurityReport() {

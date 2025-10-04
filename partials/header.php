@@ -19,7 +19,8 @@
                         'clinic-vanilla': '#f6e6a5',
                         'clinic-dark': '#343b1b',
                         'clinic-green': '#22c55e',
-                        'clinic-purple': '#a855f7'
+                        'clinic-purple': '#a855f7',
+                        'clinic-red': '#e74c3c'
                     },
                     fontFamily: {
                         'poppins': ['Poppins', 'sans-serif'],
@@ -28,7 +29,16 @@
                 }
             }
         }
+        
+        // Global user state for security monitor
+        window.CurrentUser = {
+            isLoggedIn: <?= isset($_SESSION['user']) && !empty($_SESSION['user']) ? 'true' : 'false' ?>,
+            userId: <?= isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 'null' ?>,
+            username: <?= isset($_SESSION['user']['username']) ? '"' . addslashes($_SESSION['user']['username']) . '"' : 'null' ?>
+        };
     </script>
+    <!-- Security Live Monitor -->
+    <script src="../assets/js/security-live-monitor.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; }
         .font-comfortaa { font-family: 'Comfortaa', cursive; }

@@ -3,6 +3,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
+// Include security breach detection
+require_once __DIR__ . '/../security_breach_detector.php';
+
 require_admin_auth();
 
 $user = $_SESSION['user'];

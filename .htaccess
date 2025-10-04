@@ -1,29 +1,54 @@
-# Redirect root to index.php
-DirectoryIndex index.php
+# Care CMS - Working Security with Logging
+# Block malicious requests while allowing normal operation
 
-# Enable URL rewriting
-RewriteEngine On
-
-# Redirect root to index.php
-RewriteRule ^$ index.php [L]
+# Block directory browsing
+Options -Indexes
 
 # Security headers
-Header always set X-Content-Type-Options nosniff
-Header always set X-Frame-Options DENY
-Header always set X-XSS-Protection "1; mode=block"
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
 
-# Hide sensitive files
-<Files "*.sql">
-    Order Allow,Deny
-    Deny from all
-</Files>
+# Block access to sensitive files
+<FilesMatch "\.(sql|bak|backup|config|ini|log)$">
+    Require all denied
+</FilesMatch>
 
-<Files "*.log">
-    Order Allow,Deny
-    Deny from all
-</Files>
+# SQL Injection Protection with Logging
+RewriteEngine On
 
-<Files "config.php">
-    Order Allow,Deny
-    Deny from all
-</Files>
+# Log and block SQL injection patterns
+RewriteCond %{QUERY_STRING} union.*select [NC,OR]
+RewriteCond %{QUERY_STRING} drop.*table [NC,OR]
+RewriteCond %{QUERY_STRING} insert.*into [NC,OR]
+RewriteCond %{QUERY_STRING} delete.*from [NC,OR]
+RewriteCond %{QUERY_STRING} update.*set [NC,OR]
+RewriteCond %{QUERY_STRING} create.*table [NC,OR]
+RewriteCond %{QUERY_STRING} alter.*table [NC,OR]
+RewriteCond %{QUERY_STRING} exec.*\( [NC,OR]
+RewriteCond %{QUERY_STRING} load_file [NC,OR]
+RewriteCond %{QUERY_STRING} information_schema [NC,OR]
+RewriteCond %{QUERY_STRING} or.*1.*=.*1 [NC,OR]
+RewriteCond %{QUERY_STRING} and.*1.*=.*1 [NC,OR]
+RewriteCond %{QUERY_STRING} or.*'.*'.*=.*'.*' [NC,OR]
+RewriteCond %{QUERY_STRING} and.*'.*'.*=.*'.*' [NC]
+RewriteRule ^(.*)$ /Care/security_logger.php?type=sql_injection&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]
+
+# Log and block XSS attempts
+RewriteCond %{QUERY_STRING} \<script [NC,OR]
+RewriteCond %{QUERY_STRING} javascript: [NC,OR]
+RewriteCond %{QUERY_STRING} onload= [NC,OR]
+RewriteCond %{QUERY_STRING} onerror= [NC,OR]
+RewriteCond %{QUERY_STRING} onclick= [NC,OR]
+RewriteCond %{QUERY_STRING} alert\( [NC,OR]
+RewriteCond %{QUERY_STRING} prompt\( [NC,OR]
+RewriteCond %{QUERY_STRING} confirm\( [NC]
+RewriteRule ^(.*)$ /Care/security_logger.php?type=xss&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]
+
+# Log and block directory traversal
+RewriteCond %{QUERY_STRING} \.\./ [NC,OR]
+RewriteCond %{QUERY_STRING} \.\.\\ [NC,OR]
+RewriteCond %{QUERY_STRING} %2e%2e [NC]
+RewriteRule ^(.*)$ /Care/security_logger.php?type=directory_traversal&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]

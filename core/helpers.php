@@ -138,6 +138,39 @@ function mask_address(string $address): string {
 	return implode(' ', $masked);
 }
 
-?>
+// CSRF functions already exist in config.php
 
+// Enhanced input validation
+function validate_patient_id($id): int {
+	$id = (int)$id;
+	if ($id <= 0 || $id > 999999) {
+		throw new InvalidArgumentException('Invalid patient ID');
+	}
+	return $id;
+}
+
+function validate_patient_type($type): string {
+	$type = sanitize_string($type);
+	if (!in_array($type, ['student', 'faculty'])) {
+		throw new InvalidArgumentException('Invalid patient type');
+	}
+	return $type;
+}
+
+// Output encoding for XSS prevention
+function safe_output($data): string {
+	return htmlspecialchars((string)$data, ENT_QUOTES, 'UTF-8');
+}
+
+// Enhanced security logging for patient data access
+function log_patient_access(PDO $pdo, int $patientId, string $patientType, string $action): void {
+	try {
+		$userId = $_SESSION['user']['id'] ?? null;
+		log_activity($pdo, $userId, "patient_{$action}", "Accessed patient ID: {$patientId} ({$patientType})", 'patient_access');
+	} catch (Throwable $e) {
+		// Ignore logging errors
+	}
+}
+
+?>
 

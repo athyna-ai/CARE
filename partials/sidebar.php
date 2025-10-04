@@ -84,13 +84,14 @@ if (empty($_SESSION['user'])) { return; }
 					</div>
 					<span class="font-poppins font-medium text-sm sm:text-base">Visitation Logs</span>
 				</a>
-				<a href="../logs/logs.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-purple/5 hover:border-clinic-purple/20 hover:shadow-lg transition-all duration-300">
+				<a href="../logs/logs.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-purple/5 hover:border-clinic-purple/20 hover:shadow-lg transition-all duration-300 relative">
 					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-purple/5 flex items-center justify-center group-hover:bg-clinic-purple/10 transition-colors duration-200">
 						<svg class="w-3 h-3 sm:w-4 sm:h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
 						</svg>
 					</div>
 					<span class="font-poppins font-medium text-sm sm:text-base">Activity Logs</span>
+					<div id="securityAlertBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center animate-pulse">!</div>
 				</a>
 				<a href="../reports/analytics.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-orange/5 hover:border-clinic-orange/20 hover:shadow-lg transition-all duration-300">
 					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-orange/5 flex items-center justify-center group-hover:bg-clinic-orange/10 transition-colors duration-200">

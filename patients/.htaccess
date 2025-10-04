@@ -1,0 +1,28 @@
+# Patient Data Security Protection
+# Block direct access to sensitive patient files
+
+# Block directory browsing
+Options -Indexes
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# Block access to sensitive patient files
+<FilesMatch "\.(sql|bak|backup|config|ini|log)$">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to patient data files without authentication
+<FilesMatch "^(patient_view|medical_record_view|patient_archive)\.php$">
+    # These files now require authentication via PHP
+    # Additional protection at PHP level
+</FilesMatch>
+
+# Block access to any backup or temporary files
+<FilesMatch "\.(tmp|temp|backup|bak|old|orig)$">
+    Require all denied
+</FilesMatch>

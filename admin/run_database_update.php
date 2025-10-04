@@ -1,8 +1,10 @@
 <?php
 /**
- * Database Update Script
+ * Database Update Script - SECURITY PROTECTED
  * Run this to update your existing database with the new archive tables
  */
+
+require_once __DIR__ . '/../security_breach_detector.php';
 
 require_once __DIR__ . '/../core/config.php';
 
