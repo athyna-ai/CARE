@@ -338,7 +338,7 @@ if ($studentId) {
 <!-- Medical History Details Modal -->
 <div id="medicalHistoryDetailsModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeMedicalHistoryDetailsModal()"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-4rem)] overflow-y-auto">
+    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
         <div class="flex justify-end mb-4">
             <button onclick="closeMedicalHistoryDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -355,7 +355,7 @@ if ($studentId) {
 <!-- Visitation Log Details Modal -->
 <div id="visitationLogDetailsModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeVisitationLogDetailsModal()"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-4rem)] overflow-y-auto">
+    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
         <div class="flex justify-end mb-4">
             <button onclick="closeVisitationLogDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

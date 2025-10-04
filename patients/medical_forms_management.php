@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Medical History Form Modal -->
 <div id="medicalHistoryModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-semibold text-slate-800">Medical History Form</h2>
             <button onclick="closeMedicalHistoryModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">

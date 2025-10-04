@@ -211,7 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						$block,
 						$currentYear,
 						$notes,
-						0
+						4
 					]);
 					
 					$info[] = 'Student re-enrolled successfully.';
@@ -247,7 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						$block,
 						$currentYear,
 						$notes,
-						0
+						4
 					]);
 					
 					$info[] = 'Student registered successfully.';

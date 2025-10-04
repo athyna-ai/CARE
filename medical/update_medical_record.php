@@ -40,17 +40,19 @@ try {
     // Prepare updated data based on form type
     if ($record['form_type'] === 'medical_history') {
         $medicalHistoryData = [
-            'ongoing_conditions' => $_POST['ongoing_conditions'] ?? [],
-            'ongoing_conditions_other' => $_POST['ongoing_conditions_other'] ?? '',
+            'ongoing_conditions' => $_POST['medical_conditions'] ?? [],
+            'ongoing_conditions_other' => $_POST['other_medical_conditions'] ?? '',
             'surgery_status' => $_POST['surgery_status'] ?? 'no',
             'surgery_details' => $_POST['surgery_details'] ?? '',
             'family_conditions' => $_POST['family_conditions'] ?? [],
-            'family_conditions_other' => $_POST['family_conditions_other'] ?? '',
+            'family_conditions_other' => $_POST['other_family_conditions'] ?? '',
             'smoke_exposure' => $_POST['smoke_exposure'] ?? 'no',
-            'immunization' => $_POST['immunization'] ?? [],
+            'immunization' => $_POST['immunizations'] ?? [],
+            'covid_vaccine_brand' => $_POST['covid_vaccine_brand'] ?? [],
+            'other_vaccine_brand' => $_POST['other_vaccine_brand'] ?? '',
             'covid_vaccine' => $_POST['covid_vaccine'] ?? [],
-            'covid_positive' => $_POST['covid_positive'] ?? 'no',
-            'covid_details' => $_POST['covid_details'] ?? ''
+            'covid_positive' => $_POST['covid_infection'] ?? 'no',
+            'covid_details' => $_POST['covid_infection_details'] ?? ''
         ];
         
         // Convert to JSON

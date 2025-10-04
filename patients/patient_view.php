@@ -666,6 +666,14 @@ window.closeNotification = closeNotification;
                 
                 <!-- Action Buttons -->
                 <div class="flex flex-wrap gap-3">
+                    <button onclick="openVisitationModal()" class="group px-6 py-3 bg-clinic-blue/10 border border-clinic-blue/30 text-clinic-blue rounded-2xl hover:bg-clinic-blue/20 hover:border-clinic-blue/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
+                        <div class="w-8 h-8 rounded-xl bg-clinic-blue/20 flex items-center justify-center group-hover:bg-clinic-blue/30 transition-colors duration-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        Add Visitation
+                    </button>
                     <button onclick="viewAllMedicalForms()" class="group px-6 py-3 bg-clinic-tea/20 border border-clinic-tea/30 text-clinic-blue rounded-2xl hover:bg-clinic-tea/30 hover:border-clinic-tea/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
                         <div class="w-8 h-8 rounded-xl bg-clinic-tea/30 flex items-center justify-center group-hover:bg-clinic-tea/40 transition-colors duration-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -684,14 +692,6 @@ window.closeNotification = closeNotification;
                         Enrollment History
                     </a>
                     <?php endif; ?>
-                    <button onclick="openVisitationModal()" class="group px-6 py-3 bg-clinic-blue/10 border border-clinic-blue/30 text-clinic-blue rounded-2xl hover:bg-clinic-blue/20 hover:border-clinic-blue/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
-                        <div class="w-8 h-8 rounded-xl bg-clinic-blue/20 flex items-center justify-center group-hover:bg-clinic-blue/30 transition-colors duration-200">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                        </div>
-                        Add Visitation
-                    </button>
                     <a href="patient_archive.php?id=<?= $patientId ?>&type=<?= $patientType ?>" class="group px-6 py-3 bg-clinic-vanilla/20 border border-clinic-vanilla/30 text-clinic-blue rounded-2xl hover:bg-clinic-vanilla/30 hover:border-clinic-vanilla/50 hover:shadow-lg transition-all duration-300 flex items-center gap-3 font-poppins font-medium">
                         <div class="w-8 h-8 rounded-xl bg-clinic-vanilla/30 flex items-center justify-center group-hover:bg-clinic-vanilla/40 transition-colors duration-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1119,66 +1119,220 @@ window.closeNotification = closeNotification;
 <!-- Visitation Form Modal -->
 <div id="visitationModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
-        <h2 class="text-xl font-semibold mb-4">Add Visitation Record</h2>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-white">Add Visitation Record</h2>
+                <button onclick="closeVisitationModal()" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                    <svg class="w-6 h-6 text-purple-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
         <form id="visitationForm" method="POST" action="save_visitation.php" onsubmit="return submitVisitationForm(event);">
             <input type="hidden" name="patient_id" value="<?= $patientId ?>">
             <input type="hidden" name="patient_type" value="<?= $patientType ?>">
             
             <div class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Reason *</label>
-                    <select name="reason" id="reasonSelect" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" onchange="toggleOtherReason()">
-                        <option value="">Select reason</option>
-                        <option value="cold">Cold</option>
-                        <option value="cough">Cough</option>
-                        <option value="dizziness">Dizziness</option>
-                        <option value="fever">Fever</option>
-                        <option value="headache">Headache</option>
-                        <option value="injury">Injury</option>
-                        <option value="medication">Medication</option>
-                        <option value="nausea">Nausea</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Date *</label>
-                    <input type="date" name="visit_date" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" value="<?= date('Y-m-d') ?>">
-                </div>
-            </div>
-            <div id="otherReasonDiv" class="hidden mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Specify Reason *</label>
-                <input type="text" name="other_reason" id="otherReasonInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Please specify the reason">
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms/Observations</label>
-                <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Describe symptoms and observations..."></textarea>
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Vital Signs</label>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Heart Rate (BPM)</label>
-                        <input type="number" name="heart_rate" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                <!-- Patient Information Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Patient Information</h3>
                     </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Temperature (°C)</label>
-                        <input type="number" name="temperature" step="0.1" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-600 mb-1">Blood Pressure (mmHg)</label>
-                        <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" oninput="formatBloodPressure(this)">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 rounded-lg p-3">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Name:</label>
+                            <div class="text-sm font-semibold text-slate-800"><?= htmlspecialchars($patient['name'] ?? 'N/A') ?></div>
+                        </div>
+                        <div class="bg-slate-50 rounded-lg p-3">
+                            <label class="block text-sm font-medium text-slate-600 mb-1">Type:</label>
+                            <div class="text-sm font-semibold text-slate-800"><?= ucfirst($patientType) ?></div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-slate-700 mb-2">Treatment Given</label>
-                <textarea name="treatment" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Describe treatment given..."></textarea>
-            </div>
-            <div class="flex justify-end gap-3">
-                <button type="button" onclick="closeVisitationModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">Save Visitation</button>
+
+                <!-- Visit Information Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Visit Information</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Reason for Visit *</label>
+                            <select name="reason" id="reasonSelect" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" onchange="toggleOtherReason()">
+                                <option value="">Select reason</option>
+                                <option value="cold">Cold</option>
+                                <option value="cough">Cough</option>
+                                <option value="dizziness">Dizziness</option>
+                                <option value="fever">Fever</option>
+                                <option value="headache">Headache</option>
+                                <option value="injury">Injury</option>
+                                <option value="medication">Medication</option>
+                                <option value="nausea">Nausea</option>
+                                <option value="stomach_ache">Stomach Ache</option>
+                                <option value="fatigue">Fatigue</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Date & Time *</label>
+                            <input type="datetime-local" name="visit_date" required class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" value="<?= date('Y-m-d\TH:i') ?>">
+                        </div>
+                    </div>
+                    <div id="otherReasonDiv" class="hidden mt-4">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Specify Reason *</label>
+                        <input type="text" name="other_reason" id="otherReasonInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Please specify the reason">
+                    </div>
+                </div>
+
+                <!-- Symptoms & Notes Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Symptoms & Notes</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Symptoms</label>
+                            <textarea name="symptoms" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Describe symptoms and observations..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Other Notes</label>
+                            <textarea name="other_notes" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Additional notes or observations..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vital Signs Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Vital Signs</h3>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Heart Rate (BPM)</label>
+                            <input type="number" name="heart_rate" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="e.g., 72">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Blood Pressure</label>
+                            <input type="text" name="blood_pressure" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="e.g., 120/80" oninput="formatBloodPressure(this)">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Temperature (°C)</label>
+                            <input type="number" name="temperature" step="0.1" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="e.g., 36.5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Medication Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Medication</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" name="medication_given" id="medicationGiven" class="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500" onchange="toggleMedicationFields()">
+                            <label for="medicationGiven" class="text-sm font-medium text-slate-700">Medication Given</label>
+                        </div>
+                        <div id="medicationFields" class="hidden space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Medication Name</label>
+                                <select name="medication_name" id="medicationSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" onchange="toggleOtherMedication()">
+                                    <option value="">Select medication</option>
+                                    <option value="paracetamol">Paracetamol</option>
+                                    <option value="ibuprofen">Ibuprofen</option>
+                                    <option value="aspirin">Aspirin</option>
+                                    <option value="antihistamine">Antihistamine</option>
+                                    <option value="cough_syrup">Cough Syrup</option>
+                                    <option value="vitamin_c">Vitamin C</option>
+                                    <option value="bandage">Bandage</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div id="otherMedicationDiv" class="hidden">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Specify Medication *</label>
+                                <input type="text" name="other_medication" id="otherMedicationInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Please specify the medication">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Medication Notes</label>
+                                <textarea name="medication_notes" rows="2" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Dosage, instructions, etc..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Injury & First Aid Card -->
+                <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-slate-800">Injury & First Aid</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" name="injury" id="injuryOccurred" class="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500" onchange="toggleInjuryFields()">
+                            <label for="injuryOccurred" class="text-sm font-medium text-slate-700">Injury Occurred</label>
+                        </div>
+                        <div id="injuryFields" class="hidden space-y-4">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" name="first_aid_given" id="firstAidGiven" class="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500">
+                                <label for="firstAidGiven" class="text-sm font-medium text-slate-700">First Aid Given</label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">First Aid Type</label>
+                                <select name="first_aid_type" id="firstAidSelect" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" onchange="toggleOtherFirstAid()">
+                                    <option value="">Select first aid type</option>
+                                    <option value="bandage">Bandage</option>
+                                    <option value="ice_pack">Ice Pack</option>
+                                    <option value="cleaning">Wound Cleaning</option>
+                                    <option value="elevation">Elevation</option>
+                                    <option value="rest">Rest</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div id="otherFirstAidDiv" class="hidden">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Specify First Aid *</label>
+                                <input type="text" name="other_first_aid" id="otherFirstAidInput" class="w-full rounded-lg border border-slate-300 px-3 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200" placeholder="Please specify the first aid">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" onclick="closeVisitationModal()" class="px-6 py-3 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors font-medium">Cancel</button>
+                    <button type="submit" class="px-8 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg hover:from-purple-700 hover:to-purple-800 transition-colors font-medium shadow-lg">Save Visitation Record</button>
+                </div>
             </div>
         </form>
     </div>
@@ -1186,17 +1340,22 @@ window.closeNotification = closeNotification;
 
 
 <!-- Visitation Details Modal -->
-<div id="visitationDetailsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
-    <div style="background: white; border-radius: 12px; padding: 24px; max-width: 800px; max-height: 90vh; overflow-y: auto; margin: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h2 style="font-size: 24px; font-weight: 600; color: #1f2937; margin: 0;">Visitation Details</h2>
-            <button onclick="closeVisitationDetailsModal()" style="background: #f3f4f6; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                <svg style="width: 20px; height: 20px; color: #6b7280;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+<div id="visitationDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-8rem)] overflow-y-auto">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 to-purple-700 rounded-2xl p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-2xl font-bold text-white">Visitation Details</h2>
+                <button onclick="closeVisitationDetailsModal()" class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-colors">
+                    <svg class="w-6 h-6 text-purple-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div id="visitationDetailsContent">
+        
+        <div id="visitationDetailsContent" class="space-y-6">
             <!-- Content will be loaded here -->
         </div>
     </div>
@@ -1311,7 +1470,7 @@ window.closeNotification = closeNotification;
 
 <div id="medicalHistoryDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50"></div>
-    <div class="relative w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-[calc(100vh-12rem)] overflow-y-auto">
+    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-semibold text-slate-800">Medical Record Details</h2>
             <button onclick="closeMedicalHistoryDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
@@ -1538,13 +1697,65 @@ function toggleOtherReason() {
     }
 }
 
+function toggleMedicationFields() {
+    const medicationCheckbox = document.getElementById('medicationGiven');
+    const medicationFields = document.getElementById('medicationFields');
+    
+    if (medicationCheckbox.checked) {
+        medicationFields.classList.remove('hidden');
+    } else {
+        medicationFields.classList.add('hidden');
+    }
+}
+
+function toggleOtherMedication() {
+    const medicationSelect = document.getElementById('medicationSelect');
+    const otherMedicationDiv = document.getElementById('otherMedicationDiv');
+    const otherMedicationInput = document.getElementById('otherMedicationInput');
+    
+    if (medicationSelect.value === 'other') {
+        otherMedicationDiv.classList.remove('hidden');
+        otherMedicationInput.required = true;
+    } else {
+        otherMedicationDiv.classList.add('hidden');
+        otherMedicationInput.required = false;
+        otherMedicationInput.value = '';
+    }
+}
+
+function toggleInjuryFields() {
+    const injuryCheckbox = document.getElementById('injuryOccurred');
+    const injuryFields = document.getElementById('injuryFields');
+    
+    if (injuryCheckbox.checked) {
+        injuryFields.classList.remove('hidden');
+    } else {
+        injuryFields.classList.add('hidden');
+    }
+}
+
+function toggleOtherFirstAid() {
+    const firstAidSelect = document.getElementById('firstAidSelect');
+    const otherFirstAidDiv = document.getElementById('otherFirstAidDiv');
+    const otherFirstAidInput = document.getElementById('otherFirstAidInput');
+    
+    if (firstAidSelect.value === 'other') {
+        otherFirstAidDiv.classList.remove('hidden');
+        otherFirstAidInput.required = true;
+    } else {
+        otherFirstAidDiv.classList.add('hidden');
+        otherFirstAidInput.required = false;
+        otherFirstAidInput.value = '';
+    }
+}
+
 function validateVisitationForm() {
     const reasonSelect = document.getElementById('reasonSelect');
     const otherReasonInput = document.getElementById('otherReasonInput');
-    const medicationCheckbox = document.getElementById('medicationCheckbox');
+    const medicationCheckbox = document.getElementById('medicationGiven');
     const medicationSelect = document.getElementById('medicationSelect');
     const otherMedicationInput = document.getElementById('otherMedicationInput');
-    const injuryCheckbox = document.getElementById('injuryCheckbox');
+    const injuryCheckbox = document.getElementById('injuryOccurred');
     const firstAidSelect = document.getElementById('firstAidSelect');
     const otherFirstAidInput = document.getElementById('otherFirstAidInput');
     
@@ -1690,118 +1901,42 @@ function viewVisitationDetails(visitId) {
 function closeVisitationDetailsModal() {
     const modal = document.getElementById('visitationDetailsModal');
     if (modal) {
-        document.body.removeChild(modal);
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
     }
 }
 
 function showVisitationDetails(visitId) {
-    // Remove any existing modal first
-    const existingModal = document.getElementById('visitationDetailsModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Create new modal dynamically with improved layout
-    const modal = document.createElement('div');
-    modal.id = 'visitationDetailsModal';
-    modal.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.6);
-        z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-    `;
-    
-    const content = document.createElement('div');
-    content.style.cssText = `
-        background: white;
-        border-radius: 16px;
-        padding: 0;
-        width: 100%;
-        max-width: 900px;
-        max-height: 90vh;
-        overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        position: relative;
-        display: flex;
-        flex-direction: column;
-    `;
-    
-    content.innerHTML = `
-        <div style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-radius: 16px 16px 0 0;
-        ">
-            <h2 style="font-size: 20px; font-weight: 600; margin: 0;">Visitation Details</h2>
-            <button onclick="closeVisitationDetailsModal()" style="
-                background: rgba(255,255,255,0.2);
-                border: none;
-                border-radius: 8px;
-                width: 36px;
-                height: 36px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                color: white;
-                transition: background 0.2s;
-            " onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">
-                <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <div id="visitationDetailsContent" style="
-            padding: 24px;
-            overflow-y: auto;
-            flex: 1;
-            background: #f8fafc;
-        ">
-            <div style="text-align: center; padding: 60px 20px;">
-                <div style="
-                    border: 3px solid #e2e8f0;
-                    border-top: 3px solid #3b82f6;
-                    border-radius: 50%;
-                    width: 48px;
-                    height: 48px;
-                    animation: spin 1s linear infinite;
-                    margin: 0 auto 20px;
-                "></div>
-                <p style="margin: 0; color: #64748b; font-size: 16px; font-weight: 500;">Loading visitation details...</p>
+    // Show the existing modal
+    const modal = document.getElementById('visitationDetailsModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Show loading state
+        document.getElementById('visitationDetailsContent').innerHTML = `
+            <div class="text-center py-16">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mb-4"></div>
+                <p class="text-slate-600 text-lg font-medium">Loading visitation details...</p>
             </div>
-        </div>
-    `;
-    
-    modal.appendChild(content);
-    document.body.appendChild(modal);
-    
-    // Load details
-    fetch(`../logs/get_visitation_details.php?id=${visitId}`)
-        .then(response => response.text())
-        .then(data => {
-            document.getElementById('visitationDetailsContent').innerHTML = data;
-        })
-        .catch(error => {
-            document.getElementById('visitationDetailsContent').innerHTML = `
-                <div style="text-align: center; padding: 60px 20px;">
-                    <div style="color: #ef4444; font-size: 48px; margin-bottom: 16px;">⚠️</div>
-                    <h3 style="color: #dc2626; margin: 0 0 8px 0; font-size: 18px;">Error Loading Details</h3>
-                    <p style="color: #6b7280; margin: 0;">Please try again or contact support if the problem persists.</p>
-                </div>
-            `;
-        });
+        `;
+        
+        // Load details
+        fetch(`../logs/get_visitation_details.php?id=${visitId}`)
+            .then(response => response.text())
+            .then(data => {
+                document.getElementById('visitationDetailsContent').innerHTML = data;
+            })
+            .catch(error => {
+                document.getElementById('visitationDetailsContent').innerHTML = `
+                    <div class="text-center py-16">
+                        <div class="text-red-500 text-6xl mb-4">⚠️</div>
+                        <h3 class="text-red-600 text-xl font-semibold mb-2">Error Loading Details</h3>
+                        <p class="text-slate-600">Please try again or contact support if the problem persists.</p>
+                    </div>
+                `;
+            });
+    }
 }
 
 function archiveVisitation(visitId) {

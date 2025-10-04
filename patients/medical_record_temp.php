@@ -182,7 +182,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                                 <div class="flex justify-between items-center py-3 px-4 bg-white rounded-lg border border-slate-200">
                                     <span class="text-slate-600 font-medium">Temperature:</span>
                                     <div class="flex items-center gap-2">
-                                        <span class="font-semibold text-slate-800"><?= $formData['temperature'] ?? 'N/A' ?>°C</span>
+                                        <span class="font-semibold text-slate-800"><?= $formData['temperature'] ?? 'N/A' ?>A°C</span>
                                         <?php if ($temperatureStatus): ?>
                                             <span class="px-2 py-1 text-xs font-medium rounded-full bg-<?= $temperatureStatus['color'] ?>-100 text-<?= $temperatureStatus['color'] ?>-800">
                                                 <?= $temperatureStatus['status'] ?>
@@ -407,8 +407,8 @@ include __DIR__ . '/../partials/header.php';
                         <!-- Medical History Form Display -->
                         <div class="space-y-3">
                             <!-- Ongoing Medical Conditions -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">Ongoing Medical Conditions</h3>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">Ongoing Medical Conditions</h3>
                                 <?php 
                                 $ongoingConditions = [];
                                 if (isset($formData['ongoing_conditions'])) {
@@ -416,58 +416,80 @@ include __DIR__ . '/../partials/header.php';
                                         $ongoingConditions = $formData['ongoing_conditions'];
                                     }
                                 }
-                                $hasOngoingConditions = !empty(array_filter($ongoingConditions, function($condition) {
-                                    return $condition !== 'others';
-                                }));
                                 ?>
-                                <?php if ($hasOngoingConditions || !empty($formData['ongoing_conditions_other'])): ?>
-                                    <div class="space-y-1">
-                                        <?php if (in_array('error_of_refraction', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Error of Refraction</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('asthma', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Asthma</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('seizure', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Seizure</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('heart_problem', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Heart Problem</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('anemia', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Anemia</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('bleeding_disorder', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Bleeding Disorder</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('hernia', $ongoingConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Hernia</p>
-                                        <?php endif; ?>
-                                        <?php if (!empty($formData['ongoing_conditions_other'])): ?>
-                                            <p class="text-xs text-slate-700">• <?= htmlspecialchars($formData['ongoing_conditions_other']) ?></p>
-                                        <?php endif; ?>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('error_of_refraction', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Error of Refraction</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('asthma', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Asthma</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('seizure', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Seizure</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('heart_problem', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Heart Problem</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('anemia', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Anemia</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('bleeding_disorder', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Bleeding Disorder</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('hernia', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Hernia</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('others', $ongoingConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Others</span>
+                                    </label>
+                                </div>
+                                <?php if (!empty($formData['ongoing_conditions_other'])): ?>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Please specify other conditions:</label>
+                                        <div class="bg-white rounded-lg p-2 border border-slate-200">
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['ongoing_conditions_other']) ?></p>
+                                        </div>
                                     </div>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
                                 <?php endif; ?>
                             </div>
 
                             <!-- Surgery/Hospitalization -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">Surgery/Hospitalization</h3>
-                                <?php if (($formData['surgery_status'] ?? 'no') === 'yes'): ?>
-                                    <p class="text-xs text-slate-700">Yes</p>
-                                    <?php if (!empty($formData['surgery_details'])): ?>
-                                        <textarea disabled class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-100 text-slate-800 text-xs" rows="2"><?= htmlspecialchars($formData['surgery_details']) ?></textarea>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">Surgery/Hospitalization</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Have you ever had surgery/hospitalization?</label>
+                                        <div class="space-y-2">
+                                            <label class="flex items-center">
+                                                <input type="radio" name="surgery_status_view" value="no" <?= ($formData['surgery_status'] ?? 'no') === 'no' ? 'checked' : '' ?> disabled class="mr-2">
+                                                <span class="text-sm text-slate-700">No</span>
+                                            </label>
+                                            <label class="flex items-center">
+                                                <input type="radio" name="surgery_status_view" value="yes" <?= ($formData['surgery_status'] ?? 'no') === 'yes' ? 'checked' : '' ?> disabled class="mr-2">
+                                                <span class="text-sm text-slate-700">Yes</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <?php if (($formData['surgery_status'] ?? 'no') === 'yes' && !empty($formData['surgery_details'])): ?>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1">Please specify:</label>
+                                            <textarea disabled class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-slate-100 text-slate-800"><?= htmlspecialchars($formData['surgery_details']) ?></textarea>
+                                        </div>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
-                                <?php endif; ?>
+                                </div>
                             </div>
 
                             <!-- Family Medical History -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">Family Medical History</h3>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">Family Medical History</h3>
                                 <?php 
                                 $familyConditions = [];
                                 if (isset($formData['family_conditions'])) {
@@ -475,162 +497,204 @@ include __DIR__ . '/../partials/header.php';
                                         $familyConditions = $formData['family_conditions'];
                                     }
                                 }
-                                $hasFamilyConditions = !empty(array_filter($familyConditions, function($condition) {
-                                    return $condition !== 'others';
-                                }));
                                 ?>
-                                <?php if ($hasFamilyConditions || !empty($formData['family_conditions_other'])): ?>
-                                    <div class="space-y-1">
-                                        <?php if (in_array('tuberculosis', $familyConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Tuberculosis</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('cancer', $familyConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Cancer</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('diabetes', $familyConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Diabetes</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('hypertension', $familyConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Hypertension</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('depression', $familyConditions)): ?>
-                                            <p class="text-xs text-slate-700">• Depression</p>
-                                        <?php endif; ?>
-                                        <?php if (!empty($formData['family_conditions_other'])): ?>
-                                            <p class="text-xs text-slate-700">• <?= htmlspecialchars($formData['family_conditions_other']) ?></p>
-                                        <?php endif; ?>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('tuberculosis', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Tuberculosis</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('cancer', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Cancer</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('diabetes', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Diabetes</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('hypertension', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Hypertension</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('depression', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Depression</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('others', $familyConditions) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Others</span>
+                                    </label>
+                                </div>
+                                <?php if (!empty($formData['family_conditions_other'])): ?>
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Please specify other family conditions:</label>
+                                        <div class="bg-white rounded-lg p-2 border border-slate-200">
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['family_conditions_other']) ?></p>
+                                        </div>
                                     </div>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
                                 <?php endif; ?>
                             </div>
 
                             <!-- Exposure to Cigarette/Vape Smoke -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">Exposure to Cigarette/Vape Smoke at Home</h3>
-                                <?php if (($formData['smoke_exposure'] ?? 'no') === 'yes'): ?>
-                                    <p class="text-xs text-slate-700">Yes</p>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
-                                <?php endif; ?>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">Exposure to Cigarette/Vape Smoke at Home</h3>
+                                <div class="space-y-2">
+                                    <label class="flex items-center">
+                                        <input type="radio" name="smoke_exposure_view" value="yes" <?= ($formData['smoke_exposure'] ?? 'no') === 'yes' ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Yes</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="smoke_exposure_view" value="no" <?= ($formData['smoke_exposure'] ?? 'no') === 'no' ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">No</span>
+                                    </label>
+                                </div>
                             </div>
 
                             <!-- Immunization Received -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">Immunization Received</h3>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">Immunization Received</h3>
                                 <?php 
                                 $immunizations = $formData['immunization'] ?? [];
                                 ?>
-                                <?php if (!empty($immunizations)): ?>
-                                    <div class="space-y-1">
-                                        <?php if (in_array('mmr', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• MMR</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('dpt', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• DPT</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('bcg', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• BCG</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('chicken_pox', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• Chicken Pox</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('hepatitis_b', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• Hepatitis B</p>
-                                        <?php endif; ?>
-                                        <?php if (in_array('polio', $immunizations)): ?>
-                                            <p class="text-xs text-slate-700">• Polio</p>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
-                                <?php endif; ?>
+                                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('mmr', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">MMR (Measles, Mumps, Rubella)</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('dpt', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">DPT (Diphtheria, Pertussis, Tetanus)</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('bcg', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">BCG (Bacillus Calmette-GuAcrin)</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('chicken_pox', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Chicken Pox (Varicella)</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('hepatitis_b', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Hepatitis B</span>
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="checkbox" <?= in_array('polio', $immunizations) ? 'checked' : '' ?> disabled class="mr-2">
+                                        <span class="text-sm text-slate-700">Polio</span>
+                                    </label>
+                                </div>
                             </div>
 
                             <!-- COVID-19 Information -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">COVID-19 Information</h3>
-                                <?php if (($formData['covid_positive'] ?? 'no') === 'yes'): ?>
-                                    <p class="text-xs text-slate-700">Yes</p>
-                                    <?php if (!empty($formData['covid_details'])): ?>
-                                        <textarea disabled class="w-full rounded border border-slate-300 px-3 py-2 bg-slate-100 text-slate-800 text-xs" rows="2"><?= htmlspecialchars($formData['covid_details']) ?></textarea>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">COVID-19 Information</h3>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-1">Have you ever had COVID-19?</label>
+                                        <div class="space-y-2">
+                                            <label class="flex items-center">
+                                                <input type="radio" name="covid_infection_view" value="no" <?= ($formData['covid_positive'] ?? 'no') === 'no' ? 'checked' : '' ?> disabled class="mr-2">
+                                                <span class="text-sm text-slate-700">No</span>
+                                            </label>
+                                            <label class="flex items-center">
+                                                <input type="radio" name="covid_infection_view" value="yes" <?= ($formData['covid_positive'] ?? 'no') === 'yes' ? 'checked' : '' ?> disabled class="mr-2">
+                                                <span class="text-sm text-slate-700">Yes</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if (($formData['covid_positive'] ?? 'no') === 'yes' && !empty($formData['covid_details'])): ?>
+                                        <div>
+                                            <label class="block text-sm font-medium text-slate-700 mb-1">Please specify when and details:</label>
+                                            <textarea disabled class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-slate-100 text-slate-800"><?= htmlspecialchars($formData['covid_details']) ?></textarea>
+                                        </div>
                                     <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
-                                <?php endif; ?>
+                                </div>
                             </div>
 
                             <!-- COVID-19 Vaccine Details -->
-                            <div class="bg-slate-50 rounded-xl p-3">
-                                <h3 class="text-base font-semibold text-slate-800 mb-2">COVID-19 Vaccine Details</h3>
-                                <?php 
-                                $covidVaccineBrands = $formData['covid_vaccine_brand'] ?? [];
-                                $covidVaccines = $formData['covid_vaccine'] ?? [];
-                                $hasVaccineData = !empty($covidVaccineBrands) || !empty($covidVaccines) || !empty($formData['other_vaccine_brand']);
-                                ?>
-                                <?php if ($hasVaccineData): ?>
-                                    <!-- Vaccine Brands -->
-                                    <?php if (!empty($covidVaccineBrands) || !empty($formData['other_vaccine_brand'])): ?>
-                                        <div class="mb-3">
-                                            <h4 class="text-sm font-medium text-slate-700 mb-2">Vaccine Brand</h4>
-                                            <div class="space-y-1">
-                                                <?php if (in_array('pfizer', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Pfizer</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('moderna', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Moderna</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('astrazeneca', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• AstraZeneca</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('janssen', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Janssen</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('sinovac', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Sinovac</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('sinopharm', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Sinopharm</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('sputnik', $covidVaccineBrands)): ?>
-                                                    <p class="text-xs text-slate-700">• Sputnik V</p>
-                                                <?php endif; ?>
-                                                <?php if (!empty($formData['other_vaccine_brand'])): ?>
-                                                    <p class="text-xs text-slate-700">• <?= htmlspecialchars($formData['other_vaccine_brand']) ?></p>
-                                                <?php endif; ?>
-                                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <h3 class="text-lg font-semibold text-slate-800 mb-3">COVID-19 Vaccine Details</h3>
+                                
+                                <!-- Vaccine Brands -->
+                                <div class="mb-6">
+                                    <h4 class="text-lg font-medium text-slate-700 mb-3">Vaccine Brand</h4>
+                                    <?php 
+                                    $covidVaccineBrands = $formData['covid_vaccine_brand'] ?? [];
+                                    ?>
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('pfizer', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Pfizer</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('moderna', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Moderna</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('astrazeneca', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">AstraZeneca</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('janssen', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Janssen</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('sinovac', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Sinovac</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('sinopharm', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Sinopharm</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('sputnik', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Sputnik V</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('others', $covidVaccineBrands) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Others</span>
+                                        </label>
+                                    </div>
+                                    <?php if (!empty($formData['other_vaccine_brand'])): ?>
+                                        <div class="mt-3">
+                                            <label class="block text-sm font-medium text-slate-700 mb-1">Please specify other vaccine brand:</label>
+                                            <textarea disabled class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-slate-100 text-slate-800"><?= htmlspecialchars($formData['other_vaccine_brand']) ?></textarea>
                                         </div>
                                     <?php endif; ?>
-                                    
-                                    <!-- Vaccine Doses -->
-                                    <?php if (!empty($covidVaccines)): ?>
-                                        <div>
-                                            <h4 class="text-sm font-medium text-slate-700 mb-2">Vaccine Doses</h4>
-                                            <div class="space-y-1">
-                                                <?php if (in_array('first_dose', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• First Dose</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('second_dose', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• Second Dose</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('booster_1', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• Booster 1</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('booster_2', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• Booster 2</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('booster_3', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• Booster 3</p>
-                                                <?php endif; ?>
-                                                <?php if (in_array('annual_booster', $covidVaccines)): ?>
-                                                    <p class="text-xs text-slate-700">• Annual Booster</p>
-                                                <?php endif; ?>
-                                            </div>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <span class="text-xs text-slate-500">N/A</span>
-                                <?php endif; ?>
+                                </div>
+                                
+                                <!-- Vaccine Doses -->
+                                <div>
+                                    <h4 class="text-lg font-medium text-slate-700 mb-3">Vaccine Doses</h4>
+                                    <?php 
+                                    $covidVaccines = $formData['covid_vaccine'] ?? [];
+                                    ?>
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('first_dose', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">First Dose</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('second_dose', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Second Dose</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('booster_1', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Booster 1</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('booster_2', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Booster 2</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('booster_3', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Booster 3</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" <?= in_array('annual_booster', $covidVaccines) ? 'checked' : '' ?> disabled class="mr-2">
+                                            <span class="text-sm text-slate-700">Annual Booster</span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -679,7 +743,7 @@ include __DIR__ . '/../partials/header.php';
                                         </div>
                                         <div>
                                             <label class="text-sm font-medium text-slate-600">Temperature:</label>
-                                            <p class="text-slate-800"><?= htmlspecialchars($formData['temperature'] ?? 'N/A') ?>°C</p>
+                                            <p class="text-slate-800"><?= htmlspecialchars($formData['temperature'] ?? 'N/A') ?>A°C</p>
                                         </div>
                                         <div>
                                             <label class="text-sm font-medium text-slate-600">Blood Pressure:</label>
@@ -791,11 +855,11 @@ function loadEditForm() {
 
 function generateMedicalHistoryEditForm(data) {
     return `
-        <div class="space-y-6">
+        <div class="space-y-3">
             <!-- Ongoing Medical Conditions -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">Ongoing Medical Conditions</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+            <div class="bg-slate-50 rounded-xl p-4">
+                <h3 class="text-lg font-semibold text-slate-800 mb-3">Ongoing Medical Conditions</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
                     <label class="flex items-center">
                         <input type="checkbox" name="medical_conditions[]" value="error_of_refraction" ${data.ongoing_conditions?.includes('error_of_refraction') ? 'checked' : ''} class="mr-2">
                         <span class="text-sm text-slate-700">Error of Refraction</span>
@@ -805,249 +869,141 @@ function generateMedicalHistoryEditForm(data) {
                         <span class="text-sm text-slate-700">Asthma</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="diabetes" ${data.ongoing_conditions?.includes('diabetes') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Diabetes</span>
+                        <input type="checkbox" name="ongoing_conditions[]" value="diabetes" ${data.ongoing_conditions?.includes('diabetes') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Diabetes</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="hypertension" ${data.ongoing_conditions?.includes('hypertension') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Hypertension</span>
+                        <input type="checkbox" name="ongoing_conditions[]" value="hypertension" ${data.ongoing_conditions?.includes('hypertension') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Hypertension</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="seizure" ${data.ongoing_conditions?.includes('seizure') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Seizure</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="heart_problem" ${data.ongoing_conditions?.includes('heart_problem') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Heart Problem</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="anemia" ${data.ongoing_conditions?.includes('anemia') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Anemia</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="bleeding_disorder" ${data.ongoing_conditions?.includes('bleeding_disorder') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Bleeding Disorder</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="hernia" ${data.ongoing_conditions?.includes('hernia') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Hernia</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="medical_conditions[]" value="others" ${data.ongoing_conditions?.includes('others') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Others</span>
+                        <input type="checkbox" name="ongoing_conditions[]" value="error_refraction" ${data.ongoing_conditions?.includes('error_refraction') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Error of Refraction</span>
                     </label>
                 </div>
-                <div id="other_medical_conditions_div">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Please specify other conditions:</label>
-                    <textarea name="other_medical_conditions" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify other ongoing medical conditions...">${data.ongoing_conditions_other || ''}</textarea>
+                <div class="mt-2">
+                    <input type="text" name="ongoing_conditions_other" value="${data.ongoing_conditions_other || ''}" placeholder="Other conditions..." class="w-full px-3 py-2 border border-slate-300 rounded-lg">
                 </div>
             </div>
 
-            <!-- Surgery/Hospitalization -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">Surgery/Hospitalization</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Have you ever had surgery/hospitalization?</label>
-                        <div class="space-y-2">
-                            <label class="flex items-center">
-                                <input type="radio" name="surgery_status" value="no" ${data.surgery_status === 'no' ? 'checked' : ''} class="mr-2">
-                                <span class="text-sm text-slate-700">No</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="surgery_status" value="yes" ${data.surgery_status === 'yes' ? 'checked' : ''} class="mr-2">
-                                <span class="text-sm text-slate-700">Yes</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div id="surgery_details">
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Please specify:</label>
-                        <textarea name="surgery_details" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify surgery/hospitalization details...">${data.surgery_details || ''}</textarea>
-                    </div>
+            <!-- Surgery History -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Surgery History</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="surgery_status" value="no" ${data.surgery_status === 'no' ? 'checked' : ''} class="border-slate-300">
+                        <span class="ml-2 text-sm">No</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="surgery_status" value="yes" ${data.surgery_status === 'yes' ? 'checked' : ''} class="border-slate-300">
+                        <span class="ml-2 text-sm">Yes</span>
+                    </label>
+                </div>
+                <div class="mt-2">
+                    <textarea name="surgery_details" placeholder="Surgery details..." class="w-full px-3 py-2 border border-slate-300 rounded-lg" rows="3">${data.surgery_details || ''}</textarea>
                 </div>
             </div>
 
             <!-- Family Medical History -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">Family Medical History</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="tuberculosis" ${data.family_conditions?.includes('tuberculosis') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Tuberculosis</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="cancer" ${data.family_conditions?.includes('cancer') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Cancer</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="diabetes" ${data.family_conditions?.includes('diabetes') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Diabetes</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="hypertension" ${data.family_conditions?.includes('hypertension') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Hypertension</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="depression" ${data.family_conditions?.includes('depression') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Depression</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="family_conditions[]" value="others" ${data.family_conditions?.includes('others') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Others</span>
-                    </label>
-                </div>
-                <div id="other_family_conditions_div">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">Please specify other family conditions:</label>
-                    <textarea name="other_family_conditions" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify other family medical conditions...">${data.family_conditions_other || ''}</textarea>
-                </div>
-            </div>
-
-            <!-- Exposure to Cigarette/Vape Smoke -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">Exposure to Cigarette/Vape Smoke at Home</h3>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Family Medical History</label>
                 <div class="space-y-2">
                     <label class="flex items-center">
-                        <input type="radio" name="smoke_exposure" value="yes" ${data.smoke_exposure === 'yes' ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Yes</span>
+                        <input type="checkbox" name="family_conditions[]" value="diabetes" ${data.family_conditions?.includes('diabetes') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Diabetes</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="radio" name="smoke_exposure" value="no" ${data.smoke_exposure === 'no' ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">No</span>
+                        <input type="checkbox" name="family_conditions[]" value="hypertension" ${data.family_conditions?.includes('hypertension') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Hypertension</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="family_conditions[]" value="heart_disease" ${data.family_conditions?.includes('heart_disease') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Heart Disease</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="family_conditions[]" value="cancer" ${data.family_conditions?.includes('cancer') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Cancer</span>
+                    </label>
+                </div>
+                <div class="mt-2">
+                    <input type="text" name="family_conditions_other" value="${data.family_conditions_other || ''}" placeholder="Other family conditions..." class="w-full px-3 py-2 border border-slate-300 rounded-lg">
+                </div>
+            </div>
+
+            <!-- Smoke Exposure -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Smoke Exposure</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="smoke_exposure" value="no" ${data.smoke_exposure === 'no' ? 'checked' : ''} class="border-slate-300">
+                        <span class="ml-2 text-sm">No</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="smoke_exposure" value="yes" ${data.smoke_exposure === 'yes' ? 'checked' : ''} class="border-slate-300">
+                        <span class="ml-2 text-sm">Yes</span>
                     </label>
                 </div>
             </div>
 
-            <!-- Immunization Received -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">Immunization Received</h3>
-                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <!-- Immunization -->
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Immunization History</label>
+                <div class="space-y-2">
                     <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="mmr" ${data.immunization?.includes('mmr') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">MMR (Measles, Mumps, Rubella)</span>
+                        <input type="checkbox" name="immunization[]" value="mmr" ${data.immunization?.includes('mmr') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">MMR</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="dpt" ${data.immunization?.includes('dpt') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">DPT (Diphtheria, Pertussis, Tetanus)</span>
+                        <input type="checkbox" name="immunization[]" value="dpt" ${data.immunization?.includes('dpt') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">DPT</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="bcg" ${data.immunization?.includes('bcg') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">BCG (Bacillus Calmette-Guérin)</span>
+                        <input type="checkbox" name="immunization[]" value="bcg" ${data.immunization?.includes('bcg') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">BCG</span>
                     </label>
                     <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="chicken_pox" ${data.immunization?.includes('chicken_pox') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Chicken Pox (Varicella)</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="hepatitis_b" ${data.immunization?.includes('hepatitis_b') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Hepatitis B</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="checkbox" name="immunizations[]" value="polio" ${data.immunization?.includes('polio') ? 'checked' : ''} class="mr-2">
-                        <span class="text-sm text-slate-700">Polio</span>
+                        <input type="checkbox" name="immunization[]" value="hepatitis_b" ${data.immunization?.includes('hepatitis_b') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Hepatitis B</span>
                     </label>
                 </div>
             </div>
 
             <!-- COVID-19 Information -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">COVID-19 Information</h3>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Have you ever had COVID-19?</label>
-                        <div class="space-y-2">
-                            <label class="flex items-center">
-                                <input type="radio" name="covid_infection" value="no" ${data.covid_positive === 'no' ? 'checked' : ''} class="mr-2">
-                                <span class="text-sm text-slate-700">No</span>
-                            </label>
-                            <label class="flex items-center">
-                                <input type="radio" name="covid_infection" value="yes" ${data.covid_positive === 'yes' ? 'checked' : ''} class="mr-2">
-                                <span class="text-sm text-slate-700">Yes</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div id="covid_infection_details">
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Please specify when and details:</label>
-                        <textarea name="covid_infection_details" rows="3" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify when you had COVID-19, severity, treatment received...">${data.covid_details || ''}</textarea>
-                    </div>
-                </div>
-            </div>
-
-            <!-- COVID-19 Vaccine Details -->
-            <div class="bg-slate-50 rounded-xl p-6">
-                <h3 class="text-xl font-semibold text-slate-800 mb-4">COVID-19 Vaccine Details</h3>
-                
-                <!-- Vaccine Brands -->
-                <div class="mb-6">
-                    <h4 class="text-lg font-medium text-slate-700 mb-3">Vaccine Brand</h4>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="pfizer" ${data.covid_vaccine_brand?.includes('pfizer') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Pfizer</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="moderna" ${data.covid_vaccine_brand?.includes('moderna') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Moderna</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="astrazeneca" ${data.covid_vaccine_brand?.includes('astrazeneca') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">AstraZeneca</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="janssen" ${data.covid_vaccine_brand?.includes('janssen') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Janssen</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="sinovac" ${data.covid_vaccine_brand?.includes('sinovac') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Sinovac</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="sinopharm" ${data.covid_vaccine_brand?.includes('sinopharm') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Sinopharm</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="sputnik" ${data.covid_vaccine_brand?.includes('sputnik') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Sputnik V</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine_brand[]" value="others" ${data.covid_vaccine_brand?.includes('others') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Others</span>
-                        </label>
-                    </div>
-                    <div id="other_vaccine_brand_div" class="mt-3">
-                        <label class="block text-sm font-medium text-slate-700 mb-2">Please specify other vaccine brand:</label>
-                        <textarea name="other_vaccine_brand" rows="2" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200" placeholder="Specify other COVID-19 vaccine brand...">${data.other_vaccine_brand || ''}</textarea>
-                    </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">COVID-19 Vaccination</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="covid_vaccine[]" value="first_dose" ${data.covid_vaccine?.includes('first_dose') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">First Dose</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="covid_vaccine[]" value="second_dose" ${data.covid_vaccine?.includes('second_dose') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Second Dose</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="covid_vaccine[]" value="booster_1" ${data.covid_vaccine?.includes('booster_1') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Booster 1</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="covid_vaccine[]" value="booster_2" ${data.covid_vaccine?.includes('booster_2') ? 'checked' : ''} class="rounded border-slate-300">
+                        <span class="ml-2 text-sm">Booster 2</span>
+                    </label>
                 </div>
                 
-                <!-- Vaccine Doses -->
-                <div>
-                    <h4 class="text-lg font-medium text-slate-700 mb-3">Vaccine Doses</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">COVID-19 Positive</label>
+                    <div class="space-y-2">
                         <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="first_dose" ${data.covid_vaccine?.includes('first_dose') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">First Dose</span>
+                            <input type="radio" name="covid_positive" value="no" ${data.covid_positive === 'no' ? 'checked' : ''} class="border-slate-300">
+                            <span class="ml-2 text-sm">No</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="second_dose" ${data.covid_vaccine?.includes('second_dose') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Second Dose</span>
+                            <input type="radio" name="covid_positive" value="yes" ${data.covid_positive === 'yes' ? 'checked' : ''} class="border-slate-300">
+                            <span class="ml-2 text-sm">Yes</span>
                         </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="booster_1" ${data.covid_vaccine?.includes('booster_1') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Booster 1</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="booster_2" ${data.covid_vaccine?.includes('booster_2') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Booster 2</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="booster_3" ${data.covid_vaccine?.includes('booster_3') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Booster 3</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="checkbox" name="covid_vaccine[]" value="annual_booster" ${data.covid_vaccine?.includes('annual_booster') ? 'checked' : ''} class="mr-2">
-                            <span class="text-sm text-slate-700">Annual Booster</span>
-                        </label>
+                    </div>
+                    <div class="mt-2">
+                        <textarea name="covid_details" placeholder="COVID-19 details..." class="w-full px-3 py-2 border border-slate-300 rounded-lg" rows="3">${data.covid_details || ''}</textarea>
                     </div>
                 </div>
             </div>
@@ -1119,7 +1075,7 @@ function generateGeneralCheckupEditForm(data) {
                         <input type="number" name="heart_rate" value="${data.heart_rate || ''}" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter heart rate">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Temperature (°C)</label>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Temperature (A°C)</label>
                         <input type="number" name="temperature" value="${data.temperature || ''}" step="0.1" class="w-full px-3 py-2 border border-slate-300 rounded-lg" placeholder="Enter temperature">
                     </div>
                     <div>
