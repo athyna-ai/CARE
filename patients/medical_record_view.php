@@ -362,6 +362,12 @@ include __DIR__ . '/../partials/header.php';
                         </svg>
                         Edit
                     </button>
+                    <button onclick="printMedicalRecord()" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors no-print">
+                        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        Print
+                    </button>
                     <a href="patient_view.php?id=<?= $record['patient_id'] ?>&type=<?= $record['patient_type'] ?>" class="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-colors">
                         Back to Patient
                     </a>
@@ -1236,6 +1242,60 @@ function goBack() {
         // Fallback to patient view if no history
         window.location.href = 'patient_view.php?id=<?= $record['patient_id'] ?>&type=<?= $record['patient_type'] ?>';
     }
+}
+
+// Print medical record function
+function printMedicalRecord() {
+    // Add print-specific classes to target only medical form content
+    const mainContent = document.querySelector('.min-h-screen');
+    if (mainContent) {
+        mainContent.classList.add('medical-record', 'print-medical-form');
+        
+        // Hide all sections except the medical form content
+        const allSections = mainContent.querySelectorAll('div');
+        allSections.forEach(section => {
+            // Keep only sections with medical form content
+            if (!section.classList.contains('bg-white') && 
+                !section.querySelector('.bg-slate-50') &&
+                !section.querySelector('.space-y-6')) {
+                section.style.display = 'none';
+            }
+        });
+        
+        // Show only the main content area
+        const contentArea = mainContent.querySelector('.max-w-7xl');
+        if (contentArea) {
+            contentArea.style.display = 'block';
+        }
+    }
+    
+    // Add print footer with timestamp
+    const printFooter = document.createElement('div');
+    printFooter.className = 'print-footer';
+    printFooter.innerHTML = `
+        <div>Printed on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
+        <div>CARE: Clinic Administration of Records System</div>
+        <div>Medical Record #<?= $record['id'] ?> - <?= htmlspecialchars($patient['name']) ?></div>
+    `;
+    document.body.appendChild(printFooter);
+    
+    // Trigger print dialog
+    window.print();
+    
+    // Clean up after printing
+    setTimeout(() => {
+        if (mainContent) {
+            mainContent.classList.remove('medical-record', 'print-medical-form');
+            // Restore all sections
+            const allSections = mainContent.querySelectorAll('div');
+            allSections.forEach(section => {
+                section.style.display = '';
+            });
+        }
+        if (printFooter && printFooter.parentNode) {
+            printFooter.parentNode.removeChild(printFooter);
+        }
+    }, 1000);
 }
 </script>
 

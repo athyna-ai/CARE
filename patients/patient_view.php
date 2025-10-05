@@ -776,12 +776,20 @@ window.closeNotification = closeNotification;
                     <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-6 py-4">
                         <div class="flex items-center justify-between">
                             <h2 class="text-2xl font-comfortaa font-bold text-white">Patient Information</h2>
-                            <button onclick="openEditModal()" class="px-4 py-2 bg-white/20 border border-white/30 text-slate-800 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                </svg>
-                                Edit Information
-                            </button>
+                            <div class="flex items-center gap-3">
+                                <button onclick="printPatientRecord()" class="px-4 py-2 bg-white/20 border border-white/30 text-slate-800 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2 no-print">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                                    </svg>
+                                    Print Record
+                                </button>
+                                <button onclick="openEditModal()" class="px-4 py-2 bg-white/20 border border-white/30 text-slate-800 rounded-lg hover:bg-white/30 transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                    Edit Information
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="p-3 flex-1 overflow-y-auto">
@@ -3150,6 +3158,239 @@ function removeContactNumber(button) {
             return false;
         }
         return true;
+    }
+
+    // Print patient record function
+    function printPatientRecord() {
+        // Store original body content
+        const originalBody = document.body.innerHTML;
+        
+        // Create the print content
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>Patient Information - CARE</title>
+                <style>
+                    @media print {
+                        * {
+                            -webkit-print-color-adjust: exact !important;
+                            color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        @page { margin: 0.5in; size: A4; }
+                        body {
+                            font-family: 'Times New Roman', serif !important;
+                            font-size: 12pt !important;
+                            line-height: 1.4 !important;
+                            color: #000 !important;
+                            background: white !important;
+                            margin: 0 !important;
+                            padding: 20px !important;
+                        }
+                        .print-container {
+                            text-align: center !important;
+                            width: 100% !important;
+                        }
+                        .print-header {
+                            margin-bottom: 30px !important;
+                            text-align: center !important;
+                        }
+                        .print-logo {
+                            font-size: 32pt !important;
+                            font-weight: bold !important;
+                            color: #000 !important;
+                            margin-bottom: 10px !important;
+                        }
+                        .print-institution {
+                            font-size: 16pt !important;
+                            color: #000 !important;
+                            margin-bottom: 20px !important;
+                        }
+                        .print-subtitle {
+                            font-size: 18pt !important;
+                            font-weight: bold !important;
+                            color: #000 !important;
+                            margin-bottom: 30px !important;
+                            border-bottom: 2px solid #000 !important;
+                            padding-bottom: 10px !important;
+                        }
+                        .print-content {
+                            display: grid !important;
+                            grid-template-columns: 1fr 1fr !important;
+                            gap: 30px !important;
+                            text-align: left !important;
+                            margin-top: 20px !important;
+                        }
+                        .print-section {
+                            border: 1px solid #000 !important;
+                            padding: 15px !important;
+                            background: #f9f9f9 !important;
+                            page-break-inside: avoid !important;
+                            margin-bottom: 15px !important;
+                        }
+                        .print-section h3 {
+                            font-size: 14pt !important;
+                            font-weight: bold !important;
+                            color: #000 !important;
+                            margin-bottom: 10px !important;
+                            border-bottom: 1px solid #000 !important;
+                            padding-bottom: 5px !important;
+                        }
+                        .print-field {
+                            margin: 8px 0 !important;
+                            display: flex !important;
+                            justify-content: space-between !important;
+                            align-items: center !important;
+                        }
+                        .print-label {
+                            font-weight: bold !important;
+                            color: #000 !important;
+                            font-size: 11pt !important;
+                        }
+                        .print-value {
+                            color: #000 !important;
+                            font-size: 11pt !important;
+                            text-align: right !important;
+                            margin-left: 10px !important;
+                        }
+                    }
+                    @media screen {
+                        body { display: none !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="print-container">
+                    <div class="print-header">
+                        <div class="print-logo">CARE</div>
+                        <div class="print-institution">Our Lady of the Sacred Heart Inc.</div>
+                        <div class="print-subtitle">Patient (<?= ucfirst($patientType) ?>) Information</div>
+                    </div>
+                    <div class="print-content">
+                        <div>
+                            <div class="print-section">
+                                <h3>Personal Information</h3>
+                                <div class="print-field">
+                                    <span class="print-label">Name:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['name']) ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">ID:</span>
+                                    <span class="print-value">#<?= $patientId ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Type:</span>
+                                    <span class="print-value"><?= ucfirst($patientType) ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Age:</span>
+                                    <span class="print-value"><?= htmlspecialchars((string)($patient['age'] ?? 'N/A')) ?> years old</span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Gender:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['gender'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Date of Birth:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['dob'] ? date('M j, Y', strtotime($patient['dob'])) : 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Religion:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['religion'] ?? 'N/A') ?></span>
+                                </div>
+                                <?php if ($patientType === 'student'): ?>
+                                <div class="print-field">
+                                    <span class="print-label">Level:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['level'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Year/Grade:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['year_grade'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Section:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['section'] ?? 'N/A') ?></span>
+                                </div>
+                                <?php if (!empty($patient['course'])): ?>
+                                <div class="print-field">
+                                    <span class="print-label">Course:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['course']) ?></span>
+                                </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['strand'])): ?>
+                                <div class="print-field">
+                                    <span class="print-label">Strand:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['strand']) ?></span>
+                                </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['block'])): ?>
+                                <div class="print-field">
+                                    <span class="print-label">Block:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['block']) ?></span>
+                                </div>
+                                <?php endif; ?>
+                                <?php else: ?>
+                                <div class="print-field">
+                                    <span class="print-label">Department:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['department'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Senior:</span>
+                                    <span class="print-value"><?= ($patient['sr'] ?? 0) ? 'Yes' : 'No' ?></span>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="print-section">
+                                <h3>Contact Information</h3>
+                                <div class="print-field">
+                                    <span class="print-label">Address:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['address'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Guardian:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['guardian'] ?? 'N/A') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">Emergency Contact:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['emergency_contact'] ?? 'N/A') ?></span>
+                                </div>
+                            </div>
+                            <div class="print-section">
+                                <h3>Medical Information</h3>
+                                <div class="print-field">
+                                    <span class="print-label">Allergies:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['allergies'] ?? 'None') ?></span>
+                                </div>
+                                <div class="print-field">
+                                    <span class="print-label">RFID:</span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['rfid'] ?? 'N/A') ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </body>
+            </html>
+        `;
+        
+        // Replace body content with print content
+        document.body.innerHTML = printContent;
+        
+        // Trigger print
+        window.print();
+        
+        // Restore original content
+        setTimeout(() => {
+            document.body.innerHTML = originalBody;
+            // Re-initialize any necessary event listeners
+            if (typeof initializeEditForm === 'function') {
+                initializeEditForm();
+            }
+        }, 1000);
     }
 </script>
 

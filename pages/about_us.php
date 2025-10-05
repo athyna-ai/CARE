@@ -35,8 +35,8 @@ include __DIR__ . '/../partials/header.php';
 <!-- You can edit everything between this comment and the "ENDS HERE" comment below -->
 <!-- ============================================================================= -->
 
-<div class="min-h-screen bg-gradient-to-br from-clinic-ivory/30 via-white to-clinic-tea/20 flex items-center justify-center p-4">
-    <div class="max-w-2xl mx-auto text-center">
+<div class="min-h-screen bg-gradient-to-br from-clinic-ivory/30 via-white to-clinic-tea/20 pt-24 pb-8 px-4">
+    <div class="max-w-2xl mx-auto text-center flex flex-col justify-center min-h-[calc(100vh-8rem)]">
         <!-- Coming Soon Card -->
         <div class="bg-white/80 backdrop-blur rounded-2xl border border-clinic-tea/20 shadow-xl p-12">
             <!-- Coming Soon Icon -->

@@ -68,8 +68,6 @@ if (count($ipRequests) >= 10) {
 $rateLimits[$rateLimitKey . '_' . $currentTime] = $currentTime;
 file_put_contents($rateLimitFile, json_encode($rateLimits));
 
-// Log legitimate settings page access
-logSecurityEvent('Settings Page Access', 'Settings page accessed', $_SESSION['user']['id'] ?? null, true);
 
         // Auto-clear logs functionality (runs automatically)
 try {

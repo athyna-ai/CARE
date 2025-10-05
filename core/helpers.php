@@ -47,7 +47,7 @@ function require_admin_auth(): void {
 			setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
 		}
 		session_destroy();
-		header('Location: /login.php?timeout=1');
+		header('Location: ../auth/login.php?timeout=1');
 		exit;
 	}
 	if (empty($_SESSION['user']) || ($_SESSION['user']['is_admin'] ?? 0) !== 1) {
@@ -58,7 +58,7 @@ function require_admin_auth(): void {
 		} catch (Throwable $e) {
 			// Ignore logging errors for unauthorized access
 		}
-		header('Location: /login.php');
+		header('Location: ../auth/login.php');
 		exit;
 	}
 	$_SESSION['last_activity'] = $now;

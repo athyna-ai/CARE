@@ -57,6 +57,474 @@ html body textarea {
     border: 1px solid #cbd5e1 !important;
 }
 
+/* =====================================================
+   PRINT-FRIENDLY STYLES FOR PATIENT RECORDS
+   ===================================================== */
+
+@media print {
+    /* Reset page for printing */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Hide navigation and interactive elements */
+    header,
+    nav,
+    aside,
+    .fixed,
+    .sticky,
+    button,
+    .btn,
+    .button,
+    #sidebarToggle,
+    #notificationContainer,
+    .notification,
+    .modal,
+    .popup,
+    .dropdown,
+    .tooltip,
+    .no-print {
+        display: none !important;
+    }
+    
+    /* Page setup */
+    @page {
+        margin: 0.5in;
+        size: A4;
+    }
+    
+    body {
+        font-family: 'Times New Roman', serif !important;
+        font-size: 12pt !important;
+        line-height: 1.4 !important;
+        color: #000 !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Main content area */
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* Patient record container */
+    .patient-record,
+    .medical-record,
+    .patient-view,
+    .medical-view {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Print-specific content targeting */
+    .print-medical-form {
+        /* Hide everything except the medical form content */
+    }
+    
+    .print-medical-form > *:not(.medical-form-content):not(.form-data):not(.record-information) {
+        display: none !important;
+    }
+    
+    .print-visitation-log {
+        /* Hide everything except the visitation log content */
+    }
+    
+    .print-visitation-log > *:not(.visitation-log-content):not(.log-details) {
+        display: none !important;
+    }
+    
+    .print-patient-info {
+        /* Hide everything except the patient information content */
+    }
+    
+    .print-patient-info > *:not(.patient-details):not(.personal-info):not(.patient-information) {
+        display: none !important;
+    }
+    
+    /* Specific targeting for medical forms */
+    .print-medical-form .bg-white.rounded-xl.shadow-lg {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+    }
+    
+    .print-medical-form .bg-slate-50 {
+        background: #f9f9f9 !important;
+        border: 1px solid #000 !important;
+    }
+    
+    /* Specific targeting for visitation logs */
+    .print-visitation-log .bg-white.rounded-xl.shadow-lg {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+    }
+    
+    .print-visitation-log .space-y-6 > * {
+        margin: 15px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Specific targeting for patient info */
+    .print-patient-info .grid.grid-cols-1.lg\\:grid-cols-3 {
+        display: block !important;
+    }
+    
+    .print-patient-info .lg\\:col-span-2,
+    .print-patient-info .lg\\:col-span-1 {
+        width: 100% !important;
+        margin: 10px 0 !important;
+    }
+    
+    /* Patient Information Print Layout */
+    .print-patient-info {
+        text-align: center !important;
+        padding: 20px !important;
+        font-family: 'Times New Roman', serif !important;
+        font-size: 12pt !important;
+        line-height: 1.4 !important;
+        color: #000 !important;
+        background: white !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    .print-patient-info .print-header {
+        margin-bottom: 30px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-logo {
+        font-size: 32pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 10px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-institution {
+        font-size: 16pt !important;
+        color: #000 !important;
+        margin-bottom: 20px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-subtitle {
+        font-size: 18pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 30px !important;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 10px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-content {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 30px !important;
+        text-align: left !important;
+        margin-top: 20px !important;
+        width: 100% !important;
+    }
+    
+    .print-patient-info .print-section {
+        border: 1px solid #000 !important;
+        padding: 15px !important;
+        background: #f9f9f9 !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .print-patient-info .print-section h3 {
+        font-size: 14pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 10px !important;
+        border-bottom: 1px solid #000 !important;
+        padding-bottom: 5px !important;
+        text-align: left !important;
+    }
+    
+    .print-patient-info .print-field {
+        margin: 8px 0 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    
+    .print-patient-info .print-label {
+        font-weight: bold !important;
+        color: #000 !important;
+        font-size: 11pt !important;
+        flex: 0 0 auto !important;
+    }
+    
+    .print-patient-info .print-value {
+        color: #000 !important;
+        font-size: 11pt !important;
+        text-align: right !important;
+        flex: 1 !important;
+        margin-left: 10px !important;
+    }
+    
+    /* Headers and titles */
+    h1, h2, h3, h4, h5, h6 {
+        color: #000 !important;
+        font-weight: bold !important;
+        margin: 10px 0 5px 0 !important;
+        page-break-after: avoid;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 5px !important;
+    }
+    
+    h2 {
+        font-size: 16pt !important;
+        border-bottom: 1px solid #000 !important;
+        padding-bottom: 3px !important;
+    }
+    
+    h3 {
+        font-size: 14pt !important;
+    }
+    
+    /* Patient information section */
+    .patient-info,
+    .patient-details,
+    .personal-info {
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+        padding: 15px !important;
+        background: #f9f9f9 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Medical records section */
+    .medical-records,
+    .medical-history,
+    .visitation-logs {
+        margin: 15px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Tables */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 10px 0 !important;
+        font-size: 11pt !important;
+        page-break-inside: avoid;
+    }
+    
+    th, td {
+        border: 1px solid #000 !important;
+        padding: 8px !important;
+        text-align: left !important;
+        vertical-align: top !important;
+    }
+    
+    th {
+        background: #e0e0e0 !important;
+        font-weight: bold !important;
+        color: #000 !important;
+    }
+    
+    /* Cards and containers */
+    .card,
+    .container,
+    .section,
+    .panel {
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+        padding: 15px !important;
+        background: white !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Form elements - show as text */
+    .form-group,
+    .field-group {
+        margin: 8px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    label {
+        font-weight: bold !important;
+        color: #000 !important;
+        display: inline !important;
+        margin-right: 10px !important;
+    }
+    
+    /* Hide form inputs and show their values */
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    select,
+    textarea {
+        border: none !important;
+        background: transparent !important;
+        color: #000 !important;
+        font-weight: normal !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Show checkbox and radio values */
+    input[type="checkbox"]:checked::after {
+        content: " ✓" !important;
+        color: #000 !important;
+    }
+    
+    input[type="checkbox"]:not(:checked)::after {
+        content: " ☐" !important;
+        color: #000 !important;
+    }
+    
+    input[type="radio"]:checked::after {
+        content: " ●" !important;
+        color: #000 !important;
+    }
+    
+    input[type="radio"]:not(:checked)::after {
+        content: " ○" !important;
+        color: #000 !important;
+    }
+    
+    /* Status indicators */
+    .status,
+    .badge,
+    .tag {
+        border: 1px solid #000 !important;
+        background: white !important;
+        color: #000 !important;
+        padding: 2px 6px !important;
+        font-size: 10pt !important;
+        display: inline-block !important;
+    }
+    
+    /* Medical form sections */
+    .medical-form,
+    .form-section {
+        border: 1px solid #000 !important;
+        margin: 15px 0 !important;
+        padding: 15px !important;
+        page-break-inside: avoid;
+    }
+    
+    .form-section h4 {
+        background: #e0e0e0 !important;
+        margin: -15px -15px 10px -15px !important;
+        padding: 8px 15px !important;
+        border-bottom: 1px solid #000 !important;
+    }
+    
+    /* Grid layouts - convert to vertical */
+    .grid,
+    .flex,
+    .row {
+        display: block !important;
+    }
+    
+    .col,
+    .column {
+        width: 100% !important;
+        margin: 5px 0 !important;
+        display: block !important;
+    }
+    
+    /* Spacing adjustments */
+    .mb-4, .mb-6, .mb-8 { margin-bottom: 10px !important; }
+    .mt-4, .mt-6, .mt-8 { margin-top: 10px !important; }
+    .p-4, .p-6, .p-8 { padding: 10px !important; }
+    
+    /* Colors - convert to grayscale */
+    .text-blue-600,
+    .text-clinic-blue,
+    .text-primary { color: #000 !important; }
+    
+    .bg-blue-100,
+    .bg-clinic-blue,
+    .bg-primary { background: #e0e0e0 !important; }
+    
+    .border-blue-200,
+    .border-clinic-blue { border-color: #000 !important; }
+    
+    /* Print-specific classes */
+    .print-only {
+        display: block !important;
+    }
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    /* Page breaks */
+    .page-break-before {
+        page-break-before: always !important;
+    }
+    
+    .page-break-after {
+        page-break-after: always !important;
+    }
+    
+    .page-break-inside-avoid {
+        page-break-inside: avoid !important;
+    }
+    
+    /* Footer for printed pages */
+    .print-footer {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        text-align: center !important;
+        font-size: 10pt !important;
+        border-top: 1px solid #000 !important;
+        padding: 5px !important;
+        background: white !important;
+    }
+    
+    /* Date and time stamps */
+    .timestamp,
+    .date-time {
+        font-style: italic !important;
+        color: #666 !important;
+        font-size: 10pt !important;
+    }
+    
+    /* Signature lines */
+    .signature-line {
+        border-bottom: 1px solid #000 !important;
+        margin: 20px 0 !important;
+        padding: 10px 0 !important;
+    }
+    
+    .signature-label {
+        font-size: 10pt !important;
+        color: #666 !important;
+        margin-top: 5px !important;
+    }
+}
+
 /* Override any Tailwind classes that might be causing issues */
 input.bg-white,
 select.bg-white,
