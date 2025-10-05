@@ -154,6 +154,8 @@ function detectBreachAttempt() {
     return $breach_detected;
 }
 
-// Run breach detection on page load
-detectBreachAttempt();
+// Run breach detection on page load (only for unauthenticated users)
+if (!isset($_SESSION['user']) || empty($_SESSION['user']) || ($_SESSION['user']['is_admin'] ?? 0) !== 1) {
+    detectBreachAttempt();
+}
 ?>

@@ -3,12 +3,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-// Include security breach detection
-require_once __DIR__ . '/../security_breach_detector.php';
-
 require_admin_auth();
 $pdo = get_pdo();
 $user = $_SESSION['user'];
+
+// Include security breach detection AFTER authentication
+require_once __DIR__ . '/../security_breach_detector.php';
 $errors = [];
 $info = [];
 // Validate section parameter to prevent unauthorized access
@@ -68,12 +68,8 @@ if (count($ipRequests) >= 10) {
 $rateLimits[$rateLimitKey . '_' . $currentTime] = $currentTime;
 file_put_contents($rateLimitFile, json_encode($rateLimits));
 
-// Log all settings page access
-logSecurityBreach('SETTINGS_PAGE_ACCESS', 'Settings page accessed', [
-    'section' => $currentSection,
-    'ip' => $ip,
-    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
-]);
+// Log legitimate settings page access
+logSecurityEvent('Settings Page Access', 'Settings page accessed', $_SESSION['user']['id'] ?? null, true);
 
         // Auto-clear logs functionality (runs automatically)
 try {
@@ -257,12 +253,8 @@ try {
 
 // Handle form submissions with enhanced security
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Log all POST attempts to settings
-    logSecurityBreach('SETTINGS_POST_ATTEMPT', 'POST request to settings page', [
-        'action' => $_POST['action'] ?? 'unknown',
-        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
-    ]);
+    // Log legitimate POST request to settings
+    logSecurityEvent('Settings Form Submission', 'POST request to settings page', $_SESSION['user']['id'] ?? null, true);
     
     if (!verify_csrf($_POST['csrf_token'] ?? null)) {
         logSecurityBreach('CSRF_TOKEN_INVALID', 'Invalid CSRF token in settings', [

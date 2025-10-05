@@ -1,10 +1,12 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__ . '/../security_breach_detector.php';
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
 require_admin_auth();
+
+// Include security breach detection AFTER authentication
+require_once __DIR__ . '/../security_breach_detector.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

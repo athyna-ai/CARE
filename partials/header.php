@@ -36,9 +36,14 @@
             userId: <?= isset($_SESSION['user']['id']) ? $_SESSION['user']['id'] : 'null' ?>,
             username: <?= isset($_SESSION['user']['username']) ? '"' . addslashes($_SESSION['user']['username']) . '"' : 'null' ?>
         };
+        
+        // Global CSRF token for session monitor
+        window.csrfToken = '<?= csrf_token() ?>';
     </script>
     <!-- Security Live Monitor -->
     <script src="../assets/js/security-live-monitor.js"></script>
+    <!-- Session Timeout Monitor -->
+    <script src="../assets/js/session-timeout-monitor.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; }
         .font-comfortaa { font-family: 'Comfortaa', cursive; }

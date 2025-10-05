@@ -6,6 +6,11 @@ require_once __DIR__ . '/../core/helpers.php';
 $errors = [];
 $info = [];
 
+// Handle session timeout message
+if (isset($_GET['timeout']) && $_GET['timeout'] === '1') {
+    $info[] = 'Your session has expired due to inactivity. Please log in again.';
+}
+
 // Clear any pending login session if this is a GET request (page refresh) 
 // BUT NOT if we just processed a form submission (POST data still exists)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['pending_login']) && !isset($_POST['identifier'])) {
