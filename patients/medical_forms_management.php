@@ -63,6 +63,53 @@ include __DIR__ . '/../partials/header.php';
 <!-- Popup Notification Container -->
 <div id="notificationContainer" class="fixed top-20 right-4 z-50"></div>
 
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="confirmationModalContent">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900" id="confirmationTitle">Confirm Action</h3>
+                </div>
+                <button onclick="closeConfirmationModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="mb-6">
+                <p class="text-gray-600" id="confirmationMessage">Are you sure you want to perform this action?</p>
+                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p class="text-sm text-yellow-800" id="confirmationWarning">This action can be undone from the archive management page.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="flex gap-3 justify-end">
+                <button onclick="closeConfirmationModal()" class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmArchiveAction()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors font-medium" id="confirmButton">
+                    Archive Record
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="h-screen w-full bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla overflow-hidden">
     <!-- Header -->
     <div class="bg-white/95 backdrop-blur-md shadow-xl border-b border-clinic-tea/20">
@@ -255,53 +302,99 @@ function editMedicalRecord(recordId) {
     window.location.href = `../medical/edit_medical_record.php?id=${recordId}`;
 }
 
+// Global variable to store current record ID for archiving
+let currentRecordId = null;
+
 function archiveMedicalRecord(recordId) {
-    console.log('archiveMedicalRecord called with ID:', recordId);
+    currentRecordId = recordId;
     
-    if (confirm('Are you sure you want to archive this medical record? It will be moved to archived records.')) {
-        console.log('User confirmed archiving');
-        
-        // Show loading notification
-        showNotification('Archiving medical record...', 'info');
-        
-        // Show loading on button
-        const button = event.target;
-        const originalText = button.textContent;
-        button.textContent = 'Archiving...';
-        button.disabled = true;
-        
-        // Archive medical record using the same system as visitation logs
-        fetch('../admin/archive_medical_record.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `id=${recordId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show success message and reload the page
-                showNotification('Medical record archived successfully!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                // Show error message
-                showNotification('Error archiving medical record: ' + data.message, 'error');
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        })
-        .catch(error => {
-            console.error('Error archiving medical record:', error);
-            showNotification('Error archiving medical record. Please try again.', 'error');
+    // Update modal content
+    document.getElementById('confirmationTitle').textContent = 'Archive Medical Record';
+    document.getElementById('confirmationMessage').textContent = 'Are you sure you want to archive this medical record?';
+    document.getElementById('confirmationWarning').textContent = 'This action can be undone from the archive management page.';
+    document.getElementById('confirmButton').textContent = 'Archive Record';
+    
+    // Show modal
+    showConfirmationModal();
+}
+
+// Show confirmation modal
+function showConfirmationModal() {
+    const modal = document.getElementById('confirmationModal');
+    const content = document.getElementById('confirmationModalContent');
+    
+    modal.classList.remove('hidden');
+    
+    // Trigger animation
+    setTimeout(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// Close confirmation modal
+function closeConfirmationModal() {
+    const modal = document.getElementById('confirmationModal');
+    const content = document.getElementById('confirmationModalContent');
+    
+    content.classList.remove('scale-100', 'opacity-100');
+    content.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+// Confirm archive action
+function confirmArchiveAction() {
+    if (!currentRecordId) return;
+    
+    // Close modal first
+    closeConfirmationModal();
+    
+    console.log('User confirmed archiving record:', currentRecordId);
+    
+    // Show loading notification
+    showNotification('Archiving medical record...', 'info');
+    
+    // Show loading on button
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = 'Archiving...';
+    button.disabled = true;
+    
+    // Archive medical record using the same system as visitation logs
+    fetch('../admin/archive_medical_record.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `id=${currentRecordId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message and reload the page
+            showNotification('Medical record archived successfully!', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        } else {
+            // Show error message
+            showNotification('Error archiving medical record: ' + data.message, 'error');
             button.textContent = originalText;
             button.disabled = false;
-        });
-    } else {
-        console.log('User cancelled archiving');
-    }
+        }
+    })
+    .catch(error => {
+        console.error('Error archiving medical record:', error);
+        showNotification('Error archiving medical record. Please try again.', 'error');
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+    
+    // Reset current record ID
+    currentRecordId = null;
 }
 
 // Popup notification functions

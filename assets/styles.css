@@ -837,6 +837,188 @@ button[disabled] { opacity:.5; cursor:not-allowed; }
     }
 }
 
+/* Mobile Responsiveness Improvements */
+@media (max-width: 640px) {
+    /* Form improvements */
+    .form-input-mobile {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 12px 16px !important;
+    }
+    
+    /* Better spacing for mobile forms */
+    .mobile-form-spacing {
+        gap: 1rem !important;
+        padding: 1rem !important;
+    }
+    
+    /* Mobile-friendly buttons */
+    .mobile-button {
+        min-height: 44px !important; /* iOS recommended touch target */
+        padding: 12px 20px !important;
+        font-size: 16px !important;
+    }
+    
+    /* Improve modal responsiveness */
+    .mobile-modal {
+        margin: 1rem !important;
+        max-height: calc(100vh - 2rem) !important;
+    }
+    
+    /* Better table responsiveness */
+    .mobile-table {
+        font-size: 14px !important;
+    }
+    
+    .mobile-table th,
+    .mobile-table td {
+        padding: 8px 4px !important;
+    }
+    
+    /* Stack form elements on mobile */
+    .mobile-stack {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Improve notification positioning */
+    .mobile-notification {
+        top: 1rem !important;
+        right: 1rem !important;
+        left: 1rem !important;
+        transform: none !important;
+    }
+}
+
+/* Tablet improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .tablet-form-spacing {
+        gap: 1.5rem !important;
+        padding: 1.5rem !important;
+    }
+    
+    .tablet-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Form validation improvements */
+.form-field {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.form-field.error input,
+.form-field.error select,
+.form-field.error textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.form-field.success input,
+.form-field.success select,
+.form-field.success textarea {
+    border-color: #059669 !important;
+    background-color: #f0fdf4 !important;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+}
+
+.form-field .field-error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.form-field .field-error::before {
+    content: "⚠";
+    font-size: 0.75rem;
+}
+
+.form-field .field-success {
+    color: #059669;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.form-field .field-success::before {
+    content: "✓";
+    font-size: 0.75rem;
+}
+
+.form-field .field-help {
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* Improved notification styling */
+.notification.error {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    border-left: 4px solid #991b1b !important;
+}
+
+.notification.success {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    border-left: 4px solid #065f46 !important;
+}
+
+.notification.info {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    border-left: 4px solid #1e40af !important;
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, #d97706, #b45309) !important;
+    border-left: 4px solid #92400e !important;
+}
+
+/* Real-time validation feedback */
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    transition: all 0.3s ease;
+}
+
+.form-field input:invalid:not(:focus):not(:placeholder-shown),
+.form-field select:invalid:not(:focus),
+.form-field textarea:invalid:not(:focus):not(:placeholder-shown) {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+}
+
+.form-field input:valid:not(:focus):not(:placeholder-shown),
+.form-field select:valid:not(:focus),
+.form-field textarea:valid:not(:focus):not(:placeholder-shown) {
+    border-color: #059669;
+    background-color: #f0fdf4;
+}
+
+/* Improved focus states for accessibility */
+.form-input:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Better mobile touch targets */
+@media (max-width: 640px) {
+    button, 
+    .btn, 
+    input[type="submit"], 
+    input[type="button"],
+    a.button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
 /* Tooltip Styles */
 .tooltip-container {
     position: relative;

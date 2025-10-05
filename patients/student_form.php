@@ -132,15 +132,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$contacts = $_POST['contacts'] ?? [];
 		$consented = isset($_POST['consented']);
 
-		if ($name === '' || $gender === '' || $level === '' || $rfid === '') { $errors[] = 'Name, Gender, Level and RFID are required.'; }
-		if ($dob !== '' && !preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dob)) { $errors[] = 'DOB must be DD/MM/YYYY.'; }
-		if (!$consented) { $errors[] = 'You must agree to the data privacy consent.'; }
+		if ($name === '' || $gender === '' || $level === '' || $rfid === '') { 
+			$errors[] = 'Please fill in all required fields: Name, Gender, Education Level, and RFID.'; 
+		}
+		if ($dob !== '' && !preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dob)) { 
+			$errors[] = 'Date of Birth must be in DD/MM/YYYY format (e.g., 15/03/2005).'; 
+		}
+		if (!$consented) { 
+			$errors[] = 'You must agree to the data privacy consent to continue.'; 
+		}
 		
 		// Validate that at least one contact is provided
 		$validContacts = array_filter(array_map('trim', (array)$contacts), function($contact) {
 			return !empty($contact);
 		});
-		if (empty($validContacts)) { $errors[] = 'At least one contact number is required.'; }
+		if (empty($validContacts)) { 
+			$errors[] = 'Please provide at least one contact number for emergency purposes.'; 
+		}
+		
+		// Additional validation for better user experience
+		if ($name !== '' && strlen($name) < 2) {
+			$errors[] = 'Name must be at least 2 characters long.';
+		}
+		
+		if ($rfid !== '' && strlen($rfid) < 3) {
+			$errors[] = 'RFID must be at least 3 characters long.';
+		}
+		
+		if ($age > 0 && ($age < 3 || $age > 100)) {
+			$errors[] = 'Age must be between 3 and 100 years.';
+		}
 
 		if (!$errors) {
 			// Check for re-enrollment scenario (only for new registrations, not edits)
@@ -269,8 +290,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ?>
 <?php $pageTitle = $id ? 'Edit Student' : 'Register Student'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
-	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
-		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-full flex flex-col">
+	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-2 sm:p-4 md:p-8 overflow-hidden">
+		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-4 sm:p-6 md:p-10 max-h-full flex flex-col">
 			<!-- Back Button -->
 			<div class="mb-4">
 				<button onclick="goBack()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200">
@@ -350,20 +371,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
-			<form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
+			<form method="post" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
 				<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
-				<div>
+				<div class="form-field">
 					<label class="block text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
 					<input type="text" name="name" value="<?= htmlspecialchars($student['name'] ?? '') ?>" 
 						   placeholder="e.g., Juan Dela Cruz Santos" 
-						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" 
 						   required 
 						   autofocus
+						   minlength="2"
 						   data-next-field="gender" />
+					<div class="field-help">Enter the student's complete legal name</div>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Gender <span class="text-red-500">*</span></label>
-					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="level">
+					<select name="gender" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" required data-next-field="level">
 						<option value="">Select Gender</option>
 						<option value="Male" <?= ($student['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
 						<option value="Female" <?= ($student['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
@@ -371,7 +394,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Education Level <span class="text-red-500">*</span></label>
-					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" required data-next-field="rfid">
+					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" required data-next-field="rfid">
 						<option value="">Select Education Level</option>
 						<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel) === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
 						<option value="Elementary" <?= (($student['level'] ?? $prefillLevel) === 'Elementary') ? 'selected' : '' ?>>Elementary</option>
@@ -431,13 +454,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						<option value="GAS" <?= ($student['strand'] ?? '') === 'GAS' ? 'selected' : '' ?>>GAS (General Academic Strand)</option>
 					</select>
 				</div>
-				<div>
+				<div class="form-field">
 					<label class="block text-slate-700 mb-1">RFID Number <span class="text-red-500">*</span></label>
 					<input type="text" name="rfid" value="<?= htmlspecialchars($prefillRfid) ?>" 
 						   placeholder="e.g., 1234567890" 
-						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
+						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" 
 						   required 
+						   minlength="3"
+						   pattern="[A-Za-z0-9]+"
 						   data-next-field="barangay" />
+					<div class="field-help">Enter the student's RFID card number (letters and numbers only)</div>
 				</div>
 				<div class="md:col-span-2">
 					<label class="block text-slate-700 mb-1">Complete Address</label>
@@ -680,7 +706,82 @@ document.addEventListener('DOMContentLoaded', () => {
         <?php endforeach; ?>
     <?php endif; ?>
     
-    // Level change handler to show/hide dependent fields
+    // Real-time validation feedback
+    function setupRealTimeValidation() {
+        const form = document.querySelector('form');
+        const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+        
+        inputs.forEach(input => {
+            const field = input.closest('.form-field');
+            if (!field) return;
+            
+            // Add validation on blur
+            input.addEventListener('blur', function() {
+                validateField(this, field);
+            });
+            
+            // Add validation on input for immediate feedback
+            input.addEventListener('input', function() {
+                if (this.value.length > 0) {
+                    validateField(this, field);
+                }
+            });
+        });
+    }
+    
+    function validateField(input, field) {
+        const value = input.value.trim();
+        const fieldName = input.name;
+        
+        // Remove existing validation classes and messages
+        field.classList.remove('error', 'success');
+        const existingError = field.querySelector('.field-error');
+        const existingSuccess = field.querySelector('.field-success');
+        if (existingError) existingError.remove();
+        if (existingSuccess) existingSuccess.remove();
+        
+        // Validate based on field type
+        let isValid = true;
+        let errorMessage = '';
+        
+        if (input.hasAttribute('required') && !value) {
+            isValid = false;
+            errorMessage = 'This field is required.';
+        } else if (fieldName === 'name' && value.length < 2) {
+            isValid = false;
+            errorMessage = 'Name must be at least 2 characters long.';
+        } else if (fieldName === 'rfid' && value.length < 3) {
+            isValid = false;
+            errorMessage = 'RFID must be at least 3 characters long.';
+        } else if (fieldName === 'rfid' && value && !/^[A-Za-z0-9]+$/.test(value)) {
+            isValid = false;
+            errorMessage = 'RFID can only contain letters and numbers.';
+        } else if (fieldName === 'dob' && value && !/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+            isValid = false;
+            errorMessage = 'Date must be in DD/MM/YYYY format.';
+        } else if (fieldName === 'age' && value && (parseInt(value) < 3 || parseInt(value) > 100)) {
+            isValid = false;
+            errorMessage = 'Age must be between 3 and 100 years.';
+        }
+        
+        // Apply validation result
+        if (value && isValid) {
+            field.classList.add('success');
+            const successDiv = document.createElement('div');
+            successDiv.className = 'field-success';
+            successDiv.textContent = 'Looks good!';
+            field.appendChild(successDiv);
+        } else if (!isValid) {
+            field.classList.add('error');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'field-error';
+            errorDiv.textContent = errorMessage;
+            field.appendChild(errorDiv);
+        }
+    }
+    
+    // Initialize real-time validation
+    setupRealTimeValidation();
     const levelSelect = document.getElementById('levelSelect');
     const yearGradeField = document.getElementById('yearGradeField');
     const yearGradeLabel = document.getElementById('yearGradeLabel');

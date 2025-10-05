@@ -53,6 +53,53 @@ include __DIR__ . '/../partials/header.php';
 <!-- Popup Notification Container -->
 <div id="notificationContainer" class="fixed top-20 right-4 z-50"></div>
 
+<!-- Confirmation Modal -->
+<div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="confirmationModalContent">
+        <div class="p-6">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900" id="confirmationTitle">Confirm Action</h3>
+                </div>
+                <button onclick="closeConfirmationModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="mb-6">
+                <p class="text-gray-600" id="confirmationMessage">Are you sure you want to perform this action?</p>
+                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start gap-2">
+                        <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <p class="text-sm text-yellow-800" id="confirmationWarning">This action can be undone from the archive management page.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="flex gap-3 justify-end">
+                <button onclick="closeConfirmationModal()" class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium">
+                    Cancel
+                </button>
+                <button onclick="confirmArchiveAction()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-medium" id="confirmButton">
+                    Archive Faculty
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="h-[calc(100vh-5rem)] flex flex-col p-4">
     <div class="w-full bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 flex flex-col h-full">
         <!-- Header -->
@@ -83,51 +130,50 @@ include __DIR__ . '/../partials/header.php';
             </div>
 
             <!-- Search and Filters -->
-            <div class="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl border border-clinic-tea/20 p-6">
-                <form method="GET" class="space-y-4">
-                    <!-- Search Row -->
-                    <div class="flex flex-col md:flex-row gap-4">
-                        <div class="flex-1">
-                            <input type="text" id="liveSearch" 
-                                   placeholder="Search by name, RFID, or department..." 
-                                   class="w-full px-6 py-4 border border-clinic-tea/30 rounded-2xl focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark placeholder-clinic-dark/50 font-poppins"
+            <form method="GET" class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 p-4 space-y-4">
+                <!-- Search Row -->
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex-1">
+                        <input type="text" id="liveSearch" 
+                               placeholder="Search by name, RFID, or department..." 
+                                   class="w-full px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark placeholder-clinic-dark/50 font-poppins text-sm"
                                    style="background-color: #fbfcee !important; color: #343b1b !important;">
-                        </div>
-                        <div class="flex gap-3">
-                            <button type="button" id="clearSearch" 
-                                    class="group px-6 py-4 bg-clinic-dark/10 border border-clinic-dark/20 text-clinic-dark rounded-2xl hover:bg-clinic-dark/20 hover:border-clinic-dark/30 hover:shadow-lg transition-all duration-300 flex items-center gap-2 font-poppins font-medium">
-                                <div class="w-6 h-6 rounded-lg bg-clinic-dark/20 flex items-center justify-center group-hover:bg-clinic-dark/30 transition-colors duration-200">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                    </svg>
-                                </div>
-                                Clear
-                            </button>
-                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button type="button" id="clearSearch" 
+                                class="px-3 py-2 bg-clinic-dark/10 border border-clinic-dark/20 text-clinic-dark rounded-lg hover:bg-clinic-dark/20 hover:border-clinic-dark/30 hover:shadow-lg transition-all duration-300 flex items-center gap-1 font-poppins font-medium text-sm">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Sorting and Filters Row -->
+                <div class="flex items-center gap-3 overflow-x-auto whitespace-nowrap">
+                    <!-- Sorting -->
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <label class="text-xs font-poppins font-medium text-clinic-dark whitespace-nowrap">Sort by:</label>
+                        <select name="sort" class="px-2 py-1.5 border border-clinic-tea/30 rounded-md focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-xs min-w-[100px]">
+                            <option value="name" <?= $sortBy === 'name' ? 'selected' : '' ?>>Name</option>
+                            <option value="department" <?= $sortBy === 'department' ? 'selected' : '' ?>>Department</option>
+                            <option value="rfid" <?= $sortBy === 'rfid' ? 'selected' : '' ?>>RFID</option>
+                            <option value="age" <?= $sortBy === 'age' ? 'selected' : '' ?>>Age</option>
+                            <option value="created_at" <?= $sortBy === 'created_at' ? 'selected' : '' ?>>Date Added</option>
+                        </select>
+                        <select name="order" class="px-2 py-1.5 border border-clinic-tea/30 rounded-md focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-xs min-w-[100px]">
+                            <option value="asc" <?= $sortOrder === 'asc' ? 'selected' : '' ?>>Ascending</option>
+                            <option value="desc" <?= $sortOrder === 'desc' ? 'selected' : '' ?>>Descending</option>
+                        </select>
                     </div>
                     
-                    <!-- Sorting Row -->
-                    <div class="flex flex-col md:flex-row gap-4 items-center">
-                        <div class="flex items-center gap-3">
-                            <label class="text-sm font-poppins font-medium text-clinic-dark">Sort by:</label>
-                            <select name="sort" class="px-4 py-2 border border-clinic-tea/30 rounded-xl focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins">
-                                <option value="name" <?= $sortBy === 'name' ? 'selected' : '' ?>>Name</option>
-                                <option value="department" <?= $sortBy === 'department' ? 'selected' : '' ?>>Department</option>
-                                <option value="rfid" <?= $sortBy === 'rfid' ? 'selected' : '' ?>>RFID</option>
-                                <option value="age" <?= $sortBy === 'age' ? 'selected' : '' ?>>Age</option>
-                                <option value="created_at" <?= $sortBy === 'created_at' ? 'selected' : '' ?>>Date Added</option>
-                            </select>
-                            <select name="order" class="px-4 py-2 border border-clinic-tea/30 rounded-xl focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins">
-                                <option value="asc" <?= $sortOrder === 'asc' ? 'selected' : '' ?>>Ascending</option>
-                                <option value="desc" <?= $sortOrder === 'desc' ? 'selected' : '' ?>>Descending</option>
-                            </select>
-                        </div>
-                        <div class="text-sm text-clinic-dark/60 font-poppins">
-                            Showing <?= $totalRecords ?> faculty members
-                        </div>
+                    <!-- Faculty Count -->
+                    <div class="text-xs text-clinic-dark/60 font-poppins bg-clinic-ivory/20 px-2 py-1 rounded-md flex-shrink-0">
+                        Showing <?= $totalRecords ?> faculty members
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
 
         <!-- Results -->
@@ -312,40 +358,94 @@ function showNotification(message, type = 'info') {
     }, 2000);
 }
 
-// Archive faculty function
+// Global variable to store current faculty ID for archiving
+let currentFacultyId = null;
+
+// Archive faculty function - shows confirmation modal
 function archiveFaculty(facultyId) {
-    if (confirm('Are you sure you want to archive this faculty member? This action can be undone from the archive management page.')) {
-        // Show loading notification
-        showNotification('Archiving faculty member...', 'info');
-        
-        // Create form data
-        const formData = new FormData();
-        formData.append('faculty_id', facultyId);
-        formData.append('csrf_token', '<?= csrf_token() ?>');
-        
-        // Submit via AJAX
-        fetch('../admin/archive_faculty.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.text())
-        .then(data => {
-            // Check if the response indicates success
-            if (data.includes('archived=1') || data.includes('success')) {
-                showNotification('Faculty member archived successfully!', 'success');
-                // Reload the page after a short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification('Error archiving faculty member. Please try again.', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+    currentFacultyId = facultyId;
+    
+    // Get faculty name for confirmation message
+    const facultyRow = document.querySelector(`[data-name][onclick*="${facultyId}"]`);
+    const facultyName = facultyRow ? facultyRow.querySelector('.font-medium')?.textContent || 'this faculty member' : 'this faculty member';
+    
+    // Update modal content
+    document.getElementById('confirmationTitle').textContent = 'Archive Faculty';
+    document.getElementById('confirmationMessage').textContent = `Are you sure you want to archive ${facultyName}?`;
+    document.getElementById('confirmationWarning').textContent = 'This action can be undone from the archive management page.';
+    document.getElementById('confirmButton').textContent = 'Archive Faculty';
+    
+    // Show modal
+    showConfirmationModal();
+}
+
+// Show confirmation modal
+function showConfirmationModal() {
+    const modal = document.getElementById('confirmationModal');
+    const content = document.getElementById('confirmationModalContent');
+    
+    modal.classList.remove('hidden');
+    
+    // Trigger animation
+    setTimeout(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+// Close confirmation modal
+function closeConfirmationModal() {
+    const modal = document.getElementById('confirmationModal');
+    const content = document.getElementById('confirmationModalContent');
+    
+    content.classList.remove('scale-100', 'opacity-100');
+    content.classList.add('scale-95', 'opacity-0');
+    
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300);
+}
+
+// Confirm archive action
+function confirmArchiveAction() {
+    if (!currentFacultyId) return;
+    
+    // Close modal first
+    closeConfirmationModal();
+    
+    // Show loading notification
+    showNotification('Archiving faculty member...', 'info');
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('faculty_id', currentFacultyId);
+    formData.append('csrf_token', '<?= csrf_token() ?>');
+    
+    // Submit via AJAX
+    fetch('../admin/archive_faculty.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.text())
+    .then(data => {
+        // Check if the response indicates success
+        if (data.includes('archived=1') || data.includes('success')) {
+            showNotification('Faculty member archived successfully!', 'success');
+            // Reload the page after a short delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
             showNotification('Error archiving faculty member. Please try again.', 'error');
-        });
-    }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error archiving faculty member. Please try again.', 'error');
+    });
+    
+    // Reset current faculty ID
+    currentFacultyId = null;
 }
 
 // Live search functionality

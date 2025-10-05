@@ -3162,9 +3162,6 @@ function removeContactNumber(button) {
 
     // Print patient record function
     function printPatientRecord() {
-        // Store original body content
-        const originalBody = document.body.innerHTML;
-        
         // Create the print content
         const printContent = `
             <!DOCTYPE html>
@@ -3403,20 +3400,28 @@ function removeContactNumber(button) {
             </html>
         `;
         
-        // Replace body content with print content
-        document.body.innerHTML = printContent;
+        // Create a hidden iframe for printing
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '-9999px';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
         
-        // Trigger print
-        window.print();
+        document.body.appendChild(iframe);
         
-        // Restore original content
-        setTimeout(() => {
-            document.body.innerHTML = originalBody;
-            // Re-initialize any necessary event listeners
-            if (typeof initializeEditForm === 'function') {
-                initializeEditForm();
-            }
-        }, 1000);
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(printContent);
+        iframeDoc.close();
+        
+        iframe.onload = function() {
+            iframe.contentWindow.print();
+            setTimeout(() => {
+                document.body.removeChild(iframe);
+            }, 1000);
+        };
     }
 </script>
 
