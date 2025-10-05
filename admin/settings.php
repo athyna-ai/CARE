@@ -1511,15 +1511,22 @@ try {
 
 <!-- Log Details Modal -->
 <div id="logDetailsModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden">
+    <div id="logModalContent" class="bg-white rounded-2xl shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden transition-all duration-300">
         <div class="p-6 border-b border-clinic-tea/20">
             <div class="flex justify-between items-center">
                 <h3 class="text-xl font-bold text-clinic-dark">Log Details</h3>
-                <button onclick="closeLogDetails()" class="text-clinic-dark/60 hover:text-clinic-dark">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
+                <div class="flex items-center gap-3">
+                    <button id="fullscreenToggle" onclick="toggleFullscreen()" class="text-clinic-dark/60 hover:text-clinic-dark transition-colors" title="Toggle Fullscreen">
+                        <svg id="fullscreenIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                        </svg>
+                    </button>
+                    <button onclick="closeLogDetails()" class="text-clinic-dark/60 hover:text-clinic-dark">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="p-6 overflow-y-auto max-h-[75vh]" id="logDetailsContent">
@@ -1800,6 +1807,74 @@ function viewFullLogs(date, logType, logStatus) {
 function closeLogDetails() {
     document.getElementById('logDetailsModal').classList.add('hidden');
     document.getElementById('logDetailsModal').classList.remove('flex');
+    // Reset modal to normal size when closing
+    resetModalSize();
+}
+
+// Fullscreen toggle functionality
+function toggleFullscreen() {
+    const modal = document.getElementById('logDetailsModal');
+    const modalContent = document.getElementById('logModalContent');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
+    const logDetailsContent = document.getElementById('logDetailsContent');
+    
+    if (modalContent.classList.contains('fullscreen')) {
+        // Exit fullscreen
+        modalContent.classList.remove('fullscreen');
+        modalContent.classList.add('max-w-7xl', 'max-h-[90vh]');
+        modalContent.classList.remove('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+        modalContent.style.top = ''; // Reset top position
+        logDetailsContent.classList.add('max-h-[75vh]');
+        logDetailsContent.classList.remove('max-h-[calc(100vh-12rem)]');
+        
+        // Update icon to expand
+        fullscreenIcon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+        `;
+        
+        // Update tooltip
+        document.getElementById('fullscreenToggle').title = 'Enter Fullscreen';
+        
+    } else {
+        // Enter fullscreen (but respect header space)
+        modalContent.classList.add('fullscreen');
+        modalContent.classList.remove('max-w-7xl', 'max-h-[90vh]');
+        modalContent.classList.add('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+        modalContent.style.top = '5rem'; // Start below header
+        logDetailsContent.classList.remove('max-h-[75vh]');
+        logDetailsContent.classList.add('max-h-[calc(100vh-12rem)]'); // Account for header + modal header
+        
+        // Update icon to compress
+        fullscreenIcon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5"></path>
+        `;
+        
+        // Update tooltip
+        document.getElementById('fullscreenToggle').title = 'Exit Fullscreen';
+    }
+}
+
+// Reset modal size when closing
+function resetModalSize() {
+    const modalContent = document.getElementById('logModalContent');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
+    const logDetailsContent = document.getElementById('logDetailsContent');
+    
+    // Reset to normal size
+    modalContent.classList.remove('fullscreen');
+    modalContent.classList.add('max-w-7xl', 'max-h-[90vh]');
+    modalContent.classList.remove('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+    modalContent.style.top = ''; // Reset top position
+    logDetailsContent.classList.add('max-h-[75vh]');
+    logDetailsContent.classList.remove('max-h-[calc(100vh-12rem)]');
+    
+    // Reset icon
+    fullscreenIcon.innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+    `;
+    
+    // Reset tooltip
+    document.getElementById('fullscreenToggle').title = 'Toggle Fullscreen';
 }
 
 function clearFilters() {
@@ -1816,6 +1891,22 @@ function clearFilters() {
 document.getElementById('logDetailsModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeLogDetails();
+    }
+});
+
+// Keyboard shortcuts for modal
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('logDetailsModal');
+    if (!modal.classList.contains('hidden')) {
+        // F11 key for fullscreen toggle
+        if (e.key === 'F11') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+        // Escape key to close modal
+        if (e.key === 'Escape') {
+            closeLogDetails();
+        }
     }
 });
 
@@ -1937,5 +2028,52 @@ function exportSecurityReport() {
 
 
 </script>
+
+<style>
+/* Fullscreen modal styles */
+#logModalContent.fullscreen {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    position: fixed !important;
+    top: 5rem !important; /* Start below header */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+}
+
+#logModalContent.fullscreen .p-6 {
+    padding: 1.5rem !important;
+}
+
+/* Smooth transitions for fullscreen toggle */
+#logModalContent {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Fullscreen icon animations */
+#fullscreenToggle:hover #fullscreenIcon {
+    transform: scale(1.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Better scrollbar styling for fullscreen */
+#logDetailsContent::-webkit-scrollbar {
+    width: 8px;
+}
+
+#logDetailsContent::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+#logDetailsContent::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+#logDetailsContent::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+</style>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>
