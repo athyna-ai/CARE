@@ -1,4 +1,19 @@
 <?php
+// =============================================================================
+// ABOUT US PAGE - CONTENT EDITING GUIDE
+// =============================================================================
+// 
+// ⚠️  DO NOT EDIT THE PHP CODE BELOW (Lines 1-16) ⚠️
+// This section handles security, authentication, and page setup
+// 
+// ✅ SAFE TO EDIT: HTML CONTENT SECTION (Lines 18-45)
+// You can safely edit the content between the <div> tags
+// 
+// ⚠️  DO NOT EDIT: FOOTER INCLUDE (Line 47) ⚠️
+// This includes the page footer
+//
+// =============================================================================
+
 declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
@@ -14,6 +29,11 @@ $showTopNav = true;
 $showSidebar = true;
 include __DIR__ . '/../partials/header.php';
 ?>
+
+<!-- ============================================================================= -->
+<!-- ✅ SAFE TO EDIT: HTML CONTENT SECTION STARTS HERE -->
+<!-- You can edit everything between this comment and the "ENDS HERE" comment below -->
+<!-- ============================================================================= -->
 
 <div class="min-h-screen bg-gradient-to-br from-clinic-ivory/30 via-white to-clinic-tea/20 flex items-center justify-center p-4">
     <div class="max-w-2xl mx-auto text-center">
@@ -44,4 +64,9 @@ include __DIR__ . '/../partials/header.php';
     </div>
 </div>
 
+<!-- ============================================================================= -->
+<!-- ✅ SAFE TO EDIT: HTML CONTENT SECTION ENDS HERE -->
+<!-- ============================================================================= -->
+
+<!-- ⚠️  DO NOT EDIT: FOOTER INCLUDE BELOW ⚠️ -->
 <?php include __DIR__ . '/../partials/footer.php'; ?>
