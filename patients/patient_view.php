@@ -3222,6 +3222,8 @@ function removeContactNumber(button) {
                             gap: 30px !important;
                             text-align: left !important;
                             margin-top: 20px !important;
+                            border-bottom: 2px solid #000 !important;
+                            padding-bottom: 20px !important;
                         }
                         .print-section {
                             border: 1px solid #000 !important;
@@ -3284,58 +3286,74 @@ function removeContactNumber(button) {
                                     <span class="print-label">Type:</span>
                                     <span class="print-value"><?= ucfirst($patientType) ?></span>
                                 </div>
+                                <?php if (!empty($patient['age']) && $patient['age'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Age:</span>
-                                    <span class="print-value"><?= htmlspecialchars((string)($patient['age'] ?? 'N/A')) ?> years old</span>
+                                    <span class="print-value"><?= htmlspecialchars((string)$patient['age']) ?> years old</span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['gender']) && $patient['gender'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Gender:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['gender'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['gender']) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['dob']) && $patient['dob'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Date of Birth:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['dob'] ? date('M j, Y', strtotime($patient['dob'])) : 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars(date('M j, Y', strtotime($patient['dob']))) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['religion']) && $patient['religion'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Religion:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['religion'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['religion']) ?></span>
                                 </div>
+                                <?php endif; ?>
                                 <?php if ($patientType === 'student'): ?>
+                                <?php if (!empty($patient['level']) && $patient['level'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Level:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['level'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['level']) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['year_grade']) && $patient['year_grade'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Year/Grade:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['year_grade'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['year_grade']) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['section']) && $patient['section'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Section:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['section'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['section']) ?></span>
                                 </div>
-                                <?php if (!empty($patient['course'])): ?>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['course']) && $patient['course'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Course:</span>
                                     <span class="print-value"><?= htmlspecialchars($patient['course']) ?></span>
                                 </div>
                                 <?php endif; ?>
-                                <?php if (!empty($patient['strand'])): ?>
+                                <?php if (!empty($patient['strand']) && $patient['strand'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Strand:</span>
                                     <span class="print-value"><?= htmlspecialchars($patient['strand']) ?></span>
                                 </div>
                                 <?php endif; ?>
-                                <?php if (!empty($patient['block'])): ?>
+                                <?php if (!empty($patient['block']) && $patient['block'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Block:</span>
                                     <span class="print-value"><?= htmlspecialchars($patient['block']) ?></span>
                                 </div>
                                 <?php endif; ?>
                                 <?php else: ?>
+                                <?php if (!empty($patient['department']) && $patient['department'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Department:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['department'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['department']) ?></span>
                                 </div>
+                                <?php endif; ?>
                                 <div class="print-field">
                                     <span class="print-label">Senior:</span>
                                     <span class="print-value"><?= ($patient['sr'] ?? 0) ? 'Yes' : 'No' ?></span>
@@ -3346,18 +3364,24 @@ function removeContactNumber(button) {
                         <div>
                             <div class="print-section">
                                 <h3>Contact Information</h3>
+                                <?php if (!empty($patient['address']) && $patient['address'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Address:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['address'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['address']) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['guardian']) && $patient['guardian'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Guardian:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['guardian'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['guardian']) ?></span>
                                 </div>
+                                <?php endif; ?>
+                                <?php if (!empty($patient['emergency_contact']) && $patient['emergency_contact'] !== 'N/A'): ?>
                                 <div class="print-field">
                                     <span class="print-label">Emergency Contact:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['emergency_contact'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['emergency_contact']) ?></span>
                                 </div>
+                                <?php endif; ?>
                             </div>
                             <div class="print-section">
                                 <h3>Medical Information</h3>
@@ -3365,10 +3389,12 @@ function removeContactNumber(button) {
                                     <span class="print-label">Allergies:</span>
                                     <span class="print-value"><?= htmlspecialchars($patient['allergies'] ?? 'None') ?></span>
                                 </div>
+                                <?php if (!empty($patient['rfid'])): ?>
                                 <div class="print-field">
                                     <span class="print-label">RFID:</span>
-                                    <span class="print-value"><?= htmlspecialchars($patient['rfid'] ?? 'N/A') ?></span>
+                                    <span class="print-value"><?= htmlspecialchars($patient['rfid']) ?></span>
                                 </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>

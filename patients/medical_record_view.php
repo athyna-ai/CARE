@@ -1246,56 +1246,256 @@ function goBack() {
 
 // Print medical record function
 function printMedicalRecord() {
-    // Add print-specific classes to target only medical form content
-    const mainContent = document.querySelector('.min-h-screen');
-    if (mainContent) {
-        mainContent.classList.add('medical-record', 'print-medical-form');
-        
-        // Hide all sections except the medical form content
-        const allSections = mainContent.querySelectorAll('div');
-        allSections.forEach(section => {
-            // Keep only sections with medical form content
-            if (!section.classList.contains('bg-white') && 
-                !section.querySelector('.bg-slate-50') &&
-                !section.querySelector('.space-y-6')) {
-                section.style.display = 'none';
-            }
-        });
-        
-        // Show only the main content area
-        const contentArea = mainContent.querySelector('.max-w-7xl');
-        if (contentArea) {
-            contentArea.style.display = 'block';
-        }
-    }
-    
-    // Add print footer with timestamp
-    const printFooter = document.createElement('div');
-    printFooter.className = 'print-footer';
-    printFooter.innerHTML = `
-        <div>Printed on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
-        <div>CARE: Clinic Administration of Records System</div>
-        <div>Medical Record #<?= $record['id'] ?> - <?= htmlspecialchars($patient['name']) ?></div>
+    // Create print content with CARE header and proper formatting
+    const printContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Medical Record - <?= htmlspecialchars($patient['name']) ?></title>
+            <style>
+                @media print {
+                    @page {
+                        margin: 0;
+                        size: A4;
+                    }
+                    
+                    body {
+                        font-family: 'Arial', sans-serif;
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: white;
+                        margin: 0;
+                        padding: 20px;
+                    }
+                    
+                    .print-header {
+                        text-align: center;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 10px;
+                    }
+                    
+                    .print-logo {
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: #2563eb;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .print-institution {
+                        font-size: 14px;
+                        font-weight: 600;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .print-subtitle {
+                        font-size: 16px;
+                        font-weight: bold;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .print-content {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 20px;
+                        margin-bottom: 20px;
+                        border-bottom: 2px solid #000;
+                        padding-bottom: 20px;
+                    }
+                    
+                    .print-section {
+                        margin-bottom: 15px;
+                    }
+                    
+                    .print-section-title {
+                        font-weight: bold;
+                        font-size: 14px;
+                        margin-bottom: 8px;
+                        border-bottom: 1px solid #ccc;
+                        padding-bottom: 3px;
+                    }
+                    
+                    .print-field {
+                        margin-bottom: 5px;
+                        display: flex;
+                    }
+                    
+                    .print-label {
+                        font-weight: bold;
+                        min-width: 120px;
+                        margin-right: 10px;
+                    }
+                    
+                    .print-value {
+                        flex: 1;
+                    }
+                    
+                    .no-print {
+                        display: none !important;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <div class="print-logo">CARE</div>
+                <div class="print-institution">Our Lady of the Sacred Heart Inc.</div>
+                <div class="print-subtitle">Medical Record</div>
+            </div>
+            
+            <div class="print-content">
+                <!-- Patient Information -->
+                <div class="print-section">
+                    <div class="print-section-title">Patient Information</div>
+                    <div class="print-field">
+                        <span class="print-label">Name:</span>
+                        <span class="print-value"><?= htmlspecialchars($patient['name']) ?></span>
+                    </div>
+                    <div class="print-field">
+                        <span class="print-label">Type:</span>
+                        <span class="print-value"><?= ucfirst($record['patient_type']) ?></span>
+                    </div>
+                    <div class="print-field">
+                        <span class="print-label">Record ID:</span>
+                        <span class="print-value">#<?= $record['id'] ?></span>
+                    </div>
+                    <div class="print-field">
+                        <span class="print-label">Form Type:</span>
+                        <span class="print-value"><?= htmlspecialchars(ucfirst(str_replace('_', ' ', $record['form_type']))) ?></span>
+                    </div>
+                    <div class="print-field">
+                        <span class="print-label">Created:</span>
+                        <span class="print-value"><?= date('M j, Y g:i A', strtotime($record['created_at'])) ?></span>
+                    </div>
+                </div>
+                
+                <!-- Medical Information -->
+                <div class="print-section">
+                    <div class="print-section-title">Medical Information</div>
+                    <?php 
+                    $formData = json_decode($record['form_data'], true);
+                    if ($formData && is_array($formData)): 
+                    ?>
+                        <?php if (!empty($formData['ongoing_conditions'])): ?>
+                            <?php 
+                            $ongoingConditions = is_array($formData['ongoing_conditions']) ? $formData['ongoing_conditions'] : [$formData['ongoing_conditions']];
+                            $conditions = [];
+                            if (in_array('error_of_refraction', $ongoingConditions)) $conditions[] = 'Error of Refraction';
+                            if (in_array('asthma', $ongoingConditions)) $conditions[] = 'Asthma';
+                            if (in_array('seizure', $ongoingConditions)) $conditions[] = 'Seizure';
+                            if (in_array('heart_problem', $ongoingConditions)) $conditions[] = 'Heart Problem';
+                            if (in_array('anemia', $ongoingConditions)) $conditions[] = 'Anemia';
+                            if (in_array('bleeding_disorder', $ongoingConditions)) $conditions[] = 'Bleeding Disorder';
+                            if (in_array('hernia', $ongoingConditions)) $conditions[] = 'Hernia';
+                            if (in_array('tuberculosis', $ongoingConditions)) $conditions[] = 'Tuberculosis';
+                            if (in_array('diabetes', $ongoingConditions)) $conditions[] = 'Diabetes';
+                            if (in_array('hypertension', $ongoingConditions)) $conditions[] = 'Hypertension';
+                            if (in_array('kidney_disease', $ongoingConditions)) $conditions[] = 'Kidney Disease';
+                            if (in_array('liver_disease', $ongoingConditions)) $conditions[] = 'Liver Disease';
+                            if (in_array('cancer', $ongoingConditions)) $conditions[] = 'Cancer';
+                            if (in_array('mental_illness', $ongoingConditions)) $conditions[] = 'Mental Illness';
+                            if (in_array('others', $ongoingConditions) && !empty($formData['ongoing_conditions_other'])) {
+                                $conditions[] = $formData['ongoing_conditions_other'];
+                            }
+                            ?>
+                            <?php if (!empty($conditions)): ?>
+                                <div class="print-field">
+                                    <span class="print-label">Ongoing Conditions:</span>
+                                    <span class="print-value"><?= implode(', ', $conditions) ?></span>
+                                </div>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['allergies'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Allergies:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['allergies']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['medications'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Current Medications:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['medications']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['family_history'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Family History:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['family_history']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['previous_surgeries'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Previous Surgeries:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['previous_surgeries']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['immunizations'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Immunizations:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['immunizations']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($formData['additional_notes'])): ?>
+                            <div class="print-field">
+                                <span class="print-label">Additional Notes:</span>
+                                <span class="print-value"><?= htmlspecialchars($formData['additional_notes']) ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- Show all form data fields for debugging -->
+                        <?php foreach ($formData as $key => $value): ?>
+                            <?php if (!empty($value) && !in_array($key, ['ongoing_conditions', 'ongoing_conditions_other', 'allergies', 'medications', 'family_history', 'previous_surgeries', 'immunizations', 'additional_notes'])): ?>
+                                <div class="print-field">
+                                    <span class="print-label"><?= ucfirst(str_replace('_', ' ', $key)) ?>:</span>
+                                    <span class="print-value"><?= is_array($value) ? implode(', ', $value) : htmlspecialchars($value) ?></span>
+                                </div>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div class="print-field">
+                            <span class="print-label">Status:</span>
+                            <span class="print-value">No medical data available</span>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </body>
+        </html>
     `;
-    document.body.appendChild(printFooter);
     
-    // Trigger print dialog
-    window.print();
+    // Create a hidden iframe for printing without changing the main page
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.left = '-9999px';
+    iframe.style.top = '-9999px';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
     
-    // Clean up after printing
-    setTimeout(() => {
-        if (mainContent) {
-            mainContent.classList.remove('medical-record', 'print-medical-form');
-            // Restore all sections
-            const allSections = mainContent.querySelectorAll('div');
-            allSections.forEach(section => {
-                section.style.display = '';
-            });
-        }
-        if (printFooter && printFooter.parentNode) {
-            printFooter.parentNode.removeChild(printFooter);
-        }
-    }, 1000);
+    document.body.appendChild(iframe);
+    
+    // Write content to iframe
+    iframe.contentDocument.write(printContent);
+    iframe.contentDocument.close();
+    
+    // Wait for content to load, then print
+    iframe.onload = function() {
+        iframe.contentWindow.print();
+        
+        // Remove iframe after printing
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    };
 }
 </script>
 
