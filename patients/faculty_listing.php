@@ -155,9 +155,10 @@ include __DIR__ . '/../partials/header.php';
                 <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
                     <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                         <div class="col-span-2">ID/RFID</div>
-                        <div class="col-span-4">Name</div>
-                        <div class="col-span-4">Department</div>
+                        <div class="col-span-3">Name</div>
+                        <div class="col-span-3">Department</div>
                         <div class="col-span-2">Actions</div>
+                        <div class="col-span-2">Status</div>
                     </div>
                 </div>
 
@@ -167,12 +168,13 @@ include __DIR__ . '/../partials/header.php';
                         <div class="px-6 py-4 hover:bg-slate-50 transition-colors faculty-row" 
                              data-name="<?= htmlspecialchars(strtolower($member['name'] ?? '')) ?>"
                              data-rfid="<?= htmlspecialchars(strtolower($member['rfid'] ?? '')) ?>"
-                             data-department="<?= htmlspecialchars(strtolower($member['department'] ?? '')) ?>">
+                             data-department="<?= htmlspecialchars(strtolower($member['department'] ?? '')) ?>"
+                             data-status="<?= htmlspecialchars(strtolower($member['status'] ?? 'active')) ?>">
                             <div class="grid grid-cols-12 gap-4 items-center">
                                 <div class="col-span-2">
                                     <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($member['rfid']) ?></code>
                                 </div>
-                                <div class="col-span-4">
+                                <div class="col-span-3">
                                     <div class="font-medium text-slate-900 flex items-center gap-2">
                                         <?= htmlspecialchars($member['name']) ?>
                                         <?php if ($member['sr'] == 1): ?>
@@ -181,7 +183,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="text-sm text-slate-500"><?= htmlspecialchars($member['gender']) ?></div>
                                 </div>
-                                <div class="col-span-4">
+                                <div class="col-span-3">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                         <?= htmlspecialchars($member['department']) ?>
                                     </span>
@@ -202,6 +204,22 @@ include __DIR__ . '/../partials/header.php';
                                             </svg>
                                         </a>
                                     </div>
+                                </div>
+                                <div class="col-span-2">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        <?php
+                                        switch($member['status'] ?? 'Active') {
+                                            case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                            case 'Retired': echo 'bg-purple-100 text-purple-800'; break;
+                                            case 'On Leave': echo 'bg-yellow-100 text-yellow-800'; break;
+                                            case 'Resigned': echo 'bg-red-100 text-red-800'; break;
+                                            case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                            default: echo 'bg-gray-100 text-gray-800';
+                                        }
+                                        ?>
+                                    ">
+                                        <?= htmlspecialchars($member['status'] ?? 'Active') ?>
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -362,8 +380,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = row.getAttribute('data-name') || '';
             const rfid = row.getAttribute('data-rfid') || '';
             const department = row.getAttribute('data-department') || '';
+            const status = row.getAttribute('data-status') || '';
             
-            const searchableText = `${name} ${rfid} ${department}`;
+            const searchableText = `${name} ${rfid} ${department} ${status}`;
             
             if (searchTerm === '' || searchableText.includes(searchTerm)) {
                 row.style.display = '';

@@ -651,6 +651,42 @@ window.closeNotification = closeNotification;
                                 <?php if ($patientType === 'faculty' && $patient['sr']): ?>
                                     <span class="px-3 py-1 bg-clinic-vanilla/60 text-clinic-dark text-sm font-poppins font-semibold rounded-xl border border-clinic-vanilla/40">Sr.</span>
                                 <?php endif; ?>
+                                <?php if ($patientType === 'faculty'): ?>
+                                    <span class="inline-flex items-center gap-2 px-3 py-1 rounded-xl border font-poppins font-medium
+                                        <?php
+                                        switch($patient['status'] ?? 'Active') {
+                                            case 'Active': echo 'bg-green-100 text-green-800 border-green-200'; break;
+                                            case 'Retired': echo 'bg-purple-100 text-purple-800 border-purple-200'; break;
+                                            case 'On Leave': echo 'bg-yellow-100 text-yellow-800 border-yellow-200'; break;
+                                            case 'Resigned': echo 'bg-red-100 text-red-800 border-red-200'; break;
+                                            case 'Inactive': echo 'bg-gray-100 text-gray-800 border-gray-200'; break;
+                                            default: echo 'bg-gray-100 text-gray-800 border-gray-200';
+                                        }
+                                        ?>
+                                    ">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Status: <?= htmlspecialchars($patient['status'] ?? 'Active') ?>
+                                    </span>
+                                    <div class="ml-3 inline-block">
+                                        <div class="relative group">
+                                            <select onchange="changeStatus(this.value)" class="appearance-none text-xs px-4 py-2 pr-8 bg-gradient-to-r from-clinic-blue/10 to-clinic-tea/10 text-clinic-blue rounded-xl border border-clinic-blue/30 hover:border-clinic-blue/50 hover:bg-gradient-to-r hover:from-clinic-blue/20 hover:to-clinic-tea/20 transition-all duration-300 cursor-pointer focus:outline-none focus:ring-2 focus:ring-clinic-blue/30 focus:border-clinic-blue/50 shadow-sm hover:shadow-md">
+                                                <option value="">🔄 Change Status</option>
+                                                <option value="Active" <?= ($patient['status'] ?? 'Active') === 'Active' ? 'disabled' : '' ?>>✅ Active</option>
+                                                <option value="Retired" <?= ($patient['status'] ?? 'Active') === 'Retired' ? 'disabled' : '' ?>>👴 Retired</option>
+                                                <option value="On Leave" <?= ($patient['status'] ?? 'Active') === 'On Leave' ? 'disabled' : '' ?>>🏖️ On Leave</option>
+                                                <option value="Resigned" <?= ($patient['status'] ?? 'Active') === 'Resigned' ? 'disabled' : '' ?>>👋 Resigned</option>
+                                                <option value="Inactive" <?= ($patient['status'] ?? 'Active') === 'Inactive' ? 'disabled' : '' ?>>⏸️ Inactive</option>
+                                            </select>
+                                            <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                                <svg class="w-3 h-3 text-clinic-blue/60 group-hover:text-clinic-blue transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endif; ?>
                                 <?php if ($patientType === 'student'): ?>
                                     <span class="inline-flex items-center gap-2 px-3 py-1 rounded-xl border font-poppins font-medium
                                         <?php
@@ -2891,12 +2927,12 @@ function changeStatus(newStatus) {
         // Create form and submit
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = 'update_student_status.php';
+        form.action = '<?= $patientType === 'student' ? 'update_student_status.php' : 'update_faculty_status.php' ?>';
         
-        const studentIdInput = document.createElement('input');
-        studentIdInput.type = 'hidden';
-        studentIdInput.name = 'student_id';
-        studentIdInput.value = '<?= $patientId ?>';
+        const idInput = document.createElement('input');
+        idInput.type = 'hidden';
+        idInput.name = '<?= $patientType === 'student' ? 'student_id' : 'faculty_id' ?>';
+        idInput.value = '<?= $patientId ?>';
         
         const statusInput = document.createElement('input');
         statusInput.type = 'hidden';
@@ -2908,7 +2944,7 @@ function changeStatus(newStatus) {
         notesInput.name = 'status_notes';
         notesInput.value = `Status changed from ${currentStatus} to ${newStatus}`;
         
-        form.appendChild(studentIdInput);
+        form.appendChild(idInput);
         form.appendChild(statusInput);
         form.appendChild(notesInput);
         

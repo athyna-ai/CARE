@@ -152,59 +152,65 @@ include __DIR__ . '/../partials/header.php';
                 <!-- Table Header -->
                 <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
                     <?php if ($level === 'Pre-school'): ?>
-                        <!-- Pre-school: ID/RFID, Name, Level, Section, Actions -->
+                        <!-- Pre-school: ID/RFID, Name, Level, Section, Actions, Status -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                             <div class="col-span-2">ID/RFID</div>
-                            <div class="col-span-4">Name</div>
+                            <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
+                            <div class="col-span-1">Status</div>
                         </div>
                     <?php elseif ($level === 'Elementary'): ?>
-                        <!-- Elementary: ID/RFID, Name, Level, Section, Actions -->
+                        <!-- Elementary: ID/RFID, Name, Level, Section, Actions, Status -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                             <div class="col-span-2">ID/RFID</div>
-                            <div class="col-span-4">Name</div>
+                            <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
+                            <div class="col-span-1">Status</div>
                         </div>
                     <?php elseif ($level === 'High School'): ?>
-                        <!-- High School: ID/RFID, Name, Level, Section, Actions -->
+                        <!-- High School: ID/RFID, Name, Level, Section, Actions, Status -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                             <div class="col-span-2">ID/RFID</div>
-                            <div class="col-span-4">Name</div>
+                            <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
+                            <div class="col-span-1">Status</div>
                         </div>
                     <?php elseif ($level === 'Senior High School'): ?>
-                        <!-- Senior High: ID/RFID, Name, Level, Strand, Actions -->
+                        <!-- Senior High: ID/RFID, Name, Level, Strand, Actions, Status -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                             <div class="col-span-2">ID/RFID</div>
-                            <div class="col-span-4">Name</div>
+                            <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Strand</div>
                             <div class="col-span-2">Actions</div>
+                            <div class="col-span-1">Status</div>
                         </div>
                     <?php elseif ($level === 'College'): ?>
-                        <!-- College: ID/RFID, Name, Year, Course, Actions -->
+                        <!-- College: ID/RFID, Name, Year, Course, Actions, Status -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
                             <div class="col-span-2">ID/RFID</div>
-                            <div class="col-span-4">Name</div>
+                            <div class="col-span-3">Name</div>
                             <div class="col-span-2">Year</div>
                             <div class="col-span-2">Course</div>
                             <div class="col-span-2">Actions</div>
+                            <div class="col-span-1">Status</div>
                         </div>
                     <?php else: ?>
                         <!-- All levels: Default table -->
                     <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                        <div class="col-span-3">Name</div>
+                        <div class="col-span-2">Name</div>
                         <div class="col-span-2">Level</div>
                         <div class="col-span-2">Course/Section</div>
                         <div class="col-span-2">RFID</div>
                         <div class="col-span-2">Age</div>
                         <div class="col-span-1">Actions</div>
+                        <div class="col-span-1">Status</div>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -219,14 +225,15 @@ include __DIR__ . '/../partials/header.php';
                              data-section="<?= htmlspecialchars(strtolower($student['section'] ?? '')) ?>"
                              data-course="<?= htmlspecialchars(strtolower($student['course'] ?? '')) ?>"
                              data-strand="<?= htmlspecialchars(strtolower($student['strand'] ?? '')) ?>"
-                             data-year="<?= htmlspecialchars(strtolower($student['year_grade'] ?? '')) ?>">
+                             data-year="<?= htmlspecialchars(strtolower($student['year_grade'] ?? '')) ?>"
+                             data-status="<?= htmlspecialchars(strtolower($student['status'] ?? 'active')) ?>">
                             <?php if ($level === 'Pre-school'): ?>
-                                <!-- Pre-school: ID/RFID, Name, Level, Section, Actions -->
+                                <!-- Pre-school: ID/RFID, Name, Level, Section, Actions, Status -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
                                     <div class="col-span-2">
                                         <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                         <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                     </div>
@@ -256,15 +263,30 @@ include __DIR__ . '/../partials/header.php';
                                                 </svg>
                                             </a>
                                         </div>
+                                    </div>
+                                    <div class="col-span-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            <?php
+                                            switch($student['status'] ?? 'Active') {
+                                                case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                                case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                                case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                                case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                                default: echo 'bg-gray-100 text-gray-800';
+                                            }
+                                            ?>
+                                        ">
+                                            <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                        </span>
                                     </div>
                                 </div>
                             <?php elseif ($level === 'Elementary'): ?>
-                                <!-- Elementary: ID/RFID, Name, Level, Section, Actions -->
+                                <!-- Elementary: ID/RFID, Name, Level, Section, Actions, Status -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
                                     <div class="col-span-2">
                                         <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                         <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                     </div>
@@ -294,15 +316,30 @@ include __DIR__ . '/../partials/header.php';
                                                 </svg>
                                             </a>
                                         </div>
+                                    </div>
+                                    <div class="col-span-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            <?php
+                                            switch($student['status'] ?? 'Active') {
+                                                case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                                case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                                case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                                case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                                default: echo 'bg-gray-100 text-gray-800';
+                                            }
+                                            ?>
+                                        ">
+                                            <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                        </span>
                                     </div>
                                 </div>
                             <?php elseif ($level === 'High School'): ?>
-                                <!-- High School: ID/RFID, Name, Level, Section, Actions -->
+                                <!-- High School: ID/RFID, Name, Level, Section, Actions, Status -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
                                     <div class="col-span-2">
                                         <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                         <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                     </div>
@@ -333,14 +370,29 @@ include __DIR__ . '/../partials/header.php';
                                             </a>
                                         </div>
                                     </div>
+                                    <div class="col-span-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            <?php
+                                            switch($student['status'] ?? 'Active') {
+                                                case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                                case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                                case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                                case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                                default: echo 'bg-gray-100 text-gray-800';
+                                            }
+                                            ?>
+                                        ">
+                                            <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                        </span>
+                                    </div>
                                 </div>
                             <?php elseif ($level === 'Senior High School'): ?>
-                                <!-- Senior High: ID/RFID, Name, Level, Strand, Actions -->
+                                <!-- Senior High: ID/RFID, Name, Level, Strand, Actions, Status -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
                                     <div class="col-span-2">
                                         <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                         <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                     </div>
@@ -371,14 +423,29 @@ include __DIR__ . '/../partials/header.php';
                                             </a>
                                         </div>
                                     </div>
+                                    <div class="col-span-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            <?php
+                                            switch($student['status'] ?? 'Active') {
+                                                case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                                case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                                case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                                case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                                default: echo 'bg-gray-100 text-gray-800';
+                                            }
+                                            ?>
+                                        ">
+                                            <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                        </span>
+                                    </div>
                                 </div>
                             <?php elseif ($level === 'College'): ?>
-                                <!-- College: ID/RFID, Name, Year, Course, Actions -->
+                                <!-- College: ID/RFID, Name, Year, Course, Actions, Status -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
                                     <div class="col-span-2">
                                         <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
-                                    <div class="col-span-4">
+                                    <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                         <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                     </div>
@@ -407,11 +474,26 @@ include __DIR__ . '/../partials/header.php';
                                             </a>
                                         </div>
                                     </div>
+                                    <div class="col-span-1">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            <?php
+                                            switch($student['status'] ?? 'Active') {
+                                                case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                                case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                                case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                                case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                                default: echo 'bg-gray-100 text-gray-800';
+                                            }
+                                            ?>
+                                        ">
+                                            <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                        </span>
+                                    </div>
                                 </div>
                             <?php else: ?>
                                 <!-- All levels: Default table -->
                             <div class="grid grid-cols-12 gap-4 items-center">
-                                <div class="col-span-3">
+                                <div class="col-span-2">
                                     <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                     <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
                                 </div>
@@ -448,6 +530,21 @@ include __DIR__ . '/../partials/header.php';
                                             </svg>
                                         </a>
                                     </div>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                        <?php
+                                        switch($student['status'] ?? 'Active') {
+                                            case 'Active': echo 'bg-green-100 text-green-800'; break;
+                                            case 'Graduated': echo 'bg-blue-100 text-blue-800'; break;
+                                            case 'Transferred': echo 'bg-yellow-100 text-yellow-800'; break;
+                                            case 'Inactive': echo 'bg-gray-100 text-gray-800'; break;
+                                            default: echo 'bg-gray-100 text-gray-800';
+                                        }
+                                        ?>
+                                    ">
+                                        <?= htmlspecialchars($student['status'] ?? 'Active') ?>
+                                    </span>
                                 </div>
                             </div>
                             <?php endif; ?>
@@ -613,8 +710,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const course = row.getAttribute('data-course') || '';
             const strand = row.getAttribute('data-strand') || '';
             const year = row.getAttribute('data-year') || '';
+            const status = row.getAttribute('data-status') || '';
             
-            const searchableText = `${name} ${rfid} ${level} ${section} ${course} ${strand} ${year}`;
+            const searchableText = `${name} ${rfid} ${level} ${section} ${course} ${strand} ${year} ${status}`;
             
             if (searchTerm === '' || searchableText.includes(searchTerm)) {
                 row.style.display = '';
