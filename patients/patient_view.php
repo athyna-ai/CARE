@@ -2924,32 +2924,58 @@ function changeStatus(newStatus) {
     }
     
     if (confirm(`Are you sure you want to change status from ${currentStatus} to ${newStatus}?`)) {
-        // Create form and submit
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '<?= $patientType === 'student' ? 'update_student_status.php' : 'update_faculty_status.php' ?>';
+        // Get the select element and show loading
+        const selectElement = event.target;
+        const originalValue = selectElement.value;
         
-        const idInput = document.createElement('input');
-        idInput.type = 'hidden';
-        idInput.name = '<?= $patientType === 'student' ? 'student_id' : 'faculty_id' ?>';
-        idInput.value = '<?= $patientId ?>';
+        // Disable the select and show loading
+        selectElement.disabled = true;
+        selectElement.innerHTML = '<option value="">Updating...</option>';
         
-        const statusInput = document.createElement('input');
-        statusInput.type = 'hidden';
-        statusInput.name = 'new_status';
-        statusInput.value = newStatus;
+        // Show loading notification
+        showNotification('Updating status...', 'info');
         
-        const notesInput = document.createElement('input');
-        notesInput.type = 'hidden';
-        notesInput.name = 'status_notes';
-        notesInput.value = `Status changed from ${currentStatus} to ${newStatus}`;
+        // Create form data for AJAX
+        const formData = new FormData();
+        formData.append('<?= $patientType === 'student' ? 'student_id' : 'faculty_id' ?>', '<?= $patientId ?>');
+        formData.append('new_status', newStatus);
+        formData.append('status_notes', `Status changed from ${currentStatus} to ${newStatus}`);
         
-        form.appendChild(idInput);
-        form.appendChild(statusInput);
-        form.appendChild(notesInput);
-        
-        document.body.appendChild(form);
-        form.submit();
+        // Submit via AJAX
+        fetch('<?= $patientType === 'student' ? 'update_student_status.php' : 'update_faculty_status.php' ?>', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            if (data.includes('success') || data.includes('updated')) {
+                showNotification(`Status updated from ${currentStatus} to ${newStatus}`, 'success');
+                // Reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showNotification('Error updating status. Please try again.', 'error');
+                // Reset select element
+                selectElement.disabled = false;
+                selectElement.value = '';
+                // Reload the page to restore original state
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error updating status. Please try again.', 'error');
+            // Reset select element
+            selectElement.disabled = false;
+            selectElement.value = '';
+            // Reload the page to restore original state
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        });
     } else {
         // Reset dropdown to default
         event.target.value = '';

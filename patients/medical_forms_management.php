@@ -464,8 +464,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="flex justify-end gap-3 mt-8">
                 <button type="button" onclick="closeGeneralCheckUpModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">
-                    Save General CheckUp
+                <button id="generalCheckupSubmitBtn" type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors flex items-center gap-2">
+                    <span id="generalCheckupText">Save General CheckUp</span>
+                    <div id="generalCheckupSpinner" class="hidden">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
                 </button>
             </div>
         </form>
@@ -746,8 +752,14 @@ document.addEventListener('DOMContentLoaded', function() {
             
             <div class="flex justify-end gap-3 mt-8">
                 <button type="button" onclick="closeMedicalHistoryModal()" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Cancel</button>
-                <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors">
-                    Save Medical History
+                <button id="medicalHistorySubmitBtn" type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors flex items-center gap-2">
+                    <span id="medicalHistoryText">Save Medical History</span>
+                    <div id="medicalHistorySpinner" class="hidden">
+                        <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
                 </button>
             </div>
         </form>
@@ -1085,6 +1097,39 @@ document.addEventListener('DOMContentLoaded', function() {
         url.searchParams.delete('message');
         url.searchParams.delete('type');
         window.history.replaceState({}, '', url);
+    }
+});
+
+// Form submission handlers with loading spinners
+document.addEventListener('DOMContentLoaded', function() {
+    // General CheckUp form
+    const generalCheckupForm = document.querySelector('#generalCheckUpModal form');
+    const generalCheckupBtn = document.getElementById('generalCheckupSubmitBtn');
+    const generalCheckupText = document.getElementById('generalCheckupText');
+    const generalCheckupSpinner = document.getElementById('generalCheckupSpinner');
+    
+    if (generalCheckupForm && generalCheckupBtn) {
+        generalCheckupForm.addEventListener('submit', function(e) {
+            // Show loading spinner
+            generalCheckupBtn.disabled = true;
+            generalCheckupText.textContent = 'Saving...';
+            generalCheckupSpinner.classList.remove('hidden');
+        });
+    }
+    
+    // Medical History form
+    const medicalHistoryForm = document.querySelector('#medicalHistoryModal form');
+    const medicalHistoryBtn = document.getElementById('medicalHistorySubmitBtn');
+    const medicalHistoryText = document.getElementById('medicalHistoryText');
+    const medicalHistorySpinner = document.getElementById('medicalHistorySpinner');
+    
+    if (medicalHistoryForm && medicalHistoryBtn) {
+        medicalHistoryForm.addEventListener('submit', function(e) {
+            // Show loading spinner
+            medicalHistoryBtn.disabled = true;
+            medicalHistoryText.textContent = 'Saving...';
+            medicalHistorySpinner.classList.remove('hidden');
+        });
     }
 });
 </script>

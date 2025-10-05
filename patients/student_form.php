@@ -543,8 +543,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</div>
 
 				<div class="md:col-span-2">
-					<button id="saveStudentBtn" class="w-full bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed" disabled>
+					<button id="saveStudentBtn" type="submit" class="w-full bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed flex items-center justify-center gap-2" disabled>
 						<span id="continueText">Complete all required fields and read the Data Privacy Consent</span>
+						<div id="submitSpinner" class="hidden">
+							<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+							</svg>
+						</div>
 					</button>
 					<div id="formHelp" class="mt-2 text-xs text-slate-500 text-center">
 						<span id="formHelpText">Fill in all required fields (Name, Level, RFID) and read the complete Data Privacy Consent</span>
@@ -1348,6 +1354,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     if (dobInput) {
         dobInput.addEventListener('input', checkForReenrollment);
+    }
+});
+
+// Form submission handler with loading spinner
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = document.getElementById('saveStudentBtn');
+    const submitText = document.getElementById('continueText');
+    const submitSpinner = document.getElementById('submitSpinner');
+    
+    if (form && submitBtn) {
+        form.addEventListener('submit', function(e) {
+            // Only show loading if button is enabled (form is valid)
+            if (!submitBtn.disabled) {
+                // Show loading spinner
+                submitBtn.disabled = true;
+                submitText.textContent = 'Registering Student...';
+                submitSpinner.classList.remove('hidden');
+                
+                // Show loading notification
+                showNotification('Registering student, please wait...', 'info', 5000);
+            }
+        });
     }
 });
 </script>

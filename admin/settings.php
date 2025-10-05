@@ -981,8 +981,14 @@ try {
                         <button onclick="clearFilters()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm">
                         Clear Filters
                     </button>
-                         <button onclick="archiveAllLogs()" class="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm">
-                             Archive All Logs
+                         <button id="archiveAllLogsBtn" onclick="archiveAllLogs()" class="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-2">
+                             <span id="archiveAllLogsText">Archive All Logs</span>
+                             <div id="archiveAllLogsSpinner" class="hidden">
+                                 <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                 </svg>
+                             </div>
                          </button>
                     </div>
                 </div>
@@ -1816,6 +1822,15 @@ document.getElementById('logDetailsModal').addEventListener('click', function(e)
 // Archive all logs function
 function archiveAllLogs() {
     if (confirm('Are you sure you want to archive ALL unarchived logs? This will move all unarchived logs to the main logs display and clear them from the individual pages. This action cannot be undone.')) {
+        // Show loading spinner
+        const btn = document.getElementById('archiveAllLogsBtn');
+        const text = document.getElementById('archiveAllLogsText');
+        const spinner = document.getElementById('archiveAllLogsSpinner');
+        
+        btn.disabled = true;
+        text.textContent = 'Archiving...';
+        spinner.classList.remove('hidden');
+        
         // Show loading notification
         showNotification('Archiving all unarchived logs...', 'info');
         
@@ -1840,11 +1855,19 @@ function archiveAllLogs() {
                 }, 1500);
             } else {
                 showNotification('Error archiving logs. Please try again.', 'error');
+                // Reset button state
+                btn.disabled = false;
+                text.textContent = 'Archive All Logs';
+                spinner.classList.add('hidden');
             }
         })
         .catch(error => {
             console.error('Error:', error);
             showNotification('Error archiving logs. Please try again.', 'error');
+            // Reset button state
+            btn.disabled = false;
+            text.textContent = 'Archive All Logs';
+            spinner.classList.add('hidden');
         });
     }
 }
