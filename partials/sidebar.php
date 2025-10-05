@@ -110,6 +110,14 @@ if (empty($_SESSION['user'])) { return; }
 					</div>
 					<span class="font-poppins font-medium text-sm sm:text-base">Settings</span>
 				</a>
+				<a href="../pages/about_us.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-info/5 hover:border-clinic-info/20 hover:shadow-lg transition-all duration-300">
+					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-info/5 flex items-center justify-center group-hover:bg-clinic-info/10 transition-colors duration-200">
+						<svg class="w-3 h-3 sm:w-4 sm:h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+						</svg>
+					</div>
+					<span class="font-poppins font-medium text-sm sm:text-base">About Us</span>
+				</a>
 			</div>
 		</div>
 	</nav>
