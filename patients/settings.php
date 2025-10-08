@@ -294,24 +294,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $totalVisitations += count($visitationData);
                         
-                        // Check if already archived
-                        $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
-                        $checkArchived->execute([$logDate]);
-                        
-                        if (!$checkArchived->fetch()) {
-                            // Insert new archive
-                            $insertDaily = $pdo->prepare("
-                                INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
-                                VALUES (?, ?, ?, ?, ?, NOW())
-                            ");
-                            $insertDaily->execute([
-                                $logDate,
-                                json_encode($activityData),
-                                json_encode($visitationData),
-                                count($activityData),
-                                count($visitationData)
-                            ]);
-                        }
+                        // Use INSERT ... ON DUPLICATE KEY UPDATE to prevent duplicates
+                        $insertDaily = $pdo->prepare("
+                            INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
+                            VALUES (?, ?, ?, ?, ?, NOW())
+                            ON DUPLICATE KEY UPDATE
+                                activity_logs_data = VALUES(activity_logs_data),
+                                visitation_logs_data = VALUES(visitation_logs_data),
+                                total_activities = VALUES(total_activities),
+                                total_visitations = VALUES(total_visitations),
+                                created_at = VALUES(created_at)
+                        ");
+                        $insertDaily->execute([
+                            $logDate,
+                            json_encode($activityData),
+                            json_encode($visitationData),
+                            count($activityData),
+                            count($visitationData)
+                        ]);
                     }
                     
                     // Process remaining visitation dates that don't have activity logs

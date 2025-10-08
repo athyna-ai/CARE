@@ -315,72 +315,80 @@ include __DIR__ . '/../partials/header.php';
                 <!-- Table Header -->
                 <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
                     <?php if ($level === 'Pre-school'): ?>
-                        <!-- Pre-school: ID/RFID, Name, Level, Section, Actions, Status -->
+                        <!-- Pre-school: No., Name, Level, Section, Actions, Status, RFID -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                            <div class="col-span-2">ID/RFID</div>
+                            <div class="col-span-1">No.</div>
                             <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
                             <div class="col-span-1">Status</div>
+                            <div class="col-span-1">RFID</div>
                         </div>
                     <?php elseif ($level === 'Elementary'): ?>
-                        <!-- Elementary: ID/RFID, Name, Level, Section, Actions, Status -->
+                        <!-- Elementary: No., Name, Level, Section, Actions, Status, RFID -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                            <div class="col-span-2">ID/RFID</div>
+                            <div class="col-span-1">No.</div>
                             <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
                             <div class="col-span-1">Status</div>
+                            <div class="col-span-1">RFID</div>
                         </div>
                     <?php elseif ($level === 'High School'): ?>
-                        <!-- High School: ID/RFID, Name, Level, Section, Actions, Status -->
+                        <!-- High School: No., Name, Level, Section, Actions, Status, RFID -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                            <div class="col-span-2">ID/RFID</div>
+                            <div class="col-span-1">No.</div>
                             <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Section</div>
                             <div class="col-span-2">Actions</div>
                             <div class="col-span-1">Status</div>
+                            <div class="col-span-1">RFID</div>
                         </div>
                     <?php elseif ($level === 'Senior High School'): ?>
-                        <!-- Senior High: ID/RFID, Name, Level, Strand, Actions, Status -->
+                        <!-- Senior High: No., Name, Level, Strand, Actions, Status, RFID -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                            <div class="col-span-2">ID/RFID</div>
+                            <div class="col-span-1">No.</div>
                             <div class="col-span-3">Name</div>
                             <div class="col-span-2">Level</div>
                             <div class="col-span-2">Strand</div>
                             <div class="col-span-2">Actions</div>
                             <div class="col-span-1">Status</div>
+                            <div class="col-span-1">RFID</div>
                         </div>
                     <?php elseif ($level === 'College'): ?>
-                        <!-- College: ID/RFID, Name, Year, Course, Actions, Status -->
+                        <!-- College: No., Name, Year, Course, Actions, Status, RFID -->
                         <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                            <div class="col-span-2">ID/RFID</div>
+                            <div class="col-span-1">No.</div>
                             <div class="col-span-3">Name</div>
                             <div class="col-span-2">Year</div>
                             <div class="col-span-2">Course</div>
                             <div class="col-span-2">Actions</div>
                             <div class="col-span-1">Status</div>
+                            <div class="col-span-1">RFID</div>
                         </div>
                     <?php else: ?>
                         <!-- All levels: Default table -->
                     <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
+                        <div class="col-span-1">No.</div>
                         <div class="col-span-2">Name</div>
                         <div class="col-span-2">Level</div>
                         <div class="col-span-2">Course/Section</div>
-                        <div class="col-span-2">RFID</div>
                         <div class="col-span-2">Age</div>
                         <div class="col-span-1">Actions</div>
                         <div class="col-span-1">Status</div>
+                        <div class="col-span-1">RFID</div>
                     </div>
                     <?php endif; ?>
                 </div>
 
                 <!-- Table Body -->
                 <div id="studentsTable" class="student-table-responsive divide-y divide-slate-200 flex-1 overflow-y-auto">
-                    <?php foreach ($students as $student): ?>
+                    <?php 
+                    $rowNumber = $offset + 1; // Start numbering from the correct offset for pagination
+                    foreach ($students as $student): ?>
                         <div class="px-6 py-4 hover:bg-slate-50 transition-colors student-row" 
                              data-name="<?= htmlspecialchars(strtolower($student['name'] ?? '')) ?>"
                              data-rfid="<?= htmlspecialchars(strtolower($student['rfid'] ?? '')) ?>"
@@ -391,10 +399,10 @@ include __DIR__ . '/../partials/header.php';
                              data-year="<?= htmlspecialchars(strtolower($student['year_grade'] ?? '')) ?>"
                              data-status="<?= htmlspecialchars(strtolower($student['status'] ?? 'active')) ?>">
                             <?php if ($level === 'Pre-school'): ?>
-                                <!-- Pre-school: ID/RFID, Name, Level, Section, Actions, Status -->
+                                <!-- Pre-school: No., Name, Level, Section, Actions, Status, RFID -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
-                                    <div class="col-span-2">
-                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    <div class="col-span-1">
+                                        <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                     </div>
                                     <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
@@ -441,13 +449,16 @@ include __DIR__ . '/../partials/header.php';
                                         ">
                                             <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                         </span>
+                                    </div>
+                                    <div class="col-span-1">
+                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
                                 </div>
                             <?php elseif ($level === 'Elementary'): ?>
-                                <!-- Elementary: ID/RFID, Name, Level, Section, Actions, Status -->
+                                <!-- Elementary: No., Name, Level, Section, Actions, Status, RFID -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
-                                    <div class="col-span-2">
-                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    <div class="col-span-1">
+                                        <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                     </div>
                                     <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
@@ -494,13 +505,16 @@ include __DIR__ . '/../partials/header.php';
                                         ">
                                             <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                         </span>
+                                    </div>
+                                    <div class="col-span-1">
+                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
                                     </div>
                                 </div>
                             <?php elseif ($level === 'High School'): ?>
-                                <!-- High School: ID/RFID, Name, Level, Section, Actions, Status -->
+                                <!-- High School: No., Name, Level, Section, Actions, Status, RFID -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
-                                    <div class="col-span-2">
-                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    <div class="col-span-1">
+                                        <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                     </div>
                                     <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
@@ -548,12 +562,15 @@ include __DIR__ . '/../partials/header.php';
                                             <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                         </span>
                                     </div>
+                                    <div class="col-span-1">
+                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    </div>
                                 </div>
                             <?php elseif ($level === 'Senior High School'): ?>
-                                <!-- Senior High: ID/RFID, Name, Level, Strand, Actions, Status -->
+                                <!-- Senior High: No., Name, Level, Strand, Actions, Status, RFID -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
-                                    <div class="col-span-2">
-                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    <div class="col-span-1">
+                                        <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                     </div>
                                     <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
@@ -601,12 +618,15 @@ include __DIR__ . '/../partials/header.php';
                                             <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                         </span>
                                     </div>
+                                    <div class="col-span-1">
+                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    </div>
                                 </div>
                             <?php elseif ($level === 'College'): ?>
-                                <!-- College: ID/RFID, Name, Year, Course, Actions, Status -->
+                                <!-- College: No., Name, Year, Course, Actions, Status, RFID -->
                                 <div class="grid grid-cols-12 gap-4 items-center">
-                                    <div class="col-span-2">
-                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    <div class="col-span-1">
+                                        <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                     </div>
                                     <div class="col-span-3">
                                         <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
@@ -652,10 +672,16 @@ include __DIR__ . '/../partials/header.php';
                                             <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                         </span>
                                     </div>
+                                    <div class="col-span-1">
+                                        <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                    </div>
                                 </div>
                             <?php else: ?>
                                 <!-- All levels: Default table -->
                             <div class="grid grid-cols-12 gap-4 items-center">
+                                <div class="col-span-1">
+                                    <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
+                                </div>
                                 <div class="col-span-2">
                                     <div class="font-medium text-slate-900"><?= htmlspecialchars($student['name'] ?? '') ?></div>
                                     <div class="text-sm text-slate-500"><?= htmlspecialchars($student['gender'] ?? 'N/A') ?></div>
@@ -670,9 +696,6 @@ include __DIR__ . '/../partials/header.php';
                                     <div class="text-xs text-slate-500"><?= htmlspecialchars($student['section'] ?: 'N/A') ?></div>
                                 </div>
                                 <div class="col-span-2">
-                                    <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
-                                </div>
-                                <div class="col-span-2">
                                     <span class="text-sm text-slate-900"><?= $student['age'] ?> years</span>
                                 </div>
                                 <div class="col-span-1">
@@ -685,11 +708,11 @@ include __DIR__ . '/../partials/header.php';
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                             </svg>
                                         </a>
-                                            <a href="#" onclick="archiveStudent(<?= $student['id'] ?>)" 
-                                               class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" 
+                                        <a href="#" onclick="archiveStudent(<?= $student['id'] ?>)" 
+                                           class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" 
 >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
                                             </svg>
                                         </a>
                                     </div>
@@ -709,10 +732,15 @@ include __DIR__ . '/../partials/header.php';
                                         <?= htmlspecialchars($student['status'] ?? 'Active') ?>
                                     </span>
                                 </div>
+                                <div class="col-span-1">
+                                    <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($student['rfid']) ?></code>
+                                </div>
                             </div>
                             <?php endif; ?>
                         </div>
-                    <?php endforeach; ?>
+                    <?php 
+                    $rowNumber++; // Increment row number for next iteration
+                    endforeach; ?>
                 </div>
 
                 <!-- Pagination -->

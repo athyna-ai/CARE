@@ -557,6 +557,10 @@ function generateCSRFToken() { return SecurityFramework::generateCSRFToken(); }
 function validateCSRFToken($token = null) { return SecurityFramework::validateCSRFToken($token); }
 function validateInput($data, $type, $options = []) { return SecurityFramework::validateInput($data, $type, $options); }
 function requirePOST() { SecurityFramework::requirePOST(); }
-function logSecurityEvent() { return SecurityFramework::logSecurityEvent(...func_get_args()); }
-function logActivity() { return SecurityFramework::logActivity(...func_get_args()); }
+if (!function_exists('logSecurityEvent')) {
+    function logSecurityEvent() { return SecurityFramework::logSecurityEvent(...func_get_args()); }
+}
+if (!function_exists('logActivity')) {
+    function logActivity() { return SecurityFramework::logActivity(...func_get_args()); }
+}
 ?>

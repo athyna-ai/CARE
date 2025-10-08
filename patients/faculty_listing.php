@@ -200,25 +200,28 @@ include __DIR__ . '/../partials/header.php';
                 <!-- Table Header -->
                 <div class="bg-slate-50 px-6 py-3 border-b border-slate-200">
                     <div class="grid grid-cols-12 gap-4 text-sm font-medium text-slate-600">
-                        <div class="col-span-2">ID/RFID</div>
+                        <div class="col-span-1">No.</div>
                         <div class="col-span-3">Name</div>
                         <div class="col-span-3">Department</div>
                         <div class="col-span-2">Actions</div>
                         <div class="col-span-2">Status</div>
+                        <div class="col-span-1">RFID</div>
                     </div>
                 </div>
 
                 <!-- Table Body -->
                 <div id="facultyTable" class="faculty-table-responsive divide-y divide-slate-200 flex-1 overflow-y-auto">
-                    <?php foreach ($faculty as $member): ?>
+                    <?php 
+                    $rowNumber = $offset + 1; // Start numbering from the correct offset for pagination
+                    foreach ($faculty as $member): ?>
                         <div class="px-6 py-4 hover:bg-slate-50 transition-colors faculty-row" 
                              data-name="<?= htmlspecialchars(strtolower($member['name'] ?? '')) ?>"
                              data-rfid="<?= htmlspecialchars(strtolower($member['rfid'] ?? '')) ?>"
                              data-department="<?= htmlspecialchars(strtolower($member['department'] ?? '')) ?>"
                              data-status="<?= htmlspecialchars(strtolower($member['status'] ?? 'active')) ?>">
                             <div class="grid grid-cols-12 gap-4 items-center">
-                                <div class="col-span-2">
-                                    <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($member['rfid']) ?></code>
+                                <div class="col-span-1">
+                                    <span class="text-sm font-mono text-slate-500 font-semibold"><?= $rowNumber ?></span>
                                 </div>
                                 <div class="col-span-3">
                                     <div class="font-medium text-slate-900 flex items-center gap-2">
@@ -267,9 +270,14 @@ include __DIR__ . '/../partials/header.php';
                                         <?= htmlspecialchars($member['status'] ?? 'Active') ?>
                                     </span>
                                 </div>
+                                <div class="col-span-1">
+                                    <code class="text-xs bg-slate-100 px-2 py-1 rounded"><?= htmlspecialchars($member['rfid']) ?></code>
+                                </div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
+                    <?php 
+                    $rowNumber++; // Increment row number for next iteration
+                    endforeach; ?>
                 </div>
 
                 <!-- Pagination -->

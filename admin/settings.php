@@ -2,6 +2,71 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
+require_once __DIR__ . '/../core/security_logging.php';
+
+// Enhanced security checks BEFORE authentication
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 1. Check if user is logged in
+if (!isset($_SESSION['user']) || empty($_SESSION['user'])) {
+    logSecurityBreach('UNAUTHORIZED_SETTINGS_ACCESS', 'Unauthorized access attempt to settings page', [
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown',
+        'referer' => $_SERVER['HTTP_REFERER'] ?? 'Direct access'
+    ]);
+    header('Location: ../auth/login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+    exit;
+}
+
+// 2. Verify admin status
+if (!isset($_SESSION['user']['is_admin']) || $_SESSION['user']['is_admin'] != 1) {
+    logSecurityBreach('NON_ADMIN_SETTINGS_ACCESS', 'Non-admin user attempted to access settings', [
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    header('Location: ../index.php?error=access_denied');
+    exit;
+}
+
+// 3. Verify session integrity
+if (!isset($_SESSION['last_activity']) || (time() - $_SESSION['last_activity']) > 3600) {
+    logSecurityBreach('EXPIRED_SESSION_SETTINGS', 'Expired session attempted to access settings', [
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    session_destroy();
+    header('Location: ../auth/login.php?error=session_expired');
+    exit;
+}
+
+// 4. Check referrer for additional security
+$allowedReferrers = [
+    'http://localhost/Care/admin/dashboard.php',
+    'http://localhost/Care/admin/settings.php',
+    'https://localhost/Care/admin/dashboard.php',
+    'https://localhost/Care/admin/settings.php'
+];
+
+$referer = $_SERVER['HTTP_REFERER'] ?? '';
+$isValidReferer = false;
+foreach ($allowedReferrers as $allowed) {
+    if (strpos($referer, $allowed) === 0) {
+        $isValidReferer = true;
+        break;
+    }
+}
+
+// Allow direct access only if coming from login or dashboard
+if (!empty($referer) && !$isValidReferer && !strpos($referer, 'login.php')) {
+    logSecurityBreach('SUSPICIOUS_REFERER_SETTINGS', 'Suspicious referer accessing settings', [
+        'referer' => $referer,
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    // Don't block, but log for monitoring
+}
 
 require_admin_auth();
 $pdo = get_pdo();
@@ -11,23 +76,38 @@ $user = $_SESSION['user'];
 require_once __DIR__ . '/../security_breach_detector.php';
 $errors = [];
 $info = [];
-// Validate section parameter to prevent unauthorized access
-$allowedSections = ['main_logs', 'account_settings', 'create_admin', 'account_management', 'shortcuts'];
+
+// Enhanced section parameter validation
+$allowedSections = ['main_logs', 'account_settings', 'create_admin', 'register_admin', 'account_management', 'keyboard_toggles', 'security_management'];
 $currentSection = $_GET['section'] ?? 'main_logs';
 
 // Additional validation for section parameter
 if (!is_string($currentSection) || strlen($currentSection) > 50) {
     logSecurityBreach('INVALID_SETTINGS_SECTION_FORMAT', 'Invalid section parameter format', [
         'section' => $currentSection,
-        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
     ]);
     $currentSection = 'main_logs';
 } elseif (!in_array($currentSection, $allowedSections)) {
     logSecurityBreach('INVALID_SETTINGS_SECTION', 'Invalid settings section attempted', [
         'invalid_section' => $currentSection,
-        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
     ]);
     $currentSection = 'main_logs'; // Default to safe section
+}
+
+// 5. Additional CSRF protection for sensitive sections
+if (in_array($currentSection, ['create_admin', 'register_admin', 'account_management', 'security_management'])) {
+    if (!isset($_GET['csrf_token']) || !verify_csrf($_GET['csrf_token'])) {
+        logSecurityBreach('CSRF_TOKEN_MISSING_SETTINGS', 'CSRF token missing for sensitive settings section', [
+            'section' => $currentSection,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+            'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
+        ]);
+        $currentSection = 'main_logs'; // Redirect to safe section
+    }
 }
 
 // Rate limiting for settings page access
@@ -389,40 +469,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $totalVisitations += count($visitationData);
                         
-                        // Check if already archived
-                        $checkArchived = $pdo->prepare("SELECT id, activity_logs_data, total_activities FROM daily_logs WHERE log_date = ?");
-                        $checkArchived->execute([$logDate]);
-                        $existingArchive = $checkArchived->fetch(PDO::FETCH_ASSOC);
-                        
-                        if (!$existingArchive) {
-                            // Insert new archive
-                            $insertDaily = $pdo->prepare("
-                                INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
-                                VALUES (?, ?, ?, ?, ?, NOW())
-                            ");
-                            $insertDaily->execute([
-                                $logDate,
-                                json_encode($activityData),
-                                json_encode($visitationData),
-                                count($activityData),
-                                count($visitationData)
-                            ]);
-                        } else {
-                            // Update existing archive with new logs
-                            $existingActivityData = json_decode($existingArchive['activity_logs_data'], true) ?: [];
-                            $mergedActivityData = array_merge($existingActivityData, $activityData);
-                            
-                            $updateDaily = $pdo->prepare("
-                                UPDATE daily_logs 
-                                SET activity_logs_data = ?, total_activities = ?
-                                WHERE log_date = ?
-                            ");
-                            $updateDaily->execute([
-                                json_encode($mergedActivityData),
-                                count($mergedActivityData),
-                                $logDate
-                            ]);
-                        }
+                        // Use INSERT ... ON DUPLICATE KEY UPDATE to prevent duplicates
+                        $insertDaily = $pdo->prepare("
+                            INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
+                            VALUES (?, ?, ?, ?, ?, NOW())
+                            ON DUPLICATE KEY UPDATE
+                                activity_logs_data = VALUES(activity_logs_data),
+                                visitation_logs_data = VALUES(visitation_logs_data),
+                                total_activities = VALUES(total_activities),
+                                total_visitations = VALUES(total_visitations),
+                                created_at = VALUES(created_at)
+                        ");
+                        $insertDaily->execute([
+                            $logDate,
+                            json_encode($activityData),
+                            json_encode($visitationData),
+                            count($activityData),
+                            count($visitationData)
+                        ]);
                     }
                     
                     // Process remaining visitation dates that don't have activity logs
@@ -554,18 +618,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 try {
                     if ($deactivate) {
-                        // Check if is_active column exists first
-                        $checkColumn = $pdo->prepare("SHOW COLUMNS FROM users LIKE 'is_active'");
-                        $checkColumn->execute();
-                        $hasIsActive = $checkColumn->fetch();
-                        
-                        if ($hasIsActive) {
-                            // Deactivate account
-                            $pdo->prepare('UPDATE users SET is_active = 0 WHERE id = ?')->execute([(int)$user['id']]);
-                            $info[] = 'Account deactivated successfully.';
-                        } else {
-                            $info[] = 'Account deactivation not available (is_active column not found).';
-                        }
+                        // Deactivate account
+                        $pdo->prepare('UPDATE users SET is_active = 0 WHERE id = ?')->execute([(int)$user['id']]);
+                        $info[] = 'Account deactivated successfully.';
                         log_activity($pdo, (int)$user['id'], 'account_deactivated', "Account deactivated", 'settings');
                     } else {
                         // Update profile
@@ -676,44 +731,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     } catch (Throwable $e) {
                         $errors[] = 'An error occurred while deleting user. Please try again.';
-                    }
-                }
-                break;
-                
-            case 'update_user_role':
-                $userId = (int)($_POST['user_id'] ?? 0);
-                $newRole = $_POST['new_role'] ?? '';
-                
-                if ($userId <= 0) {
-                    $errors[] = 'Invalid user ID.';
-                } else if ($userId === (int)$user['id']) {
-                    $errors[] = 'You cannot change your own role.';
-                } else if (!in_array($newRole, ['admin', 'regular'])) {
-                    $errors[] = 'Invalid role specified.';
-                } else {
-                    try {
-                        // Check if user exists
-                        $checkUser = $pdo->prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?");
-                        $checkUser->execute([$userId]);
-                        $targetUser = $checkUser->fetch();
-                        
-                        if (!$targetUser) {
-                            $errors[] = 'User not found.';
-                        } else {
-                            $isAdmin = $newRole === 'admin' ? 1 : 0;
-                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = ? WHERE id = ?");
-                            $updateRole->execute([$isAdmin, $userId]);
-                            
-                            if ($updateRole->rowCount() > 0) {
-                                $roleText = $isAdmin ? 'Admin' : 'Regular User';
-                                $info[] = "User '{$targetUser['name']}' role updated to {$roleText}.";
-                                log_activity($pdo, (int)$user['id'], 'user_role_updated', "Updated user role: {$targetUser['name']} to {$roleText}", 'settings');
-                            } else {
-                                $errors[] = 'Failed to update user role.';
-                            }
-                        }
-                    } catch (Throwable $e) {
-                        $errors[] = 'An error occurred while updating user role. Please try again.';
                     }
                 }
                 break;
@@ -870,7 +887,7 @@ try {
         </div>
 
         <!-- Settings Navigation - Single Row -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
             <!-- Main Logs -->
             <a href="?section=main_logs" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-16 h-16 rounded-full bg-clinic-blue/10 flex items-center justify-center group-hover:bg-clinic-blue/20 transition-colors duration-200 mb-3">
@@ -894,7 +911,7 @@ try {
             </a>
 
             <!-- Register Admin -->
-            <a href="?section=register_admin" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=register_admin&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors duration-200 mb-3">
                     <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
@@ -905,7 +922,7 @@ try {
             </a>
 
             <!-- Account Management -->
-            <a href="?section=account_management" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+            <a href="?section=account_management&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
                 <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
                     <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
@@ -924,6 +941,17 @@ try {
                 </div>
                 <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Shortcuts</h3>
                 <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Keyboard guide</p>
+            </a>
+
+            <!-- Security Management -->
+            <a href="?section=security_management&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'security_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Security</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">IP & Security</p>
             </a>
 
         </div>
@@ -947,68 +975,77 @@ try {
             <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
                 <div class="mb-4">
                     <h2 class="text-2xl font-bold text-clinic-dark">Main Logs</h2>
+                    
                 </div>
 
                 <!-- Search and Filter -->
-                <div class="mb-4 space-y-3">
-                    <!-- Search Row -->
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="logSearch" placeholder="Search logs..." class="flex-1 px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue text-sm">
+                <div class="mb-4">
+                    <!-- Single Row Layout -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
                         <div class="flex gap-2">
-                            <select id="logTypeFilter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue text-sm">
-                        <option value="">All Types</option>
-                        <option value="activity">Activity Logs</option>
-                        <option value="visitation">Visitation Logs</option>
-                    </select>
-                            <select id="logDateFilter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue text-sm">
-                        <option value="">All Dates</option>
-                        <option value="today">Today</option>
-                        <option value="week">This Week</option>
-                        <option value="month">This Month</option>
-                        <option value="year">This Year</option>
-                    </select>
+                            <select id="logTypeFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:border-gray-400 transition-colors">
+                                <option value="">All Types</option>
+                                <option value="activity">Activity Logs</option>
+                                <option value="visitation">Visitation Logs</option>
+                            </select>
+                            <select id="logDateFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:border-gray-400 transition-colors">
+                                <option value="">All Dates</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="year">This Year</option>
+                            </select>
                         </div>
-                    </div>
-                    
-                    <!-- Action Buttons Row -->
-                    <div class="flex flex-wrap gap-2">
-                        <button onclick="clearFilters()" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm">
-                        Clear Filters
-                    </button>
-                         <button id="archiveAllLogsBtn" onclick="archiveAllLogs()" class="px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-2">
-                             <span id="archiveAllLogsText">Archive All Logs</span>
-                             <div id="archiveAllLogsSpinner" class="hidden">
-                                 <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                 </svg>
-                             </div>
-                         </button>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="clearFilters()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow-md">
+                                Clear Filters
+                            </button>
+                            <button id="archiveAllLogsBtn" onclick="archiveAllLogs()" class="px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-2 font-medium shadow-sm hover:shadow-md">
+                                <span id="archiveAllLogsText">Archive All Logs</span>
+                                <div id="archiveAllLogsSpinner" class="hidden">
+                                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Logs Display with Tabs -->
                 <div class="mb-4">
-                    <div class="flex space-x-1 bg-clinic-ivory/30 p-1 rounded-lg">
-                        <button onclick="showLogTab('daily')" id="dailyTab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors bg-white text-clinic-blue shadow-sm">
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                        <button onclick="showLogTab('daily')" id="dailyTab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm">
                             All Logs (Consolidated)
-                        </button>
-                        <button onclick="showLogTab('weekly')" id="weeklyTab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors text-clinic-dark/60 hover:text-clinic-blue">
-                            Weekly Archives
-                        </button>
-                        <button onclick="showLogTab('monthly')" id="monthlyTab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors text-clinic-dark/60 hover:text-clinic-blue">
-                            Monthly Archives
                         </button>
                     </div>
                 </div>
 
                 <!-- Daily Logs Table -->
-                <div id="dailyLogsTable" class="flex flex-col border border-clinic-tea/20 rounded-lg overflow-hidden flex-1 min-h-0">
-                    <div class="bg-clinic-ivory/50 px-4 py-3 border-b border-clinic-tea/20">
-                        <div class="grid grid-cols-4 gap-4 text-sm font-semibold text-clinic-dark">
-                            <div>Date</div>
-                            <div>Type</div>
-                            <div>Total Records</div>
+                <div id="dailyLogsTable" class="flex flex-col border border-gray-200 rounded-lg overflow-hidden flex-1 min-h-0">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                        <div class="grid grid-cols-5 gap-4 text-sm font-semibold text-gray-800">
+                            <div>No.</div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('date')">
+                                Date
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('type')">
+                                Type
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('records')">
+                                Total Records
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
                             <div>Actions</div>
                         </div>
                     </div>
@@ -1088,151 +1125,50 @@ try {
                             ?>
                             
                             <?php if (empty($consolidatedLogs)): ?>
-                                <div class="px-4 py-8 text-center text-clinic-dark/60">No logs found</div>
+                                <div class="px-4 py-8 text-center text-gray-600">No logs found</div>
                             <?php else: ?>
-                                <?php foreach ($consolidatedLogs as $log): ?>
-                                    <div class="grid grid-cols-4 gap-4 px-4 py-3 border-b border-clinic-tea/20 hover:bg-clinic-ivory/30">
-                                        <div class="font-medium text-clinic-dark">
+                                <?php 
+                                $rowNumber = 1;
+                                foreach ($consolidatedLogs as $log): ?>
+                                    <div class="grid grid-cols-5 gap-4 px-4 py-3 border-b border-gray-200 hover:bg-gray-100">
+                                        <div class="number-cell font-mono text-xs text-gray-500 font-semibold">
+                                            <?= $rowNumber ?>
+                                        </div>
+                                        <div class="date-cell font-medium text-gray-800">
                                             <?= date('M d, Y', strtotime($log['date'])) ?>
                                         </div>
-                                        <div>
+                                        <div class="type-cell">
                                             <span class="inline-flex items-center gap-2">
                                                 <span class="w-2 h-2 <?= 
-                                                    isset($log['log_type']) && $log['log_type'] === 'current' ? 'bg-green-500' : 
-                                                    (isset($log['log_type']) && $log['log_type'] === 'weekly' ? 'bg-clinic-tea' : 
-                                                    (isset($log['log_type']) && $log['log_type'] === 'monthly' ? 'bg-clinic-vanilla' : 'bg-clinic-blue')) 
+                                                    isset($log['log_type']) && $log['log_type'] === 'current' ? 'bg-gray-500' : 
+                                                    (isset($log['log_type']) && $log['log_type'] === 'weekly' ? 'bg-gray-400' : 
+                                                    (isset($log['log_type']) && $log['log_type'] === 'monthly' ? 'bg-gray-300' : 'bg-gray-600')) 
                                                 ?> rounded-full"></span>
                                                 <?= htmlspecialchars($log['type']) ?>
                                             </span>
                                         </div>
-                                        <div>
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                        <div class="records-cell">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
                                                 <?= htmlspecialchars((string)$log['total_records']) ?> records
                                             </span>
                                         </div>
                                         <div>
                                             <div class="flex gap-2">
-                                                <button onclick="viewFullLogs('<?= $log['date'] ?>', '<?= strtolower(str_replace(' Logs', '', $log['type'])) ?>', '<?= $log['log_type'] ?>')" class="text-clinic-blue hover:text-clinic-tea font-medium text-sm">
+                                                <button onclick="viewFullLogs('<?= $log['date'] ?>', '<?= strtolower(str_replace(' Logs', '', $log['type'])) ?>', '<?= $log['log_type'] ?>')" class="text-gray-600 hover:text-gray-800 font-medium text-sm bg-transparent hover:bg-gray-100 px-2 py-1 rounded">
                                                     View Full
                                                 </button>
                                             </div>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
+                                <?php 
+                                $rowNumber++; // Increment row number for next iteration
+                                endforeach; ?>
                             <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
-                <!-- Weekly Logs Table -->
-                <div id="weeklyLogsTable" class="flex flex-col border border-clinic-tea/20 rounded-lg overflow-hidden hidden flex-1 min-h-0">
-                    <table class="w-full text-sm min-w-[600px]">
-                        <thead class="bg-clinic-ivory/50">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Week Period</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Activities</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Visitations</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Total Records</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="weeklyLogsTableBody">
-                            <?php if (empty($weeklyLogs)): ?>
-                                <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-clinic-dark/60">No weekly logs found</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($weeklyLogs as $log): ?>
-                                    <tr class="border-b border-clinic-tea/20 hover:bg-clinic-ivory/30">
-                                        <td class="px-4 py-3 font-medium text-clinic-dark">
-                                            <?= date('M d', strtotime($log['week_start'])) ?> - <?= date('M d, Y', strtotime($log['week_end'])) ?>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                <?= htmlspecialchars($log['total_activities']) ?> activities
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                <?= htmlspecialchars($log['total_visitations']) ?> visitations
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                <?= htmlspecialchars($log['total_activities'] + $log['total_visitations']) ?> total
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <div class="flex gap-2">
-                                                <button onclick="viewLogDetails(<?= $log['id'] ?>, 'weekly')" class="text-clinic-blue hover:text-clinic-tea font-medium text-sm">
-                                                    View Details
-                                                </button>
-                                                <button onclick="viewFullLogs('<?= $log['week_start'] ?>', 'weekly')" class="text-clinic-tea hover:text-clinic-blue font-medium text-sm">
-                                                    View Full
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
 
-                <!-- Monthly Logs Table -->
-                <div id="monthlyLogsTable" class="flex flex-col border border-clinic-tea/20 rounded-lg overflow-hidden hidden flex-1 min-h-0">
-                    <table class="w-full text-sm min-w-[600px]">
-                        <thead class="bg-clinic-ivory/50">
-                            <tr>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Month</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Activities</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Visitations</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Total Records</th>
-                                <th class="px-4 py-3 text-left font-semibold text-clinic-dark">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="monthlyLogsTableBody">
-                            <?php if (empty($monthlyLogs)): ?>
-                                <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-clinic-dark/60">No monthly logs found</td>
-                                </tr>
-                            <?php else: ?>
-                                <?php foreach ($monthlyLogs as $log): ?>
-                                    <tr class="border-b border-clinic-tea/20 hover:bg-clinic-ivory/30">
-                                        <td class="px-4 py-3 font-medium text-clinic-dark">
-                                            <?= date('F Y', strtotime($log['month_year'] . '-01')) ?>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                <?= htmlspecialchars($log['total_activities']) ?> activities
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                <?= htmlspecialchars($log['total_visitations']) ?> visitations
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                <?= htmlspecialchars($log['total_activities'] + $log['total_visitations']) ?> total
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3">
-                                            <div class="flex gap-2">
-                                                <button onclick="viewLogDetails(<?= $log['id'] ?>, 'monthly')" class="text-clinic-blue hover:text-clinic-tea font-medium text-sm">
-                                                View Details
-                                            </button>
-                                                <button onclick="viewFullLogs('<?= $log['month_year'] ?>', 'monthly')" class="text-clinic-tea hover:text-clinic-blue font-medium text-sm">
-                                                    View Full
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
             </div>
         <?php endif; ?>
 
@@ -1281,15 +1217,6 @@ try {
         <!-- Register Admin Section -->
         <?php if ($currentSection === 'register_admin'): ?>
             <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
-                <!-- Back Button -->
-                <div class="mb-4">
-                    <button onclick="goBackToSettings()" class="inline-flex items-center gap-2 px-4 py-2 text-clinic-blue hover:text-clinic-tea hover:bg-clinic-blue/5 rounded-lg transition-colors duration-200">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-                        </svg>
-                        Back to Settings
-                    </button>
-                </div>
                 <h2 class="text-2xl font-bold text-clinic-dark mb-6">Register New Admin User</h2>
                 
                 <form method="post" class="space-y-6">
@@ -1423,7 +1350,7 @@ try {
                                         </div>
                                         <div class="flex items-center">
                                             <?php if ($userData['is_active']): ?>
-                                                <span class="px-2 py-1 bg-green-100 text-green-600 text-xs font-medium rounded-full">Active</span>
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">Active</span>
                                             <?php else: ?>
                                                 <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">Inactive</span>
                                             <?php endif; ?>
@@ -1433,24 +1360,12 @@ try {
                                         </div>
                                         <div class="flex items-center gap-1 flex-wrap">
                                             <?php if ($userData['id'] != $user['id']): ?>
-                                                <!-- Role Change -->
-                                                <form method="post" class="inline">
-                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
-                                                    <input type="hidden" name="action" value="update_user_role" />
-                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
-                                                    <input type="hidden" name="new_role" value="<?= $userData['is_admin'] ? 'regular' : 'admin' ?>" />
-                                                    <button type="submit" class="px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 text-xs font-medium rounded transition-colors" 
-                                                            onclick="return confirm('Are you sure you want to change this user\'s role?')">
-                                                        <?= $userData['is_admin'] ? 'Make User' : 'Make Admin' ?>
-                                                    </button>
-                                                </form>
-                                                
                                                 <!-- Status Toggle -->
                                                 <form method="post" class="inline">
                                                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
                                                     <input type="hidden" name="action" value="toggle_user_status" />
                                                     <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
-                                                    <button type="submit" class="px-2 py-1 <?= $userData['is_active'] ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-600' : 'bg-green-100 hover:bg-green-200 text-green-600' ?> text-xs font-medium rounded transition-colors"
+                                                    <button type="submit" class="px-2 py-1 <?= $userData['is_active'] ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600' ?> text-xs font-medium rounded transition-colors"
                                                             onclick="return confirm('Are you sure you want to <?= $userData['is_active'] ? 'deactivate' : 'activate' ?> this user?')">
                                                         <?= $userData['is_active'] ? 'Deactivate' : 'Activate' ?>
                                                     </button>
@@ -1495,6 +1410,55 @@ try {
                         <span class="text-clinic-dark/80">
                             Active Users: <strong><?= count(array_filter($allUsers, fn($u) => $u['is_active'])) ?></strong>
                         </span>
+                    </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Security Management Section -->
+        <?php if ($currentSection === 'security_management'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-clinic-dark">Security Management</h2>
+                    <p class="text-clinic-dark/60 mt-2">Manage IP blocks, failed login attempts, and security settings</p>
+                </div>
+
+                <!-- Security Management Buttons -->
+                <div class="p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">IP & Login Security</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="getBlockedIPs()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            View Blocked IPs
+                        </button>
+                        <button onclick="clearIPBlocks()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Clear All IP Blocks
+                        </button>
+                        <button onclick="clearFailedAttempts()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Clear Failed Attempts
+                        </button>
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <strong>Note:</strong> IPs are automatically unblocked after 24 hours. Use these buttons for immediate unblocking when needed.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Recent Security Events -->
+                <div class="flex-1 min-h-0 overflow-hidden">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-full flex flex-col">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-3">Recent Security Events</h4>
+                        <div id="securityLogsPreview" class="text-sm text-gray-600 flex-1 overflow-y-auto">
+                            <p>Loading recent security events...</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1607,59 +1571,62 @@ function closeNotification(button) {
 }
 
 // Log search and filtering
-document.getElementById('logSearch').addEventListener('input', filterLogs);
 document.getElementById('logTypeFilter').addEventListener('change', filterLogs);
 document.getElementById('logDateFilter').addEventListener('change', filterLogs);
 
-// Auto-focus search field
-document.addEventListener('DOMContentLoaded', function() {
-    const searchField = document.getElementById('logSearch');
-    if (searchField) {
-        searchField.focus();
-    }
-});
+// Auto-focus removed since search field is removed
 
 function filterLogs() {
-    const search = document.getElementById('logSearch').value.toLowerCase();
     const typeFilter = document.getElementById('logTypeFilter').value;
     const dateFilter = document.getElementById('logDateFilter').value;
+    console.log('Filtering by:', { typeFilter, dateFilter }); // Debug log
     
     // Filter daily logs (div-based layout)
     const dailyLogsContainer = document.getElementById('dailyLogsTableBody');
     if (dailyLogsContainer) {
-        const dailyLogItems = dailyLogsContainer.querySelectorAll('.grid.grid-cols-4');
+        const dailyLogItems = dailyLogsContainer.querySelectorAll('.grid.grid-cols-5');
         dailyLogItems.forEach(item => {
             const text = item.textContent.toLowerCase();
             const typeMatch = !typeFilter || text.includes(typeFilter.toLowerCase());
-            const searchMatch = !search || text.includes(search);
             
             // Date filtering logic
             let dateMatch = true;
             if (dateFilter) {
-                const dateText = item.querySelector('div:first-child')?.textContent.toLowerCase() || '';
-                const today = new Date();
-                const itemDate = new Date(dateText);
-                
-                switch (dateFilter) {
-                    case 'today':
-                        dateMatch = itemDate.toDateString() === today.toDateString();
-                        break;
-                    case 'week':
-                        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                        dateMatch = itemDate >= weekAgo;
-                        break;
-                    case 'month':
-                        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-                        dateMatch = itemDate >= monthAgo;
-                        break;
-                    case 'year':
-                        const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
-                        dateMatch = itemDate >= yearAgo;
-                        break;
+                const dateCell = item.querySelector('.date-cell');
+                if (dateCell) {
+                    const dateText = dateCell.textContent.trim();
+                    const today = new Date();
+                    const itemDate = new Date(dateText);
+                    
+                    switch (dateFilter) {
+                        case 'today':
+                            dateMatch = itemDate.toDateString() === today.toDateString();
+                            break;
+                        case 'week':
+                            // Get start of current week (Monday)
+                            const startOfWeek = new Date(today);
+                            const dayOfWeek = today.getDay();
+                            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+                            startOfWeek.setDate(today.getDate() - daysToMonday);
+                            startOfWeek.setHours(0, 0, 0, 0);
+                            dateMatch = itemDate >= startOfWeek;
+                            break;
+                        case 'month':
+                            // Get first day of current month
+                            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                            dateMatch = itemDate >= firstDayOfMonth;
+                            break;
+                        case 'year':
+                            const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+                            dateMatch = itemDate >= yearAgo;
+                            break;
+                    }
+                } else {
+                    dateMatch = false; // If no date cell found, don't match
                 }
             }
             
-            if (typeMatch && searchMatch && dateMatch) {
+            if (typeMatch && dateMatch) {
                 item.style.display = '';
             } else {
                 item.style.display = 'none';
@@ -1676,14 +1643,13 @@ function filterLogs() {
             rows.forEach(row => {
                 const text = row.textContent.toLowerCase();
                 const typeMatch = !typeFilter || text.includes(typeFilter.toLowerCase());
-                const searchMatch = !search || text.includes(search);
                 
                 // Date filtering logic for table rows
                 let dateMatch = true;
                 if (dateFilter) {
-                    const dateCell = row.querySelector('td:first-child');
+                    const dateCell = row.querySelector('td:nth-child(2)'); // Second column should be date
                     if (dateCell) {
-                        const dateText = dateCell.textContent.toLowerCase();
+                        const dateText = dateCell.textContent.trim();
                         const today = new Date();
                         const itemDate = new Date(dateText);
                         
@@ -1692,22 +1658,30 @@ function filterLogs() {
                                 dateMatch = itemDate.toDateString() === today.toDateString();
                                 break;
                             case 'week':
-                                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                                dateMatch = itemDate >= weekAgo;
+                                // Get start of current week (Monday)
+                                const startOfWeek = new Date(today);
+                                const dayOfWeek = today.getDay();
+                                const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+                                startOfWeek.setDate(today.getDate() - daysToMonday);
+                                startOfWeek.setHours(0, 0, 0, 0);
+                                dateMatch = itemDate >= startOfWeek;
                                 break;
                             case 'month':
-                                const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-                                dateMatch = itemDate >= monthAgo;
+                                // Get first day of current month
+                                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                                dateMatch = itemDate >= firstDayOfMonth;
                                 break;
                             case 'year':
                                 const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
                                 dateMatch = itemDate >= yearAgo;
                                 break;
                         }
+                    } else {
+                        dateMatch = false; // If no date cell found, don't match
                     }
                 }
                 
-                if (typeMatch && searchMatch && dateMatch) {
+                if (typeMatch && dateMatch) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -1718,33 +1692,10 @@ function filterLogs() {
 }
 
 function showLogTab(tabType) {
-    // Hide all tables
-    document.getElementById('dailyLogsTable').classList.add('hidden');
-    document.getElementById('weeklyLogsTable').classList.add('hidden');
-    document.getElementById('monthlyLogsTable').classList.add('hidden');
-    
-    // Remove active state from all tabs
-    document.getElementById('dailyTab').classList.remove('bg-white', 'text-clinic-blue', 'shadow-sm');
-    document.getElementById('dailyTab').classList.add('text-clinic-dark/60');
-    document.getElementById('weeklyTab').classList.remove('bg-white', 'text-clinic-blue', 'shadow-sm');
-    document.getElementById('weeklyTab').classList.add('text-clinic-dark/60');
-    document.getElementById('monthlyTab').classList.remove('bg-white', 'text-clinic-blue', 'shadow-sm');
-    document.getElementById('monthlyTab').classList.add('text-clinic-dark/60');
-    
-    // Show selected table and activate tab
-    if (tabType === 'daily') {
-        document.getElementById('dailyLogsTable').classList.remove('hidden');
-        document.getElementById('dailyTab').classList.add('bg-white', 'text-clinic-blue', 'shadow-sm');
-        document.getElementById('dailyTab').classList.remove('text-clinic-dark/60');
-    } else if (tabType === 'weekly') {
-        document.getElementById('weeklyLogsTable').classList.remove('hidden');
-        document.getElementById('weeklyTab').classList.add('bg-white', 'text-clinic-blue', 'shadow-sm');
-        document.getElementById('weeklyTab').classList.remove('text-clinic-dark/60');
-    } else if (tabType === 'monthly') {
-        document.getElementById('monthlyLogsTable').classList.remove('hidden');
-        document.getElementById('monthlyTab').classList.add('bg-white', 'text-clinic-blue', 'shadow-sm');
-        document.getElementById('monthlyTab').classList.remove('text-clinic-dark/60');
-    }
+    // Since we only have one tab now, just ensure it's visible
+    document.getElementById('dailyLogsTable').classList.remove('hidden');
+    document.getElementById('dailyTab').classList.remove('bg-gray-100', 'text-gray-700');
+    document.getElementById('dailyTab').classList.add('bg-white', 'text-gray-700', 'shadow-sm');
 }
 
 function viewLogDetails(logId, logType) {
@@ -1872,7 +1823,6 @@ function resetModalSize() {
 }
 
 function clearFilters() {
-    document.getElementById('logSearch').value = '';
     document.getElementById('logTypeFilter').value = '';
     document.getElementById('logDateFilter').value = '';
     // Trigger the filter function if it exists
@@ -1989,6 +1939,59 @@ function clearFailedAttempts() {
     }
 }
 
+function clearIPBlocks() {
+    if (confirm('Are you sure you want to clear all IP blocks? This will unblock all currently blocked IP addresses.')) {
+        fetch('clear_ip_blocks.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=clear_ip_blocks'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Error clearing IP blocks: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error clearing IP blocks', 'error');
+        });
+    }
+}
+
+function getBlockedIPs() {
+    fetch('clear_ip_blocks.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=get_blocked_ips'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Currently blocked IPs: ${data.count}\n\n`;
+            if (data.blocked_ips.length > 0) {
+                data.blocked_ips.forEach(ip => {
+                    message += `• ${ip.ip_address} - ${ip.description} (${ip.timestamp})\n`;
+                });
+            } else {
+                message += 'No IPs are currently blocked.';
+            }
+            alert(message);
+        } else {
+            showNotification('Error getting blocked IPs: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error getting blocked IPs', 'error');
+    });
+}
+
 function viewSecurityLogs() {
     // Open security logs in a new window or redirect to detailed logs
     window.open('../logs/logs.php?filter=security', '_blank');
@@ -2018,6 +2021,110 @@ function exportSecurityReport() {
     .catch(error => {
         showNotification('Error generating security report', 'error');
     });
+}
+
+// Sorting functionality for logs
+let currentSort = { column: 'date', direction: 'desc' };
+
+function sortLogs(column) {
+    console.log('Sorting by:', column); // Debug log
+    try {
+        const tableBody = document.getElementById('dailyLogsTableBody');
+        if (!tableBody) {
+            console.error('Table body not found');
+            return;
+        }
+        
+        const rows = Array.from(tableBody.children);
+        console.log('Found rows:', rows.length); // Debug log
+        if (rows.length === 0) {
+            console.log('No rows to sort');
+            return;
+        }
+        
+        // Remove existing sort indicators
+        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+            indicator.remove();
+        });
+        
+        // Determine sort direction
+        if (currentSort.column === column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.direction = 'asc';
+        }
+        currentSort.column = column;
+        
+        // Add sort indicator to clicked header
+        const header = event.target.closest('div');
+        if (header) {
+            const indicator = document.createElement('span');
+            indicator.className = 'sort-indicator ml-1 text-gray-600';
+            indicator.innerHTML = currentSort.direction === 'asc' ? '↑' : '↓';
+            header.appendChild(indicator);
+        }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(column) {
+            case 'date':
+                aValue = new Date(a.querySelector('.date-cell').textContent.trim());
+                bValue = new Date(b.querySelector('.date-cell').textContent.trim());
+                console.log('Date comparison:', aValue, bValue); // Debug log
+                break;
+            case 'type':
+                aValue = a.querySelector('.type-cell').textContent.trim();
+                bValue = b.querySelector('.type-cell').textContent.trim();
+                console.log('Type comparison:', aValue, bValue); // Debug log
+                break;
+            case 'records':
+                // Extract number from text like "133 records"
+                const aText = a.querySelector('.records-cell').textContent.trim();
+                const bText = b.querySelector('.records-cell').textContent.trim();
+                aValue = parseInt(aText.match(/\d+/)?.[0] || '0');
+                bValue = parseInt(bText.match(/\d+/)?.[0] || '0');
+                console.log('Records comparison:', aValue, bValue); // Debug log
+                break;
+            default:
+                return 0;
+        }
+        
+        if (currentSort.direction === 'asc') {
+            return aValue > bValue ? 1 : -1;
+        } else {
+            return aValue < bValue ? 1 : -1;
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach((row, index) => {
+        // Update row number
+        const numberCell = row.querySelector('.number-cell');
+        if (numberCell) {
+            numberCell.textContent = index + 1;
+        }
+        tableBody.appendChild(row);
+    });
+    
+    } catch (error) {
+        console.error('Error sorting logs:', error);
+    }
+}
+
+function updateSortIndicator(column, direction) {
+    // Remove existing sort indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        indicator.remove();
+    });
+    
+    // Add sort indicator to clicked header
+    const header = event.target.closest('div');
+    const indicator = document.createElement('span');
+    indicator.className = 'sort-indicator ml-1 text-gray-600';
+    indicator.innerHTML = direction === 'asc' ? '↑' : '↓';
+    header.appendChild(indicator);
 }
 
 

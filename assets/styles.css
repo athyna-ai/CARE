@@ -685,7 +685,31 @@ input[type="text"][class*="bg-clinic-ivory/40"]::placeholder {
     color: rgba(52, 59, 27, 0.5) !important;
     opacity: 1 !important;
 }
-button { background: #22c55e; color:#052e16; font-weight:600; padding: 10px 14px; border:none; border-radius:8px; cursor:pointer; }
+/* Apply green background to most buttons */
+button { 
+    background: #22c55e; 
+    color:#052e16; 
+    font-weight:600; 
+    padding: 10px 14px; 
+    border:none; 
+    border-radius:8px; 
+    cursor:pointer; 
+}
+
+/* Override green background for main logs panel buttons */
+button[onclick*="viewFullLogs"],
+button[onclick*="showLogTab"],
+button.text-gray-600,
+button.text-gray-500,
+button.text-gray-700,
+button.text-gray-800 {
+    background: transparent !important;
+    color: inherit !important;
+    font-weight: inherit !important;
+    padding: inherit !important;
+    border: inherit !important;
+    border-radius: inherit !important;
+}
 button[disabled] { opacity:.5; cursor:not-allowed; }
 .checkbox { display:flex; align-items:center; gap:8px; color: #e5e7eb; }
 .hint { color: #9ca3af; }

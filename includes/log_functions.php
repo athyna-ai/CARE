@@ -483,8 +483,10 @@ if (!headers_sent()) {
 }
 
 // Helper functions for easy access
-function logSecurityEvent($event_type, $description, $additional_data = []) {
-    return SecurityLogger::logSecurityEvent($event_type, $description, $additional_data);
+if (!function_exists('logSecurityEvent')) {
+    function logSecurityEvent($event_type, $description, $additional_data = []) {
+        return SecurityLogger::logSecurityEvent($event_type, $description, $additional_data);
+    }
 }
 
 function generateSecurityReport($days = 7) {
