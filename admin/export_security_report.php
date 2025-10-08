@@ -81,6 +81,6 @@ try {
 } catch (Exception $e) {
     error_log('Error exporting security report: ' . $e->getMessage());
     http_response_code(500);
-    echo 'Error generating security report: ' . $e->getMessage();
+    echo 'An error occurred while generating the security report. Please try again.';
 }
 ?>

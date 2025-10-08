@@ -14,10 +14,19 @@ if ($validCsrf) {
 		$userId = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : null;
 		if ($userId) { 
 			log_activity($pdo, $userId, 'logout', 'Admin logout', 'auth/logout'); 
+			// Debug: Log to error log to verify logout is being called
+			error_log("Logout logged for user ID: " . $userId);
+		} else {
+			// Debug: Log when no user ID is found
+			error_log("Logout called but no user ID found in session");
 		}
 	} catch (Throwable $e) {
-		// ignore logging errors
+		// Log the error for debugging
+		error_log("Logout logging error: " . $e->getMessage());
 	}
+} else {
+	// Debug: Log when CSRF validation fails
+	error_log("Logout CSRF validation failed");
 }
 
 // Clear session data

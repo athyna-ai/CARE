@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle ?? 'CARE: Clinic Administration of Records System') ?></title>
+    
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=()">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -44,6 +51,14 @@
     <script src="../assets/js/security-live-monitor.js"></script>
     <!-- Session Timeout Monitor -->
     <script src="../assets/js/session-timeout-monitor.js"></script>
+    
+    <!-- Logout Confirmation Script -->
+    <script>
+        function confirmLogout() {
+            return confirm('Are you sure you want to logout? You will need to log in again to access the system.');
+        }
+    </script>
+    
     <style>
         body { font-family: 'Poppins', sans-serif; }
         .font-comfortaa { font-family: 'Comfortaa', cursive; }
@@ -88,7 +103,7 @@
                 <a href="../admin/dashboard.php" class="px-4 py-2 bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Dashboard
                 </a>
-                <a href="../auth/logout.php" class="px-4 py-2 bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
+                <a href="../auth/logout.php" onclick="return confirmLogout()" class="px-4 py-2 bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Logout
                 </a>
                 <?php endif; ?>

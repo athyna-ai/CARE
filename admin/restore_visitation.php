@@ -136,7 +136,7 @@ try {
     // Clean any unwanted output and send error response
     ob_clean();
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Error restoring visitation: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'An error occurred while restoring the visitation. Please try again.']);
     exit;
 }
 ?>

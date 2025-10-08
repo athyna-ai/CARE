@@ -37,7 +37,7 @@ try {
             echo "<p style='color: green;'>✓ Executed: " . substr($statement, 0, 50) . "...</p>\n";
         } catch (Exception $e) {
             $errorCount++;
-            echo "<p style='color: red;'>✗ Error: " . $e->getMessage() . "</p>\n";
+            echo "<p style='color: red;'>✗ An error occurred. Please try again.</p>\n";
             echo "<p style='color: gray;'>Statement: " . substr($statement, 0, 100) . "...</p>\n";
         }
     }
@@ -65,7 +65,7 @@ try {
     
 } catch (Exception $e) {
     echo "<h2 style='color: red;'>Error updating database:</h2>\n";
-    echo "<p style='color: red;'>" . $e->getMessage() . "</p>\n";
+    echo "<p style='color: red;'>An error occurred. Please try again.</p>\n";
     echo "<p>Please check your database connection and try again.</p>\n";
 }
 ?>

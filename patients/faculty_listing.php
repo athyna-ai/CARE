@@ -209,7 +209,7 @@ include __DIR__ . '/../partials/header.php';
                 </div>
 
                 <!-- Table Body -->
-                <div id="facultyTable" class="divide-y divide-slate-200 flex-1 overflow-y-auto">
+                <div id="facultyTable" class="faculty-table-responsive divide-y divide-slate-200 flex-1 overflow-y-auto">
                     <?php foreach ($faculty as $member): ?>
                         <div class="px-6 py-4 hover:bg-slate-50 transition-colors faculty-row" 
                              data-name="<?= htmlspecialchars(strtolower($member['name'] ?? '')) ?>"
@@ -236,7 +236,7 @@ include __DIR__ . '/../partials/header.php';
                                 </div>
                                 <div class="col-span-2">
                                     <div class="flex items-center space-x-2">
-                                        <a href="../patients/patient_view.php?id=<?= $member['id'] ?>&type=faculty" 
+                                        <a href="<?= generate_patient_url($member['id'], 'faculty') ?>" 
                                            class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>

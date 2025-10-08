@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
+require_once __DIR__ . '/../core/encryption.php';
 
 // Include security breach detection
 require_once __DIR__ . '/../security_breach_detector.php';
@@ -10,30 +11,49 @@ require_once __DIR__ . '/../security_breach_detector.php';
 require_admin_auth();
 $pdo = get_pdo();
 
-// Get patient ID and type from URL with enhanced security validation
-try {
-    $patientId = validate_patient_id($_GET['id'] ?? 0);
-    $patientType = validate_patient_type($_GET['type'] ?? 'student');
-} catch (InvalidArgumentException $e) {
-    logSecurityBreach('INVALID_PATIENT_PARAMS', 'Invalid patient parameters attempted', [
-        'invalid_id' => $_GET['id'] ?? 'null',
-        'invalid_type' => $_GET['type'] ?? 'null',
-        'error' => $e->getMessage(),
-        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
-    ]);
-    header('Location: ../admin/dashboard.php?error=invalid_patient_params');
-    exit;
+// Get patient data from encrypted token or fallback to old method
+$patientId = 0;
+$patientType = 'student';
+
+if (isset($_GET['token'])) {
+    // New encrypted token method
+    $tokenData = PatientIdEncryption::validateToken($_GET['token']);
+    if ($tokenData) {
+        $patientId = (int)$tokenData['id'];
+        $patientType = $tokenData['type'];
+    } else {
+        logSecurityBreach('INVALID_PATIENT_TOKEN', 'Invalid or expired patient token attempted', [
+            'token' => substr($_GET['token'], 0, 20) . '...',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+        header('Location: ../admin/dashboard.php?error=invalid_patient_token');
+        exit;
+    }
+} else {
+    // Fallback to old method for backward compatibility
+    try {
+        $patientId = validate_patient_id($_GET['id'] ?? 0);
+        $patientType = validate_patient_type($_GET['type'] ?? 'student');
+    } catch (InvalidArgumentException $e) {
+        logSecurityBreach('INVALID_PATIENT_PARAMS', 'Invalid patient parameters attempted', [
+            'invalid_id' => $_GET['id'] ?? 'null',
+            'invalid_type' => $_GET['type'] ?? 'null',
+            'error' => $e->getMessage(),
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+        header('Location: ../admin/dashboard.php?error=invalid_patient_params');
+        exit;
+    }
 }
 
-// Debug: Log the URL parameters
-error_log("Patient view - ID: {$patientId}, Type: {$patientType}");
+// Patient view accessed
 
 // Handle success/error messages
 $message = $_GET['message'] ?? '';
 $messageType = $_GET['message_type'] ?? 'info';
 
 if ($patientId <= 0) {
-    error_log("Invalid patient ID: {$patientId}, redirecting to dashboard");
+    // Invalid patient ID, redirecting to dashboard
     header('Location: ../admin/dashboard.php?error=invalid_patient');
     exit;
 }
@@ -41,7 +61,6 @@ if ($patientId <= 0) {
 // Get patient information
 $patient = null;
 $patientIdInt = (int)$patientId; // Ensure integer conversion
-error_log("Patient lookup - ID: $patientId, Type: $patientType, Converted ID: $patientIdInt");
 
 if ($patientType === 'student') {
     $stmt = $pdo->prepare('SELECT * FROM students WHERE id = ?');
@@ -83,7 +102,7 @@ if (!$patient) {
     // Log successful patient access
     log_patient_access($pdo, $patientId, $patientType, 'view');
     
-    error_log("Patient found - ID: {$patientId}, Type: {$patientType}, Name: " . ($patient['name'] ?? 'Unknown'));
+    // Patient found
     // Ensure patient data is valid
     if (empty($patient['name'])) {
         logSecurityBreach('INCOMPLETE_PATIENT_DATA', 'Patient data is incomplete', [
@@ -112,7 +131,7 @@ try {
         ');
         $medicalStmt->execute([$patientId, $patientType]);
         $medicalHistory = $medicalStmt->fetchAll();
-        error_log("Medical history query - Patient ID: {$patientId}, Type: {$patientType}, Count: " . count($medicalHistory));
+        // Medical history retrieved
     } else {
         error_log("Medical records table does not exist");
         $medicalHistory = [];
@@ -132,7 +151,7 @@ try {
         $archiveStmt = $pdo->prepare("SELECT *, 'archived' as status FROM `{$archiveTable}` WHERE patient_id = ? ORDER BY archived_at DESC");
         $archiveStmt->execute([$patientId]);
         $archivedMedical = $archiveStmt->fetchAll();
-        error_log("Archived medical query - Patient ID: {$patientId}, Type: {$patientType}, Count: " . count($archivedMedical));
+        // Archived medical records retrieved
     }
 } catch (Exception $e) {
     error_log("Archived medical history error: " . $e->getMessage());
@@ -195,7 +214,7 @@ try {
         }
         
         $visitationLogs = $visitationStmt->fetchAll();
-        error_log("Visitation logs query - Patient ID: {$patientId}, Type: {$patientType}, Enrollment Date: {$enrollmentDate}, Count: " . count($visitationLogs));
+        // Visitation logs retrieved
     } else {
         error_log("Visitation logs table does not exist");
         $visitationLogs = [];
@@ -940,7 +959,7 @@ window.closeNotification = closeNotification;
                                 </button>
                             </div>
                         <?php else: ?>
-                            <div class="overflow-x-auto">
+                            <div class="visitation-logs-table overflow-x-auto">
                                 <table class="w-full text-xs">
                                     <thead>
                                         <tr class="border-b border-clinic-tea/20">

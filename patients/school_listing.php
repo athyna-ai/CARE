@@ -379,7 +379,7 @@ include __DIR__ . '/../partials/header.php';
                 </div>
 
                 <!-- Table Body -->
-                <div id="studentsTable" class="divide-y divide-slate-200 flex-1 overflow-y-auto">
+                <div id="studentsTable" class="student-table-responsive divide-y divide-slate-200 flex-1 overflow-y-auto">
                     <?php foreach ($students as $student): ?>
                         <div class="px-6 py-4 hover:bg-slate-50 transition-colors student-row" 
                              data-name="<?= htmlspecialchars(strtolower($student['name'] ?? '')) ?>"
@@ -410,7 +410,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="col-span-2">
                                         <div class="flex items-center space-x-2">
-                                            <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                            <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                                class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -463,7 +463,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="col-span-2">
                                         <div class="flex items-center space-x-2">
-                                            <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                            <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                                class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -516,7 +516,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="col-span-2">
                                         <div class="flex items-center space-x-2">
-                                            <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                            <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                                class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -569,7 +569,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="col-span-2">
                                         <div class="flex items-center space-x-2">
-                                            <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                            <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                                class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -620,7 +620,7 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                     <div class="col-span-2">
                                         <div class="flex items-center space-x-2">
-                                            <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                            <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                                class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,7 +677,7 @@ include __DIR__ . '/../partials/header.php';
                                 </div>
                                 <div class="col-span-1">
                                     <div class="flex items-center space-x-2">
-                                        <a href="../patients/patient_view.php?id=<?= $student['id'] ?>&type=student" 
+                                        <a href="<?= generate_patient_url($student['id'], 'student') ?>" 
                                            class="p-2 text-sky-600 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors" 
 >
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

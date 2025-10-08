@@ -15,7 +15,23 @@ $DB_CHARSET = 'utf8mb4';
 
 // Start session early for auth
 if (session_status() !== PHP_SESSION_ACTIVE) {
-	session_start();
+    // Enhanced session security configuration
+    ini_set('session.cookie_httponly', 1);
+    ini_set('session.cookie_secure', 1);
+    ini_set('session.use_strict_mode', 1);
+    ini_set('session.cookie_samesite', 'Strict');
+    ini_set('session.gc_maxlifetime', 3600); // 1 hour
+    ini_set('session.cookie_lifetime', 0); // Session cookie (expires when browser closes)
+    
+    session_start();
+    
+    // Regenerate session ID periodically for security
+    if (!isset($_SESSION['last_regeneration'])) {
+        $_SESSION['last_regeneration'] = time();
+    } elseif (time() - $_SESSION['last_regeneration'] > 300) { // Every 5 minutes
+        session_regenerate_id(true);
+        $_SESSION['last_regeneration'] = time();
+    }
 }
 
 // Create a shared PDO instance

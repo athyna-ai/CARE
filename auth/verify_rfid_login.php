@@ -24,13 +24,7 @@ try {
     $pdo = get_pdo();
     $pendingUser = $_SESSION['pending_login'];
     
-    // Debug: Log the verification attempt
-    error_log('=== RFID VERIFICATION DEBUG ===');
-    error_log('User: ' . $pendingUser['name'] . ' (ID: ' . $pendingUser['id'] . ')');
-    error_log('Input RFID: ' . $rfid);
-    error_log('Stored RFID: ' . ($pendingUser['rfid'] ?? 'NULL'));
-    error_log('Stored RFID length: ' . strlen($pendingUser['rfid'] ?? ''));
-    error_log('Is stored RFID hashed? ' . (strpos($pendingUser['rfid'], '$2y$') === 0 ? 'YES' : 'NO'));
+    // Debug logging removed for security
     
     // Check if the provided RFID matches the user's RFID
     // Handle both hashed and plain text RFID values
@@ -40,11 +34,11 @@ try {
         if (strpos($pendingUser['rfid'], '$2y$') === 0) {
             // It's hashed, verify using password_verify
             $rfidMatches = password_verify($rfid, $pendingUser['rfid']);
-            error_log('Password verify result: ' . ($rfidMatches ? 'TRUE' : 'FALSE'));
+            // Password verification result logged to activity logs only
         } else {
             // It's plain text, do direct comparison
             $rfidMatches = ($pendingUser['rfid'] === $rfid);
-            error_log('Direct comparison result: ' . ($rfidMatches ? 'TRUE' : 'FALSE'));
+            // Direct comparison result logged to activity logs only
         }
     }
     
@@ -52,6 +46,9 @@ try {
     
     if ($rfidMatches) {
         // RFID matches, complete the login
+        // Regenerate session ID for security
+        session_regenerate_id(true);
+        
         $_SESSION['user'] = [
             'id' => $pendingUser['id'],
             'name' => $pendingUser['name'],
@@ -73,6 +70,9 @@ try {
         ]);
     } elseif (empty($pendingUser['rfid'])) {
         // No RFID set for user, allow login without RFID
+        // Regenerate session ID for security
+        session_regenerate_id(true);
+        
         $_SESSION['user'] = [
             'id' => $pendingUser['id'],
             'name' => $pendingUser['name'],
@@ -101,6 +101,6 @@ try {
     
 } catch (Exception $e) {
     error_log('Error verifying RFID for login: ' . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Error verifying RFID']);
+    echo json_encode(['success' => false, 'message' => 'An error occurred. Please try again.']);
 }
 ?>

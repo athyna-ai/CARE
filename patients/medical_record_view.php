@@ -2,13 +2,30 @@
 declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
+require_once __DIR__ . '/../core/encryption.php';
 
 require_admin_auth();
 $pdo = get_pdo();
 
-// Get record ID from URL
-$recordId = (int)($_GET['id'] ?? 0);
-$isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
+// Get record ID from URL (handle both encrypted token and direct ID)
+$recordId = 0;
+$isArchived = false;
+
+if (isset($_GET['token'])) {
+    // New encrypted token method
+    $tokenData = PatientIdEncryption::validateToken($_GET['token']);
+    if ($tokenData) {
+        $recordId = (int)$tokenData['id'];
+        $isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
+    } else {
+        header('Location: ../admin/dashboard.php?error=invalid_medical_token');
+        exit;
+    }
+} else {
+    // Fallback to old method for backward compatibility
+    $recordId = (int)($_GET['id'] ?? 0);
+    $isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
+}
 
 if ($recordId <= 0) {
     header('Location: ../admin/dashboard.php?error=invalid_record');

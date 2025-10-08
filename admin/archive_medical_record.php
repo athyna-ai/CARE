@@ -169,7 +169,7 @@ try {
     // Clean any unwanted output and send error response
     ob_clean();
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Error archiving medical record: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'An error occurred while archiving the medical record. Please try again.']);
     exit;
 }
 ?>

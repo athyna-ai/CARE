@@ -3,7 +3,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-// No authentication required for RFID portal - allows public patient registration
+// REQUIRE ADMIN AUTHENTICATION for RFID portal access
+require_admin_auth();
 $pdo = get_pdo();
 
 $errors = [];
@@ -24,21 +25,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$faculty = $facultyStmt->fetch();
 		
 		if ($student) {
-			// Log successful RFID search (public access - no user session)
-			log_activity($pdo, 0, 'rfid_search', "Found student: {$student['name']} ({$student['info']})", 'rfid_portal');
+			// Log successful RFID search (authenticated admin access)
+			$userId = $_SESSION['user']['id'] ?? null;
+			log_activity($pdo, $userId, 'rfid_search', "Found student: {$student['name']} ({$student['info']})", 'rfid_portal');
 			// Automatically redirect to patient view
 			header("Location: ../patients/patient_view.php?id={$student['id']}&type=student");
 			exit;
 		} elseif ($faculty) {
-			// Log successful RFID search (public access - no user session)
-			log_activity($pdo, 0, 'rfid_search', "Found faculty: {$faculty['name']} ({$faculty['info']})", 'rfid_portal');
+			// Log successful RFID search (authenticated admin access)
+			$userId = $_SESSION['user']['id'] ?? null;
+			log_activity($pdo, $userId, 'rfid_search', "Found faculty: {$faculty['name']} ({$faculty['info']})", 'rfid_portal');
 			// Automatically redirect to patient view
 			header("Location: ../patients/patient_view.php?id={$faculty['id']}&type=faculty");
 			exit;
 		} else {
 			$result = ['exists' => false];
-			// Log unsuccessful RFID search (public access - no user session)
-			log_activity($pdo, 0, 'rfid_search', "RFID not found: {$rfid}", 'rfid_portal');
+			// Log unsuccessful RFID search (authenticated admin access)
+			$userId = $_SESSION['user']['id'] ?? null;
+			log_activity($pdo, $userId, 'rfid_search', "RFID not found: {$rfid}", 'rfid_portal');
 		}
 	}
 }

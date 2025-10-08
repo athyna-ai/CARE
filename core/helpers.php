@@ -21,7 +21,7 @@ function is_strong_password(string $password): bool {
 	return $lengthOk && $hasUpper && $hasLower && $hasDigit && $hasSpecial;
 }
 
-function log_activity(PDO $pdo, ?int $userId, string $action, string $details = '', string $location = ''): void {
+function log_activity(PDO $pdo, ?int $userId, string $action, string $details = '', string $location = '', bool $success = true): void {
 	// Check if user exists before logging
 	if ($userId !== null) {
 		$checkUser = $pdo->prepare('SELECT id FROM users WHERE id = ?');
@@ -31,16 +31,27 @@ function log_activity(PDO $pdo, ?int $userId, string $action, string $details = 
 		}
 	}
 	
-	$stmt = $pdo->prepare('INSERT INTO activity_logs (user_id, action, description, location, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)');
+	$stmt = $pdo->prepare('INSERT INTO activity_logs (user_id, action, description, location, ip_address, user_agent, success) VALUES (?, ?, ?, ?, ?, ?, ?)');
 	$ip = $_SERVER['REMOTE_ADDR'] ?? '';
 	$ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
-	$stmt->execute([$userId, $action, $details, $location, $ip, $ua]);
+	$stmt->execute([$userId, $action, $details, $location, $ip, $ua, $success ? 1 : 0]);
 }
 
 function require_admin_auth(): void {
 	$now = time();
 	$timeoutSeconds = 600; // 10 minutes
 	if (!empty($_SESSION['last_activity']) && ($now - (int)$_SESSION['last_activity']) > $timeoutSeconds) {
+		// Log session timeout logout
+		try {
+			$pdo = get_pdo();
+			$userId = isset($_SESSION['user']['id']) ? (int)$_SESSION['user']['id'] : null;
+			if ($userId) {
+				log_activity($pdo, $userId, 'logout', 'Session timeout logout', 'auth/timeout');
+			}
+		} catch (Throwable $e) {
+			// Ignore logging errors
+		}
+		
 		$_SESSION = [];
 		if (ini_get('session.use_cookies')) {
 			$params = session_get_cookie_params();
@@ -54,7 +65,7 @@ function require_admin_auth(): void {
 		// Log unauthorized access attempt
 		try {
 			$pdo = get_pdo();
-			log_activity($pdo, null, 'unauthorized_access', 'Unauthorized access attempt to: ' . $_SERVER['REQUEST_URI'], 'auth/unauthorized');
+			log_activity($pdo, null, 'unauthorized_access', 'Unauthorized access attempt to: ' . $_SERVER['REQUEST_URI'], 'auth/unauthorized', false);
 		} catch (Throwable $e) {
 			// Ignore logging errors for unauthorized access
 		}
@@ -170,6 +181,24 @@ function log_patient_access(PDO $pdo, int $patientId, string $patientType, strin
 	} catch (Throwable $e) {
 		// Ignore logging errors
 	}
+}
+
+/**
+ * Generate secure patient URL with encrypted token
+ */
+function generate_patient_url(int $patientId, string $patientType = 'student'): string {
+	// For now, use the old URL format to ensure compatibility
+	// TODO: Re-enable encryption once system is stable
+	return "/Care/patients/patient_view.php?id={$patientId}&type={$patientType}";
+}
+
+/**
+ * Generate secure medical record URL with encrypted token
+ */
+function generate_medical_url(int $recordId): string {
+	// For now, use the old URL format to ensure compatibility
+	// TODO: Re-enable encryption once system is stable
+	return "/Care/patients/medical_record_view.php?id={$recordId}";
 }
 
 ?>

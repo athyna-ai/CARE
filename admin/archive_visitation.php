@@ -185,7 +185,7 @@ try {
     // Clean any unwanted output and send error response
     ob_clean();
     header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'message' => 'Error archiving visitation: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'An error occurred while archiving the visitation. Please try again.']);
     exit;
 }
 ?>

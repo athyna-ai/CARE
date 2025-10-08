@@ -116,7 +116,7 @@ include __DIR__ . '/../partials/header.php';
         <div class="max-w-7xl mx-auto px-6 py-8">
             <!-- Back Button -->
             <div class="mb-6">
-                <a href="patient_view.php?id=<?= $patientId ?>&type=<?= $patientType ?>" class="group inline-flex items-center gap-2 px-4 py-2 bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-dark hover:bg-clinic-tea/20 hover:border-clinic-tea/40 transition-all duration-200 font-poppins font-medium rounded-xl">
+                <a href="<?= generate_patient_url($patientId, $patientType) ?>" class="group inline-flex items-center gap-2 px-4 py-2 bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-dark hover:bg-clinic-tea/20 hover:border-clinic-tea/40 transition-all duration-200 font-poppins font-medium rounded-xl">
                     <svg class="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
@@ -295,6 +295,7 @@ function createMedicalForm(type) {
 }
 
 function viewMedicalRecord(recordId) {
+    // For now, use the old URL format - will be updated when medical record encryption is fully implemented
     window.location.href = `medical_record_view.php?id=${recordId}`;
 }
 

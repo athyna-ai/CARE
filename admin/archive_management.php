@@ -171,7 +171,7 @@ include __DIR__ . '/../partials/header.php';
                     </p>
                 </div>
             <?php else: ?>
-                <div class="overflow-x-auto">
+                <div class="table-responsive overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-200">
                         <thead class="bg-slate-50">
                             <tr>

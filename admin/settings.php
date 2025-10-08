@@ -69,16 +69,19 @@ $rateLimits[$rateLimitKey . '_' . $currentTime] = $currentTime;
 file_put_contents($rateLimitFile, json_encode($rateLimits));
 
 
-        // Auto-clear logs functionality (runs automatically)
+        // Auto-clear logs functionality (runs automatically at end of day)
 try {
-    // Check if we need to auto-clear logs (run this check on every page load)
+    // Check if we need to auto-clear logs (only run at end of day - after 11 PM)
     $today = date('Y-m-d');
+    $currentHour = (int)date('H');
     
-    // Check if today's logs have already been archived
-    $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
-    $checkArchived->execute([$today]);
-    
-    if (!$checkArchived->fetch()) {
+    // Only archive if it's after 11 PM (23:00) to avoid archiving current day logs too early
+    if ($currentHour >= 23) {
+        // Check if today's logs have already been archived
+        $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+        $checkArchived->execute([$today]);
+        
+        if (!$checkArchived->fetch()) {
         // Get all activity logs for today with user names
         $activityLogs = $pdo->prepare("
             SELECT al.*, u.name as user_name, u.email as user_email, u.rfid as user_rfid
@@ -127,6 +130,7 @@ try {
             
             // Log this action
             log_activity($pdo, (int)$user['id'], 'logs_auto_archived', "Auto-archived logs for {$today}", 'settings');
+        }
         }
     }
     
@@ -537,7 +541,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $success = "All unarchived logs have been archived successfully! (" . count($archivedDates) . " dates processed, {$fileAlertsCount} file alerts archived)";
                 } catch (Throwable $e) {
-                    $errors[] = "Error archiving all logs: " . $e->getMessage();
+                    $errors[] = "An error occurred while archiving logs. Please try again.";
                 }
                 break;
                 
@@ -593,7 +597,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         log_activity($pdo, (int)$user['id'], 'profile_updated', "Profile updated", 'settings');
                     }
                 } catch (Throwable $e) {
-                    $errors[] = 'Error updating account: ' . $e->getMessage();
+                    $errors[] = 'An error occurred while updating account. Please try again.';
                 }
                 break;
                 
@@ -631,7 +635,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             log_activity($pdo, (int)$user['id'], 'admin_created', "Created new admin: {$newName}", 'settings');
                         }
                     } catch (Throwable $e) {
-                        $errors[] = 'Error creating admin account: ' . $e->getMessage();
+                        $errors[] = 'An error occurred while creating admin account. Please try again.';
                     }
                 }
                 break;
@@ -671,7 +675,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                     } catch (Throwable $e) {
-                        $errors[] = 'Error deleting user: ' . $e->getMessage();
+                        $errors[] = 'An error occurred while deleting user. Please try again.';
                     }
                 }
                 break;
@@ -709,7 +713,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                     } catch (Throwable $e) {
-                        $errors[] = 'Error updating user role: ' . $e->getMessage();
+                        $errors[] = 'An error occurred while updating user role. Please try again.';
                     }
                 }
                 break;
@@ -745,7 +749,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                     } catch (Throwable $e) {
-                        $errors[] = 'Error updating user status: ' . $e->getMessage();
+                        $errors[] = 'An error occurred while updating user status. Please try again.';
                     }
                 }
                 break;
@@ -822,7 +826,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $errors[] = 'No users were affected by the bulk action.';
                             }
                         } catch (Throwable $e) {
-                            $errors[] = 'Error performing bulk action: ' . $e->getMessage();
+                            $errors[] = 'An error occurred while performing bulk action. Please try again.';
                         }
                     }
                 }
@@ -849,7 +853,7 @@ try {
     $stmt->execute();
     $allUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (Throwable $e) {
-    $errors[] = 'Error loading users: ' . $e->getMessage();
+    $errors[] = 'An error occurred while loading users. Please try again.';
 }
 
 ?>

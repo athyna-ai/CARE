@@ -34,6 +34,6 @@ try {
     }
     
 } catch (Exception $e) {
-    echo "<p>Error: " . $e->getMessage() . "</p>";
+    echo "<p>An error occurred. Please try again.</p>";
 }
 ?>

@@ -1019,6 +1019,441 @@ button[disabled] { opacity:.5; cursor:not-allowed; }
     }
 }
 
+/* =====================================================
+   TABLE RESPONSIVENESS - HORIZONTAL SCROLL ON MOBILE
+   ===================================================== */
+
+/* Base table responsiveness wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Ensure tables don't break on mobile */
+.table-responsive table {
+    width: 100%;
+    min-width: 600px; /* Minimum width to prevent cramping */
+    border-collapse: collapse;
+    margin: 0;
+}
+
+/* Grid-based table responsiveness */
+.grid-table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Grid table container */
+.grid-table-responsive .grid-table-container {
+    min-width: 600px; /* Minimum width for grid tables */
+    width: 100%;
+}
+
+/* =====================================================
+   COMPREHENSIVE SCROLLBAR STYLING FOR ENTIRE SYSTEM
+   ===================================================== */
+
+/* Global scrollbar styles for all elements */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+/* Webkit scrollbar styles for all scrollable elements */
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+    box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb, #0891b2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+*::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, #1d4ed8, #0e7490);
+}
+
+*::-webkit-scrollbar-corner {
+    background: #f1f5f9;
+}
+
+/* Specific styles for different scrollable elements */
+.table-responsive,
+.grid-table-responsive,
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+/* Enhanced scrollbar for tables */
+.table-responsive::-webkit-scrollbar,
+.grid-table-responsive::-webkit-scrollbar {
+    height: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.grid-table-responsive::-webkit-scrollbar-track {
+    background: linear-gradient(90deg, #f8fafc, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.grid-table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Scrollbar for panels and modals */
+.panel,
+.modal,
+.popup,
+.card,
+.bg-white,
+.bg-gray-50 {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f8fafc;
+}
+
+.panel::-webkit-scrollbar,
+.modal::-webkit-scrollbar,
+.popup::-webkit-scrollbar,
+.card::-webkit-scrollbar,
+.bg-white::-webkit-scrollbar,
+.bg-gray-50::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.panel::-webkit-scrollbar-track,
+.modal::-webkit-scrollbar-track,
+.popup::-webkit-scrollbar-track,
+.card::-webkit-scrollbar-track,
+.bg-white::-webkit-scrollbar-track,
+.bg-gray-50::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+}
+
+.panel::-webkit-scrollbar-thumb,
+.modal::-webkit-scrollbar-thumb,
+.popup::-webkit-scrollbar-thumb,
+.card::-webkit-scrollbar-thumb,
+.bg-white::-webkit-scrollbar-thumb,
+.bg-gray-50::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollbar for forms and textareas */
+textarea,
+.form-control,
+.input,
+.select,
+select {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #ffffff;
+}
+
+textarea::-webkit-scrollbar,
+.form-control::-webkit-scrollbar,
+.input::-webkit-scrollbar,
+.select::-webkit-scrollbar,
+select::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+textarea::-webkit-scrollbar-track,
+.form-control::-webkit-scrollbar-track,
+.input::-webkit-scrollbar-track,
+.select::-webkit-scrollbar-track,
+select::-webkit-scrollbar-track {
+    background: #ffffff;
+    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+}
+
+textarea::-webkit-scrollbar-thumb,
+.form-control::-webkit-scrollbar-thumb,
+.input::-webkit-scrollbar-thumb,
+.select::-webkit-scrollbar-thumb,
+select::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Scrollbar for lists and dropdowns */
+.list,
+.dropdown,
+.menu,
+.nav,
+ul,
+ol {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f8fafc;
+}
+
+.list::-webkit-scrollbar,
+.dropdown::-webkit-scrollbar,
+.menu::-webkit-scrollbar,
+.nav::-webkit-scrollbar,
+ul::-webkit-scrollbar,
+ol::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.list::-webkit-scrollbar-track,
+.dropdown::-webkit-scrollbar-track,
+.menu::-webkit-scrollbar-track,
+.nav::-webkit-scrollbar-track,
+ul::-webkit-scrollbar-track,
+ol::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 3px;
+}
+
+.list::-webkit-scrollbar-thumb,
+.dropdown::-webkit-scrollbar-thumb,
+.menu::-webkit-scrollbar-thumb,
+.nav::-webkit-scrollbar-thumb,
+ul::-webkit-scrollbar-thumb,
+ol::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 3px;
+}
+
+/* Scrollbar for main content areas */
+.main-content,
+.content,
+.page-content,
+.dashboard-content,
+body,
+html {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+.main-content::-webkit-scrollbar,
+.content::-webkit-scrollbar,
+.page-content::-webkit-scrollbar,
+.dashboard-content::-webkit-scrollbar,
+body::-webkit-scrollbar,
+html::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.main-content::-webkit-scrollbar-track,
+.content::-webkit-scrollbar-track,
+.page-content::-webkit-scrollbar-track,
+.dashboard-content::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+
+.main-content::-webkit-scrollbar-thumb,
+.content::-webkit-scrollbar-thumb,
+.page-content::-webkit-scrollbar-thumb,
+.dashboard-content::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile responsive scrollbars */
+@media (max-width: 768px) {
+    *::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+        border-radius: 2px;
+    }
+    
+    *::-webkit-scrollbar-track {
+        border-radius: 2px;
+    }
+}
+
+/* Dark mode scrollbars */
+@media (prefers-color-scheme: dark) {
+    * {
+        scrollbar-color: #60a5fa #374151;
+    }
+    
+    *::-webkit-scrollbar-track {
+        background: #374151;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #60a5fa, #22d3ee);
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    }
+}
+
+/* Mobile-specific table improvements */
+@media (max-width: 768px) {
+    
+    /* Ensure grid tables have proper minimum width */
+    .grid.grid-cols-12 {
+        min-width: 600px !important;
+        width: max-content !important;
+    }
+    
+    /* Improve table cell spacing on mobile */
+    .table-responsive table th,
+    .table-responsive table td,
+    .grid-table-responsive .grid th,
+    .grid-table-responsive .grid td {
+        padding: 8px 6px !important;
+        font-size: 14px !important;
+        white-space: nowrap;
+    }
+    
+    /* Make action buttons more touch-friendly */
+    .table-responsive .action-buttons,
+    .grid-table-responsive .action-buttons {
+        display: flex;
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+    
+    .table-responsive .action-buttons a,
+    .table-responsive .action-buttons button,
+    .grid-table-responsive .action-buttons a,
+    .grid-table-responsive .action-buttons button {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 6px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Improve grid table row spacing */
+    .grid-table-responsive .grid > div {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Specific fixes for faculty and student listing tables */
+    .faculty-table-responsive,
+    .student-table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .faculty-table-responsive .grid.grid-cols-12,
+    .student-table-responsive .grid.grid-cols-12 {
+        min-width: 700px !important;
+        width: max-content !important;
+    }
+    
+    /* Visitation logs table improvements */
+    .visitation-logs-table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .visitation-logs-table table {
+        min-width: 500px !important;
+    }
+}
+
+/* Tablet improvements for tables */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .table-responsive,
+    .grid-table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .grid.grid-cols-12 {
+        min-width: 800px;
+    }
+}
+
+/* Desktop - ensure tables are fully responsive */
+@media (min-width: 1025px) {
+    .table-responsive,
+    .grid-table-responsive {
+        overflow-x: visible;
+    }
+    
+    .grid.grid-cols-12 {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* Specific fixes for existing table implementations */
+/* Faculty listing table */
+#facultyTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Student listing table */
+#studentsTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Visitation logs in patient view */
+.overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure all table containers have proper scrolling */
+div[class*="overflow-x-auto"],
+div[class*="table-responsive"],
+div[class*="grid-table-responsive"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
 /* Tooltip Styles */
 .tooltip-container {
     position: relative;

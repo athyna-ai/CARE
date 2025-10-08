@@ -38,7 +38,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'success' => false, 
-        'message' => 'Database error: ' . $e->getMessage()
+        'message' => 'An error occurred. Please try again.'
     ]);
 }
 ?>
