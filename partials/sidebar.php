@@ -93,6 +93,14 @@ if (empty($_SESSION['user'])) { return; }
 					<span class="font-poppins font-medium text-sm sm:text-base">Activity Logs</span>
 					<div id="securityAlertBadge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center animate-pulse">!</div>
 				</a>
+				<a href="../notifications.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-red/5 hover:border-clinic-red/20 hover:shadow-lg transition-all duration-300 relative">
+					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-red/5 flex items-center justify-center group-hover:bg-clinic-red/10 transition-colors duration-200">
+						<svg class="w-3 h-3 sm:w-4 sm:h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+						</svg>
+					</div>
+					<span class="font-poppins font-medium text-sm sm:text-base">Notifications</span>
+				</a>
 				<a href="../reports/analytics.php" class="group flex items-center gap-3 sm:gap-4 px-3 sm:px-5 py-2 sm:py-3 rounded-2xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-blue hover:bg-clinic-orange/5 hover:border-clinic-orange/20 hover:shadow-lg transition-all duration-300">
 					<div class="w-6 h-6 sm:w-8 sm:h-8 rounded-xl bg-clinic-orange/5 flex items-center justify-center group-hover:bg-clinic-orange/10 transition-colors duration-200">
 						<svg class="w-3 h-3 sm:w-4 sm:h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">

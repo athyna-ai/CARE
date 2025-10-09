@@ -6,111 +6,129 @@ require_once __DIR__ . '/../core/helpers.php';
 require_admin_auth();
 $pdo = get_pdo();
 
-// Get date range from URL parameters
+// Get parameters from URL
 $startDate = $_GET['start_date'] ?? date('Y-m-01'); // First day of current month
 $endDate = $_GET['end_date'] ?? date('Y-m-d'); // Today
+$chartType = $_GET['chart_type'] ?? 'daily'; // daily, weekly, monthly
+$patientType = $_GET['patient_type'] ?? 'all'; // all, student, faculty
+$department = $_GET['department'] ?? 'all'; // all, specific department
+$timeRange = $_GET['time_range'] ?? '30'; // 7, 30, 90, 365 days
 
-// Validate dates
-$startDate = date('Y-m-d', strtotime($startDate));
-$endDate = date('Y-m-d', strtotime($endDate));
+// Adjust date range based on time range selection FIRST
+// If start_date and end_date are provided in URL, use those (from quick range buttons)
+// Otherwise, calculate from time_range parameter
+if (isset($_GET['start_date']) && isset($_GET['end_date'])) {
+    // Use the dates provided in the URL (from quick range buttons)
+    $startDate = $_GET['start_date'];
+    $endDate = $_GET['end_date'];
+} elseif (isset($_GET['time_range']) && $_GET['time_range'] !== 'custom') {
+    // Calculate dates from time_range parameter
+    $endDate = date('Y-m-d');
+    $startDate = date('Y-m-d', strtotime("-$timeRange days"));
+}
+
 
 // Get statistics
 $stats = [];
 
 try {
-    // Total students and faculty
-    $stats['total_students'] = $pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
-    $stats['total_faculty'] = $pdo->query("SELECT COUNT(*) FROM faculty")->fetchColumn();
+    // 1. Get total patient counts (not filtered by date)
+    $stats['total_students'] = $pdo->query("SELECT COUNT(*) FROM students WHERE status = 'Active'")->fetchColumn();
+    $stats['total_faculty'] = $pdo->query("SELECT COUNT(*) FROM faculty WHERE status = 'Active'")->fetchColumn();
     
-    // Visitation statistics for date range
-    $visitationStats = $pdo->prepare("
+    // 2. Get visitation statistics for the selected date range
+    $visitationQuery = $pdo->prepare("
         SELECT 
             COUNT(*) as total_visits,
             COUNT(CASE WHEN patient_type = 'student' THEN 1 END) as student_visits,
             COUNT(CASE WHEN patient_type = 'faculty' THEN 1 END) as faculty_visits,
             COUNT(CASE WHEN medication_given = 1 THEN 1 END) as medication_given,
-            COUNT(CASE WHEN injury = 1 THEN 1 END) as injuries
+            COUNT(CASE WHEN injury = 1 THEN 1 END) as injuries,
+            AVG(CASE WHEN temperature IS NOT NULL THEN temperature END) as avg_temperature
         FROM visitation_logs 
-        WHERE DATE(created_at) BETWEEN ? AND ?
+        WHERE DATE(visit_date) BETWEEN ? AND ?
     ");
-    $visitationStats->execute([$startDate, $endDate]);
-    $stats = array_merge($stats, $visitationStats->fetch());
+    $visitationQuery->execute([$startDate, $endDate]);
+    $visitationData = $visitationQuery->fetch();
     
-    // Top reasons for visits
-    $topReasons = $pdo->prepare("
+    // Merge visitation data into stats
+    if ($visitationData) {
+        $stats = array_merge($stats, $visitationData);
+    }
+    
+    // 3. Get top reasons for visits
+    $reasonsQuery = $pdo->prepare("
         SELECT reason, COUNT(*) as count 
         FROM visitation_logs 
-        WHERE DATE(created_at) BETWEEN ? AND ?
+        WHERE DATE(visit_date) BETWEEN ? AND ?
         GROUP BY reason 
         ORDER BY count DESC 
         LIMIT 5
     ");
-    $topReasons->execute([$startDate, $endDate]);
-    $stats['top_reasons'] = $topReasons->fetchAll();
+    $reasonsQuery->execute([$startDate, $endDate]);
+    $stats['top_reasons'] = $reasonsQuery->fetchAll();
     
-    // Daily visit trends (last 30 days)
-    $dailyTrends = $pdo->prepare("
-        SELECT DATE(created_at) as date, COUNT(*) as visits
+    // 4. Get most common medications
+    $medicationsQuery = $pdo->prepare("
+        SELECT medication_name, COUNT(*) as count 
         FROM visitation_logs 
-        WHERE DATE(created_at) BETWEEN DATE_SUB(?, INTERVAL 30 DAY) AND ?
-        GROUP BY DATE(created_at)
-        ORDER BY date ASC
-    ");
-    $dailyTrends->execute([$endDate, $endDate]);
-    $stats['daily_trends'] = $dailyTrends->fetchAll();
-    
-    // Monthly visit trends (last 12 months)
-    $monthlyTrends = $pdo->prepare("
-        SELECT 
-            DATE_FORMAT(created_at, '%Y-%m') as month,
-            COUNT(*) as visits,
-            COUNT(CASE WHEN patient_type = 'student' THEN 1 END) as student_visits,
-            COUNT(CASE WHEN patient_type = 'faculty' THEN 1 END) as faculty_visits
-        FROM visitation_logs 
-        WHERE DATE(created_at) BETWEEN DATE_SUB(?, INTERVAL 12 MONTH) AND ?
-        GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-        ORDER BY month ASC
-    ");
-    $monthlyTrends->execute([$endDate, $endDate]);
-    $stats['monthly_trends'] = $monthlyTrends->fetchAll();
-    
-    // Most common medications
-    $medications = $pdo->prepare("
-        SELECT medication_name, COUNT(*) as count
-        FROM visitation_logs 
-        WHERE DATE(created_at) BETWEEN ? AND ? 
-        AND medication_given = 1 
+        WHERE DATE(visit_date) BETWEEN ? AND ? 
         AND medication_name IS NOT NULL 
-        AND medication_name != 'N/A'
+        AND medication_name != ''
         GROUP BY medication_name 
         ORDER BY count DESC 
-        LIMIT 10
+        LIMIT 5
     ");
-    $medications->execute([$startDate, $endDate]);
-    $stats['medications'] = $medications->fetchAll();
+    $medicationsQuery->execute([$startDate, $endDate]);
+    $stats['medications'] = $medicationsQuery->fetchAll();
     
-    // Age group analysis (students only)
-    $ageGroups = $pdo->prepare("
+    // 5. Get comprehensive visit trends for chart
+    $trendsQuery = $pdo->prepare("
         SELECT 
-            CASE 
-                WHEN age BETWEEN 16 AND 18 THEN '16-18'
-                WHEN age BETWEEN 19 AND 21 THEN '19-21'
-                WHEN age BETWEEN 22 AND 24 THEN '22-24'
-                WHEN age >= 25 THEN '25+'
-                ELSE 'Under 16'
-            END as age_group,
-            COUNT(*) as count
-        FROM students s
-        JOIN visitation_logs vl ON s.id = vl.patient_id AND vl.patient_type = 'student'
-        WHERE DATE(vl.created_at) BETWEEN ? AND ?
-        GROUP BY age_group
-        ORDER BY age_group
+            DATE(visit_date) as date, 
+            COUNT(*) as total_visits,
+            COUNT(CASE WHEN patient_type = 'student' THEN 1 END) as student_visits,
+            COUNT(CASE WHEN patient_type = 'faculty' THEN 1 END) as faculty_visits,
+            COUNT(CASE WHEN medication_given = 1 THEN 1 END) as medication_visits,
+            COUNT(CASE WHEN injury = 1 THEN 1 END) as injury_visits,
+            AVG(CASE WHEN temperature IS NOT NULL THEN temperature END) as avg_temperature
+        FROM visitation_logs 
+        WHERE DATE(visit_date) BETWEEN ? AND ?
+        GROUP BY DATE(visit_date)
+        ORDER BY date ASC
     ");
-    $ageGroups->execute([$startDate, $endDate]);
-    $stats['age_groups'] = $ageGroups->fetchAll();
+    $trendsQuery->execute([$startDate, $endDate]);
+    $stats['visit_trends'] = $trendsQuery->fetchAll();
+    
+    // 6. Get hourly distribution for the selected period
+    $hourlyQuery = $pdo->prepare("
+        SELECT 
+            HOUR(visit_date) as hour,
+            COUNT(*) as visits
+        FROM visitation_logs 
+        WHERE DATE(visit_date) BETWEEN ? AND ?
+        GROUP BY HOUR(visit_date)
+        ORDER BY hour ASC
+    ");
+    $hourlyQuery->execute([$startDate, $endDate]);
+    $stats['hourly_distribution'] = $hourlyQuery->fetchAll();
+    
+    // 7. Get patient type breakdown
+    $patientTypeQuery = $pdo->prepare("
+        SELECT 
+            patient_type,
+            COUNT(*) as count,
+            COUNT(CASE WHEN medication_given = 1 THEN 1 END) as medication_count,
+            COUNT(CASE WHEN injury = 1 THEN 1 END) as injury_count
+        FROM visitation_logs 
+        WHERE DATE(visit_date) BETWEEN ? AND ?
+        GROUP BY patient_type
+    ");
+    $patientTypeQuery->execute([$startDate, $endDate]);
+    $stats['patient_type_breakdown'] = $patientTypeQuery->fetchAll();
     
 } catch (Exception $e) {
-    error_log("Analytics error: " . $e->getMessage());
+    // Handle errors gracefully
     $stats = [
         'total_students' => 0,
         'total_faculty' => 0,
@@ -119,21 +137,14 @@ try {
         'faculty_visits' => 0,
         'medication_given' => 0,
         'injuries' => 0,
+        'avg_temperature' => null,
         'top_reasons' => [],
-        'daily_trends' => [],
-        'monthly_trends' => [],
         'medications' => [],
-        'age_groups' => []
+        'visit_trends' => [],
+        'hourly_distribution' => [],
+        'patient_type_breakdown' => []
     ];
 }
-
-// Debug information (remove this in production)
-$debug_info = [
-    'start_date' => $startDate,
-    'end_date' => $endDate,
-    'daily_trends_count' => count($stats['daily_trends']),
-    'total_visits' => $stats['total_visits']
-];
 
 $pageTitle = "Reports & Analytics";
 $showTopNav = true;
@@ -147,37 +158,104 @@ include __DIR__ . '/../partials/header.php';
         <div class="mb-6">
             <h1 class="text-3xl font-bold text-clinic-dark">Reports & Analytics</h1>
             <p class="text-clinic-dark/70 mt-2">Comprehensive health data insights and reporting</p>
+            <div class="mt-2">
+                <a href="?debug=1" class="text-xs text-blue-600 hover:text-blue-800">Debug Mode</a>
+            </div>
             
             <!-- Debug Information (remove in production) -->
             <?php if (isset($_GET['debug'])): ?>
             <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <h4 class="font-semibold text-yellow-800">Debug Information:</h4>
-                <p class="text-sm text-yellow-700">Date Range: <?= $debug_info['start_date'] ?> to <?= $debug_info['end_date'] ?></p>
-                <p class="text-sm text-yellow-700">Daily Trends Count: <?= $debug_info['daily_trends_count'] ?></p>
-                <p class="text-sm text-yellow-700">Total Visits: <?= $debug_info['total_visits'] ?></p>
+                <p class="text-sm text-yellow-700">Date Range: <?= $startDate ?> to <?= $endDate ?></p>
+                <p class="text-sm text-yellow-700">Time Range: <?= $timeRange ?></p>
+                <p class="text-sm text-yellow-700">Patient Type: <?= $patientType ?></p>
+                <p class="text-sm text-yellow-700">Department: <?= $department ?></p>
+                <p class="text-sm text-yellow-700">Chart Type: <?= $chartType ?></p>
+                <p class="text-sm text-yellow-700">Total Visits: <?= $stats['total_visits'] ?? 0 ?></p>
                 <p class="text-sm text-yellow-700">Add ?debug=1 to URL to see this info</p>
             </div>
             <?php endif; ?>
         </div>
 
-        <!-- Date Range Filter -->
+        <!-- Analytics Filters -->
         <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 mb-6">
-            <h2 class="text-xl font-semibold text-clinic-dark mb-4">Date Range Filter</h2>
-            <form method="GET" class="flex flex-col sm:flex-row gap-4">
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Start Date</label>
-                    <input type="date" name="start_date" value="<?= htmlspecialchars($startDate) ?>" 
-                           class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+            <h2 class="text-xl font-semibold text-clinic-dark mb-4">Analytics Filters</h2>
+            <form method="GET" class="space-y-4" id="analyticsForm">
+                <input type="hidden" name="time_range" id="timeRangeInput" value="<?= htmlspecialchars($timeRange) ?>">
+                <!-- Quick Time Range -->
+                <div class="flex flex-wrap items-center gap-4">
+                    <label class="text-sm font-medium text-clinic-dark/70">Quick Range:</label>
+                    <div class="flex gap-2">
+                        <a href="?time_range=7&start_date=<?= date('Y-m-d', strtotime('-7 days')) ?>&end_date=<?= date('Y-m-d') ?>" 
+                           class="px-3 py-1 rounded-lg border transition-colors <?= $timeRange === '7' ? 'bg-clinic-blue text-white border-clinic-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400' ?>">
+                            Last 7 Days
+                        </a>
+                        <a href="?time_range=30&start_date=<?= date('Y-m-d', strtotime('-30 days')) ?>&end_date=<?= date('Y-m-d') ?>" 
+                           class="px-3 py-1 rounded-lg border transition-colors <?= $timeRange === '30' ? 'bg-clinic-blue text-white border-clinic-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400' ?>">
+                            Last 30 Days
+                        </a>
+                        <a href="?time_range=90&start_date=<?= date('Y-m-d', strtotime('-90 days')) ?>&end_date=<?= date('Y-m-d') ?>" 
+                           class="px-3 py-1 rounded-lg border transition-colors <?= $timeRange === '90' ? 'bg-clinic-blue text-white border-clinic-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400' ?>">
+                            Last 90 Days
+                        </a>
+                        <a href="?time_range=365&start_date=<?= date('Y-m-d', strtotime('-365 days')) ?>&end_date=<?= date('Y-m-d') ?>" 
+                           class="px-3 py-1 rounded-lg border transition-colors <?= $timeRange === '365' ? 'bg-clinic-blue text-white border-clinic-blue' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400' ?>">
+                            Last Year
+                        </a>
+                    </div>
                 </div>
-                <div class="flex-1">
-                    <label class="block text-sm font-medium text-clinic-dark/70 mb-2">End Date</label>
-                    <input type="date" name="end_date" value="<?= htmlspecialchars($endDate) ?>" 
-                           class="w-full rounded-lg border border-clinic-tea/30 px-3 py-2 focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                
+                <!-- Advanced Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Chart Type</label>
+                        <select name="chart_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-white">
+                            <option value="daily" <?= $chartType === 'daily' ? 'selected' : '' ?>>Daily Trends</option>
+                            <option value="weekly" <?= $chartType === 'weekly' ? 'selected' : '' ?>>Weekly Trends</option>
+                            <option value="monthly" <?= $chartType === 'monthly' ? 'selected' : '' ?>>Monthly Trends</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Patient Type</label>
+                        <select name="patient_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-white">
+                            <option value="all" <?= $patientType === 'all' ? 'selected' : '' ?>>All Patients</option>
+                            <option value="student" <?= $patientType === 'student' ? 'selected' : '' ?>>Students Only</option>
+                            <option value="faculty" <?= $patientType === 'faculty' ? 'selected' : '' ?>>Faculty Only</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Department</label>
+                        <select name="department" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-white">
+                            <option value="all" <?= $department === 'all' ? 'selected' : '' ?>>All Departments</option>
+                            <option value="Elementary" <?= $department === 'Elementary' ? 'selected' : '' ?>>Elementary</option>
+                            <option value="Junior High School" <?= $department === 'Junior High School' ? 'selected' : '' ?>>Junior High School</option>
+                            <option value="Senior High School" <?= $department === 'Senior High School' ? 'selected' : '' ?>>Senior High School</option>
+                            <option value="College" <?= $department === 'College' ? 'selected' : '' ?>>College</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-clinic-dark/70 mb-2">Custom Range</label>
+                        <div class="flex gap-2">
+                            <input type="date" name="start_date" value="<?= htmlspecialchars($startDate) ?>" 
+                                   class="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue text-sm bg-white"
+                                   onchange="document.querySelector('input[name=\"time_range\"]').value='custom'">
+                            <input type="date" name="end_date" value="<?= htmlspecialchars($endDate) ?>" 
+                                   class="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue text-sm bg-white"
+                                   onchange="document.querySelector('input[name=\"time_range\"]').value='custom'">
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-end">
-                    <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg hover:bg-clinic-tea transition-colors font-medium">
-                        Update Reports
+                
+                <div class="flex gap-3">
+                    <button type="submit" class="px-6 py-2 bg-clinic-blue text-white rounded-lg border border-clinic-blue hover:bg-clinic-tea hover:border-clinic-tea transition-colors">
+                        Update Analytics
                     </button>
+                    <a href="analytics.php" class="px-6 py-2 bg-gray-500 text-white rounded-lg border border-gray-500 hover:bg-gray-600 hover:border-gray-600 transition-colors">
+                        Reset Filters
+                    </a>
                 </div>
             </form>
         </div>
@@ -504,17 +582,43 @@ include __DIR__ . '/../partials/header.php';
             </div>
         </div>
 
-        <!-- Daily Trends Line Chart -->
+        <!-- Comprehensive Visit Analytics Chart -->
         <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
-            <h3 class="text-lg font-semibold text-clinic-dark mb-4">Daily Visit Trends (Last 30 Days)</h3>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-clinic-dark">Live Visit Analytics</h3>
+                <div class="text-sm text-clinic-dark/60">
+                    <?= date('M j', strtotime($startDate)) ?> - <?= date('M j', strtotime($endDate)) ?>
+                </div>
+            </div>
             
-            <?php if (!empty($stats['daily_trends'])): ?>
+            <?php if (!empty($stats['visit_trends'])): ?>
                 <?php 
-                $maxVisits = max(array_column($stats['daily_trends'], 'visits'));
-                $trends = $stats['daily_trends'];
-                $chartHeight = 200;
-                $chartWidth = 100; // percentage
+                $maxVisits = max(array_column($stats['visit_trends'], 'total_visits'));
+                $trends = $stats['visit_trends'];
+                $totalDays = count($trends);
+                $totalVisits = array_sum(array_column($trends, 'total_visits'));
+                $avgVisitsPerDay = $totalDays > 0 ? round($totalVisits / $totalDays, 1) : 0;
                 ?>
+                
+                <!-- Summary Stats -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="text-center p-3 bg-clinic-blue/5 rounded-lg">
+                        <div class="text-2xl font-bold text-clinic-blue"><?= $totalVisits ?></div>
+                        <div class="text-sm text-clinic-dark/60">Total Visits</div>
+                    </div>
+                    <div class="text-center p-3 bg-clinic-green/5 rounded-lg">
+                        <div class="text-2xl font-bold text-clinic-green"><?= $avgVisitsPerDay ?></div>
+                        <div class="text-sm text-clinic-dark/60">Avg/Day</div>
+                    </div>
+                    <div class="text-center p-3 bg-clinic-tea/5 rounded-lg">
+                        <div class="text-2xl font-bold text-clinic-tea"><?= $totalDays ?></div>
+                        <div class="text-sm text-clinic-dark/60">Days Tracked</div>
+                    </div>
+                    <div class="text-center p-3 bg-clinic-red/5 rounded-lg">
+                        <div class="text-2xl font-bold text-clinic-red"><?= $maxVisits ?></div>
+                        <div class="text-sm text-clinic-dark/60">Peak Day</div>
+                    </div>
+                </div>
                 <div class="relative h-64 w-full">
                     <!-- Y-axis labels -->
                     <div class="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-clinic-dark/60 pr-2">
@@ -544,8 +648,9 @@ include __DIR__ . '/../partials/header.php';
                             $pointCount = count($trends);
                             $points = [];
                             foreach ($trends as $index => $trend) {
-                                $x = ($index / ($pointCount - 1)) * 100;
-                                $y = $maxVisits > 0 ? 100 - (($trend['visits'] / $maxVisits) * 100) : 100;
+                                // Fix division by zero when there's only one data point
+                                $x = $pointCount > 1 ? ($index / ($pointCount - 1)) * 100 : 50;
+                                $y = $maxVisits > 0 ? 100 - (($trend['total_visits'] / $maxVisits) * 100) : 100;
                                 $points[] = "$x,$y";
                             }
                             $pathData = "M " . implode(" L ", $points);
@@ -570,11 +675,11 @@ include __DIR__ . '/../partials/header.php';
                             
                             <!-- Data points -->
                             <?php foreach ($trends as $index => $trend): 
-                                $x = ($index / ($pointCount - 1)) * 100;
-                                $y = $maxVisits > 0 ? 100 - (($trend['visits'] / $maxVisits) * 100) : 100;
+                                $x = $pointCount > 1 ? ($index / ($pointCount - 1)) * 100 : 50;
+                                $y = $maxVisits > 0 ? 100 - (($trend['total_visits'] / $maxVisits) * 100) : 100;
                             ?>
                                 <circle cx="<?= $x ?>" cy="<?= $y ?>" r="1.5" fill="#3B82F6" class="hover:r-2 transition-all duration-200">
-                                    <title><?= $trend['visits'] ?> visits on <?= date('M j', strtotime($trend['date'])) ?></title>
+                                    <title><?= $trend['total_visits'] ?> visits on <?= date('M j', strtotime($trend['date'])) ?> (Students: <?= $trend['student_visits'] ?>, Faculty: <?= $trend['faculty_visits'] ?>)</title>
                                 </circle>
                             <?php endforeach; ?>
                         </svg>
@@ -591,7 +696,17 @@ include __DIR__ . '/../partials/header.php';
                 </div>
                 
             <?php else: ?>
-                <!-- Show sample data for demonstration -->
+                <!-- No data message -->
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h4 class="text-lg font-semibold text-gray-600 mb-2">No Visit Data Available</h4>
+                    <p class="text-gray-500 text-sm">No visitation records found for the selected date range.</p>
+                    <p class="text-gray-400 text-xs mt-2">Try adjusting the date range or add some visitation records.</p>
+                </div>
                 <div class="relative h-64 w-full">
                     <?php 
                     // Generate sample data for demonstration
@@ -639,7 +754,7 @@ include __DIR__ . '/../partials/header.php';
                             $pointCount = count($sampleData);
                             $points = [];
                             foreach ($sampleData as $index => $trend) {
-                                $x = ($index / ($pointCount - 1)) * 100;
+                                $x = $pointCount > 1 ? ($index / ($pointCount - 1)) * 100 : 50;
                                 $y = 100 - (($trend['visits'] / $maxVisits) * 100);
                                 $points[] = "$x,$y";
                             }
@@ -665,7 +780,7 @@ include __DIR__ . '/../partials/header.php';
                             
                             <!-- Data points -->
                             <?php foreach ($sampleData as $index => $trend): 
-                                $x = ($index / ($pointCount - 1)) * 100;
+                                $x = $pointCount > 1 ? ($index / ($pointCount - 1)) * 100 : 50;
                                 $y = 100 - (($trend['visits'] / $maxVisits) * 100);
                             ?>
                                 <circle cx="<?= $x ?>" cy="<?= $y ?>" r="1.5" fill="#3B82F6" class="hover:r-2 transition-all duration-200">
@@ -693,6 +808,66 @@ include __DIR__ . '/../partials/header.php';
         </div>
     </div>
 </div>
+
+<!-- Additional Analytics Charts -->
+<?php if (!empty($stats['visit_trends'])): ?>
+<div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Hourly Distribution Chart -->
+    <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+        <h3 class="text-lg font-semibold text-clinic-dark mb-4">Hourly Visit Distribution</h3>
+        <?php if (!empty($stats['hourly_distribution'])): ?>
+            <div class="space-y-2">
+                <?php 
+                $maxHourlyVisits = max(array_column($stats['hourly_distribution'], 'visits'));
+                foreach ($stats['hourly_distribution'] as $hourData): 
+                    $percentage = $maxHourlyVisits > 0 ? ($hourData['visits'] / $maxHourlyVisits) * 100 : 0;
+                    $hour = $hourData['hour'];
+                    $hourLabel = $hour < 12 ? ($hour == 0 ? '12 AM' : $hour . ' AM') : ($hour == 12 ? '12 PM' : ($hour - 12) . ' PM');
+                ?>
+                    <div class="flex items-center gap-3">
+                        <div class="w-16 text-sm text-clinic-dark/70"><?= $hourLabel ?></div>
+                        <div class="flex-1 bg-gray-200 rounded-full h-4">
+                            <div class="bg-clinic-blue h-4 rounded-full transition-all duration-500" style="width: <?= $percentage ?>%"></div>
+                        </div>
+                        <div class="w-8 text-sm font-medium text-clinic-dark"><?= $hourData['visits'] ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="text-center py-4 text-gray-500">No hourly data available</div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Patient Type Breakdown -->
+    <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+        <h3 class="text-lg font-semibold text-clinic-dark mb-4">Patient Type Breakdown</h3>
+        <?php if (!empty($stats['patient_type_breakdown'])): ?>
+            <div class="space-y-4">
+                <?php foreach ($stats['patient_type_breakdown'] as $typeData): ?>
+                    <div class="p-4 rounded-lg border border-clinic-tea/20">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-semibold text-clinic-dark capitalize"><?= $typeData['patient_type'] ?>s</h4>
+                            <span class="text-2xl font-bold text-clinic-blue"><?= $typeData['count'] ?></span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-clinic-green rounded-full"></div>
+                                <span class="text-clinic-dark/70">Medications: <?= $typeData['medication_count'] ?></span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 bg-clinic-red rounded-full"></div>
+                                <span class="text-clinic-dark/70">Injuries: <?= $typeData['injury_count'] ?></span>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <div class="text-center py-4 text-gray-500">No patient type data available</div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
 // Security action functions
@@ -756,6 +931,9 @@ function showNotification(message, type = 'success', duration = 3000) {
         }, 300);
     }, duration);
 }
+
 </script>
+
+
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

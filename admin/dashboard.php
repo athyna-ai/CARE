@@ -10,11 +10,34 @@ require_once __DIR__ . '/../security_breach_detector.php';
 
 $user = $_SESSION['user'];
 $success = isset($_GET['success']) ? (int)$_GET['success'] : 0;
+$welcome = isset($_GET['welcome']) ? (int)$_GET['welcome'] : 0;
 ?>
 <?php $pageTitle = 'Dashboard'; $showTopNav = true; $showSidebar = true; include __DIR__ . '/../partials/header.php'; ?>
     <div class="min-h-[calc(100vh-5rem)] flex flex-col gap-8 md:gap-16 px-4 md:px-6 lg:px-8">
 		<!-- Popup notifications container -->
 		<div id="notificationContainer" class="fixed top-20 right-6 z-50 space-y-3"></div>
+
+		<!-- Welcome Message -->
+		<?php if ($welcome): ?>
+		<div id="welcomeMessage" class="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-white rounded-xl shadow-2xl border border-clinic-tea/20 p-6 max-w-md mx-4 animate-fadeInUp">
+			<div class="flex items-center gap-4">
+				<div class="p-3 bg-clinic-green/10 rounded-lg">
+					<svg class="w-6 h-6 text-clinic-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+				</div>
+				<div class="flex-1">
+					<h3 class="text-lg font-semibold text-clinic-dark">Welcome back!</h3>
+					<p class="text-sm text-clinic-dark/70">You have successfully logged into CARE CMS</p>
+				</div>
+				<button onclick="closeWelcomeMessage()" class="p-1 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+					<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+		<?php endif; ?>
 
 		<!-- Hero: centered at the top -->
 		<div class="pt-8 md:pt-16 text-center">
@@ -186,6 +209,36 @@ document.addEventListener('DOMContentLoaded', () => {
 window.testNotification = function() {
     showNotification('Test notification - click X to close', 'success', 0);
 };
+
+// Welcome message functions
+function closeWelcomeMessage() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        welcomeMessage.style.transition = 'all 0.3s ease-out';
+        welcomeMessage.style.opacity = '0';
+        welcomeMessage.style.transform = 'translate(-50%, -20px)';
+        setTimeout(() => {
+            welcomeMessage.remove();
+        }, 300);
+    }
+}
+
+// Auto-hide welcome message after 5 seconds and clean URL
+document.addEventListener('DOMContentLoaded', function() {
+    const welcomeMessage = document.getElementById('welcomeMessage');
+    if (welcomeMessage) {
+        // Clean the URL by removing the welcome parameter
+        if (window.location.search.includes('welcome=1')) {
+            const url = new URL(window.location);
+            url.searchParams.delete('welcome');
+            window.history.replaceState({}, document.title, url.pathname + url.search);
+        }
+        
+        setTimeout(() => {
+            closeWelcomeMessage();
+        }, 5000);
+    }
+});
 </script>
 
 

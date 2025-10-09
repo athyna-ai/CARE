@@ -11,6 +11,11 @@ if (isset($_GET['timeout']) && $_GET['timeout'] === '1') {
     $info[] = 'Your session has expired due to inactivity. Please log in again.';
 }
 
+// Handle logout message
+if (isset($_GET['logout']) && $_GET['logout'] === '1') {
+    $info[] = 'You have been successfully logged out. Thank you for using CARE CMS!';
+}
+
 // Clear any pending login session if this is a GET request (page refresh) 
 // BUT NOT if we just processed a form submission (POST data still exists)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_SESSION['pending_login']) && !isset($_POST['identifier'])) {
@@ -122,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						$_SESSION['last_activity'] = time();
 						
 						log_activity($pdo, (int)$user['id'], 'login_success', 'Successful login without RFID verification', 'auth/login');
-						header('Location: ../admin/dashboard.php');
+						header('Location: ../admin/dashboard.php?welcome=1');
 						exit;
 					}
                 }
@@ -294,6 +299,46 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 		</div>
 	</div>
 
+	<!-- Loading Screen (Hidden by default) -->
+	<div id="loginLoadingScreen" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-[10000] flex items-center justify-center">
+		<div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm mx-4">
+			<!-- Loading Animation -->
+			<div class="mb-6">
+				<div class="relative w-20 h-20 mx-auto">
+					<!-- Spinning Circle -->
+					<div class="absolute inset-0 border-4 border-clinic-blue/20 rounded-full"></div>
+					<div class="absolute inset-0 border-4 border-transparent border-t-clinic-blue rounded-full animate-spin"></div>
+					
+					<!-- Center Icon -->
+					<div class="absolute inset-0 flex items-center justify-center">
+						<svg class="w-8 h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+						</svg>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Loading Text -->
+			<h3 class="text-xl font-bold text-clinic-dark mb-2">Logging In...</h3>
+			<p class="text-clinic-dark/70 text-sm mb-4">Please wait while we verify your credentials</p>
+			
+			<!-- Progress Bar -->
+			<div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+				<div id="loginProgressBar" class="bg-clinic-blue h-2 rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+			</div>
+			
+			<!-- Welcome Message -->
+			<div id="loginWelcomeMessage" class="hidden">
+				<div class="text-clinic-green text-sm font-medium">
+					<svg class="w-5 h-5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+					</svg>
+					Welcome to CARE CMS!
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<script>
 	document.addEventListener('DOMContentLoaded', function() {
 		const loginForm = document.getElementById('loginForm');
@@ -321,8 +366,11 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			rfidModal.classList.add('hidden');
 		}
 		
-		// Simple form submission - let PHP handle everything
+		// Form submission with loading screen
 		loginForm.addEventListener('submit', function(e) {
+			// Show loading screen
+			showLoginLoadingScreen();
+			
 			// Allow normal form submission
 			// PHP will handle the logic and set session if needed
 		});
@@ -339,6 +387,9 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			verifyRfidBtn.disabled = true;
 			verifyRfidBtn.textContent = 'Verifying...';
 			
+			// Show loading screen for RFID verification
+			showLoginLoadingScreen();
+			
 			fetch('verify_rfid_login.php', {
 				method: 'POST',
 				headers: {
@@ -349,11 +400,23 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			.then(response => response.json())
 			.then(data => {
 				if (data.success) {
-					showRfidStatus('RFID verified successfully! Logging in...', 'success');
+					// Ensure header stays hidden during verification success
+					const header = document.querySelector('header');
+					const topNav = document.querySelector('.top-nav');
+					if (header) header.style.display = 'none';
+					if (topNav) topNav.style.display = 'none';
+					
+					// Update loading screen message
+					const loadingText = document.querySelector('#loginLoadingScreen h3');
+					const loadingSubtext = document.querySelector('#loginLoadingScreen p');
+					if (loadingText) loadingText.textContent = 'RFID Verified!';
+					if (loadingSubtext) loadingSubtext.textContent = 'Redirecting to dashboard...';
+					
 					setTimeout(() => {
-						window.location.href = '../admin/dashboard.php';
-					}, 1000);
+						window.location.href = '../admin/dashboard.php?welcome=1';
+					}, 1500);
 				} else {
+					hideLoginLoadingScreen();
 					showRfidStatus(data.message || 'Invalid RFID card', 'error');
 					rfidInput.value = '';
 					rfidInput.focus();
@@ -369,6 +432,7 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			})
 			.catch(error => {
 				console.error('Error:', error);
+				hideLoginLoadingScreen();
 				showRfidStatus('Error verifying RFID. Please try again.', 'error');
 			})
 			.finally(() => {
@@ -421,6 +485,55 @@ $pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include _
 			rfidStatus.textContent = message;
 			rfidStatus.className = 'mb-4 p-3 rounded-lg text-sm ' + (type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200');
 			rfidStatus.classList.remove('hidden');
+		}
+		
+		// Login loading screen functions
+		function showLoginLoadingScreen() {
+			const loadingScreen = document.getElementById('loginLoadingScreen');
+			const progressBar = document.getElementById('loginProgressBar');
+			const welcomeMessage = document.getElementById('loginWelcomeMessage');
+			
+			if (loadingScreen) {
+				// Hide main header and navigation elements
+				const header = document.querySelector('header');
+				const topNav = document.querySelector('.top-nav');
+				if (header) header.style.display = 'none';
+				if (topNav) topNav.style.display = 'none';
+				
+				loadingScreen.classList.remove('hidden');
+				
+				// Animate progress bar
+				let progress = 0;
+				const progressInterval = setInterval(() => {
+					progress += Math.random() * 15;
+					if (progress > 90) progress = 90;
+					progressBar.style.width = progress + '%';
+				}, 200);
+				
+				// Show welcome message after 2 seconds
+				setTimeout(() => {
+					welcomeMessage.classList.remove('hidden');
+				}, 2000);
+				
+				// Complete progress after 3 seconds (form should be submitted by then)
+				setTimeout(() => {
+					clearInterval(progressInterval);
+					progressBar.style.width = '100%';
+				}, 3000);
+			}
+		}
+		
+		function hideLoginLoadingScreen() {
+			const loadingScreen = document.getElementById('loginLoadingScreen');
+			if (loadingScreen) {
+				loadingScreen.classList.add('hidden');
+				
+				// Restore main header and navigation elements
+				const header = document.querySelector('header');
+				const topNav = document.querySelector('.top-nav');
+				if (header) header.style.display = '';
+				if (topNav) topNav.style.display = '';
+			}
 		}
 	});
 	</script>
