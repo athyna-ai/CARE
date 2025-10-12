@@ -69,6 +69,7 @@
                 this.markAllReadBtn = document.getElementById('markAllRead');
                 this.isOpen = false;
                 this.refreshInterval = null;
+                this.notifications = [];
                 
                 this.init();
             }
@@ -91,7 +92,8 @@
                 
                 // Mark all as read
                 if (this.markAllReadBtn) {
-                    this.markAllReadBtn.addEventListener('click', () => {
+                    this.markAllReadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
                         this.markAllAsRead();
                     });
                 }
@@ -101,7 +103,9 @@
                 
                 // Set up auto-refresh every 30 seconds
                 this.refreshInterval = setInterval(() => {
-                    this.loadNotifications();
+                    if (this.isOpen) {
+                        this.loadNotifications();
+                    }
                 }, 30000);
             }
             
@@ -126,21 +130,33 @@
             
             async loadNotifications() {
                 try {
+                    // Show loading state
+                    this.showLoading();
+                    
                     const response = await fetch('../reports/get_notifications.php');
                     const data = await response.json();
                     
                     if (data.success) {
-                        console.log('Notifications loaded:', data.notifications);
-                        this.updateBadge(data.unread_count);
-                        this.renderNotifications(data.notifications);
+                        this.notifications = data.notifications || [];
+                        this.updateBadge(data.unread_count || 0);
+                        this.renderNotifications(this.notifications);
                     } else {
                         console.error('Failed to load notifications:', data.error);
-                        this.renderError();
+                        this.renderError(data.error || 'Failed to load notifications');
                     }
                 } catch (error) {
                     console.error('Error loading notifications:', error);
-                    this.renderError();
+                    this.renderError('Network error occurred');
                 }
+            }
+            
+            showLoading() {
+                this.list.innerHTML = `
+                    <div class="p-4 text-center text-clinic-dark/60">
+                        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-clinic-blue mx-auto mb-2"></div>
+                        <p class="font-poppins text-sm">Loading notifications...</p>
+                    </div>
+                `;
             }
             
             updateBadge(count) {
@@ -153,7 +169,7 @@
             }
             
             renderNotifications(notifications) {
-                if (notifications.length === 0) {
+                if (!notifications || notifications.length === 0) {
                     this.list.innerHTML = `
                         <div class="p-4 text-center text-clinic-dark/60">
                             <svg class="w-12 h-12 mx-auto mb-2 text-clinic-tea/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,21 +182,25 @@
                 }
                 
                 this.list.innerHTML = notifications.map(notification => {
-                    console.log('Processing notification:', notification);
                     const timeAgo = this.getTimeAgo(notification.timestamp);
                     const iconClass = this.getIconClass(notification.type);
                     const bgClass = notification.read ? 'bg-white' : 'bg-clinic-ivory/50';
-                    const actionLink = notification.action_url ? 
-                        `<a href="${notification.action_url}" class="text-xs text-clinic-blue hover:text-clinic-blue/80 font-poppins underline">
-                            View Details →
-                        </a>` : '';
                     const unreadDot = !notification.read ? 
                         `<div class="flex-shrink-0 mt-1">
                             <div class="w-2 h-2 bg-clinic-red rounded-full"></div>
                         </div>` : '';
                     
+                    // Create view details button instead of direct link
+                    const viewDetailsBtn = notification.action_url ? 
+                        `<button onclick="notificationCenter.showDetails('${notification.id}', '${this.escapeHtml(notification.title)}', '${this.escapeHtml(notification.message)}', '${notification.action_url}')" 
+                                class="text-xs text-clinic-blue hover:text-clinic-blue/80 font-poppins underline cursor-pointer">
+                            View Details →
+                        </button>` : '';
+                    
                     return `
-                        <div class="notification-item ${bgClass} border-b border-clinic-tea/10 hover:bg-clinic-tea/10 transition-colors duration-200" data-id="${notification.id}">
+                        <div class="notification-item ${bgClass} border-b border-clinic-tea/10 hover:bg-clinic-tea/10 transition-colors duration-200 cursor-pointer" 
+                             data-id="${notification.id}" 
+                             onclick="notificationCenter.markAsRead('${notification.id}')">
                             <div class="p-4">
                                 <div class="flex items-start gap-3">
                                     <div class="flex-shrink-0 mt-1">
@@ -190,11 +210,11 @@
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <div class="flex items-center justify-between mb-1">
-                                            <h4 class="text-sm font-poppins font-semibold text-clinic-dark truncate">${notification.title}</h4>
+                                            <h4 class="text-sm font-poppins font-semibold text-clinic-dark truncate">${this.escapeHtml(notification.title)}</h4>
                                             <span class="text-xs text-clinic-dark/60 font-poppins">${timeAgo}</span>
                                         </div>
-                                        <p class="text-sm text-clinic-dark/80 font-poppins mb-2 line-clamp-2">${notification.message}</p>
-                                        ${actionLink}
+                                        <p class="text-sm text-clinic-dark/80 font-poppins mb-2 line-clamp-2">${this.escapeHtml(notification.message)}</p>
+                                        ${viewDetailsBtn}
                                     </div>
                                     ${unreadDot}
                                 </div>
@@ -202,24 +222,15 @@
                         </div>
                     `;
                 }).join('');
-                
-                // Add click handlers for notifications
-                this.list.querySelectorAll('.notification-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        if (!e.target.closest('a')) {
-                            this.markAsRead(item.dataset.id);
-                        }
-                    });
-                });
             }
             
-            renderError() {
+            renderError(errorMessage) {
                 this.list.innerHTML = `
                     <div class="p-4 text-center text-clinic-red">
                         <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <p class="font-poppins text-sm">Failed to load notifications</p>
+                        <p class="font-poppins text-sm">${errorMessage}</p>
                         <button onclick="notificationCenter.loadNotifications()" class="mt-2 px-3 py-1 text-xs bg-clinic-green text-white hover:bg-clinic-green/80 rounded-lg font-poppins transition-colors duration-200">Retry</button>
                     </div>
                 `;
@@ -230,7 +241,12 @@
                     'security': 'bg-clinic-red/20 text-clinic-red',
                     'system': 'bg-clinic-blue/20 text-clinic-blue',
                     'patient': 'bg-clinic-green/20 text-clinic-green',
-                    'medical': 'bg-clinic-purple/20 text-clinic-purple'
+                    'medical': 'bg-clinic-purple/20 text-clinic-purple',
+                    'archive': 'bg-purple-100 text-purple-600',
+                    'registration': 'bg-green-100 text-green-600',
+                    'edit': 'bg-blue-100 text-blue-600',
+                    'login': 'bg-green-100 text-green-600',
+                    'logout': 'bg-red-100 text-red-600'
                 };
                 return classes[type] || 'bg-clinic-tea/20 text-clinic-tea';
             }
@@ -240,7 +256,12 @@
                     'security': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path></svg>',
                     'system': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>',
                     'patient': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>',
-                    'medical': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>'
+                    'medical': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+                    'archive': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2H7a2 2 0 01-2-2V8z"></path></svg>',
+                    'registration': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>',
+                    'edit': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>',
+                    'login': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>',
+                    'logout': '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>'
                 };
                 return icons[type] || '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
             }
@@ -255,6 +276,12 @@
                 if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
                 if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
                 return time.toLocaleDateString();
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
             
             async markAsRead(notificationId) {
@@ -272,7 +299,7 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Update the UI
+                        // Update the UI immediately
                         const item = this.list.querySelector(`[data-id="${notificationId}"]`);
                         if (item) {
                             item.classList.remove('bg-clinic-ivory/50');
@@ -291,6 +318,12 @@
             
             async markAllAsRead() {
                 try {
+                    // Disable button during request
+                    if (this.markAllReadBtn) {
+                        this.markAllReadBtn.disabled = true;
+                        this.markAllReadBtn.textContent = 'Marking...';
+                    }
+                    
                     const response = await fetch('../reports/mark_notification_read.php', {
                         method: 'POST',
                         headers: {
@@ -302,25 +335,79 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        // Reload notifications to get updated read status
-                        await this.loadNotifications();
-                        
-                        // Update the UI
+                        // Update all notifications to read state
                         this.list.querySelectorAll('.notification-item').forEach(item => {
                             item.classList.remove('bg-clinic-ivory/50');
                             item.classList.add('bg-white');
                             const dot = item.querySelector('.bg-clinic-red');
                             if (dot) dot.remove();
                         });
+                        
+                        // Update badge to 0
                         this.updateBadge(0);
+                        
+                        // Show success message briefly
+                        const originalText = this.markAllReadBtn.textContent;
+                        this.markAllReadBtn.textContent = 'All Read!';
+                        setTimeout(() => {
+                            this.markAllReadBtn.textContent = originalText;
+                        }, 1000);
                         
                         console.log('All notifications marked as read successfully');
                     } else {
                         console.error('Failed to mark all notifications as read:', data.error);
+                        alert('Failed to mark all notifications as read. Please try again.');
                     }
                 } catch (error) {
                     console.error('Error marking all notifications as read:', error);
+                    alert('Network error occurred. Please try again.');
+                } finally {
+                    // Re-enable button
+                    if (this.markAllReadBtn) {
+                        this.markAllReadBtn.disabled = false;
+                        this.markAllReadBtn.textContent = 'Mark all read';
+                    }
                 }
+            }
+            
+            showDetails(notificationId, title, message, actionUrl) {
+                // Create modal for notification details
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-comfortaa font-bold text-clinic-dark">${title}</h3>
+                                <button onclick="this.closest('.fixed').remove()" class="p-1 hover:bg-gray-100 rounded-lg transition-colors duration-200">
+                                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="mb-6">
+                                <p class="text-clinic-dark/80 font-poppins text-sm leading-relaxed">${message}</p>
+                            </div>
+                            <div class="flex justify-center">
+                                <button onclick="this.closest('.fixed').remove()" class="px-6 py-2 bg-clinic-blue hover:bg-clinic-blue/80 text-white rounded-lg font-poppins transition-colors duration-200">
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Close modal when clicking outside
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.remove();
+                    }
+                });
+                
+                // Mark notification as read when viewing details
+                this.markAsRead(notificationId);
             }
             
             destroy() {

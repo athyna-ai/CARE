@@ -19,6 +19,67 @@ $pdo = get_pdo();
 header('Content-Type: application/json');
 
 try {
+    // Create notification_reads table if it doesn't exist
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS notification_reads (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            notification_id VARCHAR(255) NOT NULL,
+            read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user_notification (user_id, notification_id),
+            INDEX idx_user_id (user_id),
+            INDEX idx_notification_id (notification_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+    
+    $userId = $_SESSION['user']['id'];
+    
+    // Enhanced notification management class
+    class NotificationManager {
+        private $pdo;
+        private $userId;
+        
+        public function __construct($pdo, $userId) {
+            $this->pdo = $pdo;
+            $this->userId = $userId;
+        }
+        
+        public function isRead($notificationId) {
+            // Check session first (faster)
+            if (isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications'])) {
+                return true;
+            }
+            
+            // Check database as fallback
+            try {
+                $stmt = $this->pdo->prepare("
+                    SELECT COUNT(*) as count 
+                    FROM notification_reads 
+                    WHERE user_id = ? AND notification_id = ?
+                ");
+                $stmt->execute([$this->userId, $notificationId]);
+                $result = $stmt->fetch();
+                
+                if ($result['count'] > 0) {
+                    // Sync with session
+                    if (!isset($_SESSION['read_notifications'])) {
+                        $_SESSION['read_notifications'] = [];
+                    }
+                    if (!in_array($notificationId, $_SESSION['read_notifications'])) {
+                        $_SESSION['read_notifications'][] = $notificationId;
+                    }
+                    return true;
+                }
+            } catch (Exception $e) {
+                error_log("Database read check failed: " . $e->getMessage());
+            }
+            
+            return false;
+        }
+    }
+    
+    $notificationManager = new NotificationManager($pdo, $userId);
+    
     // Get notifications from various sources
     $notifications = [];
     
@@ -53,7 +114,7 @@ try {
     
     foreach ($securityAlerts as $alert) {
         $notificationId = 'security_' . md5($alert['message'] . $alert['timestamp']);
-        $isRead = isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications']);
+        $isRead = $notificationManager->isRead($notificationId);
         
         $notifications[] = [
             'id' => $notificationId,
@@ -95,7 +156,7 @@ try {
     
     foreach ($recentVisits as $visit) {
         $notificationId = 'patient_' . md5($visit['timestamp'] . $visit['message']);
-        $isRead = isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications']);
+        $isRead = $notificationManager->isRead($notificationId);
         
         $notifications[] = [
             'id' => $notificationId,
@@ -137,7 +198,7 @@ try {
     
     foreach ($medicalUpdates as $medical) {
         $notificationId = 'medical_' . md5($medical['timestamp'] . $medical['message']);
-        $isRead = isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications']);
+        $isRead = $notificationManager->isRead($notificationId);
         
         $notifications[] = [
             'id' => $notificationId,
@@ -174,7 +235,7 @@ try {
     
     foreach ($adminActivities as $admin) {
         $notificationId = 'admin_' . md5($admin['timestamp'] . $admin['message']);
-        $isRead = isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications']);
+        $isRead = $notificationManager->isRead($notificationId);
         
         $notifications[] = [
             'id' => $notificationId,

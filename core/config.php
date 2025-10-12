@@ -17,7 +17,7 @@ $DB_CHARSET = 'utf8mb4';
 if (session_status() !== PHP_SESSION_ACTIVE) {
     // Enhanced session security configuration
     ini_set('session.cookie_httponly', 1);
-    ini_set('session.cookie_secure', 1);
+    ini_set('session.cookie_secure', isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 1 : 0);
     ini_set('session.use_strict_mode', 1);
     ini_set('session.cookie_samesite', 'Strict');
     ini_set('session.gc_maxlifetime', 3600); // 1 hour
@@ -29,7 +29,8 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     if (!isset($_SESSION['last_regeneration'])) {
         $_SESSION['last_regeneration'] = time();
     } elseif (time() - $_SESSION['last_regeneration'] > 300) { // Every 5 minutes
-        session_regenerate_id(true);
+        // Don't delete old session data to preserve notification read status
+        session_regenerate_id(false);
         $_SESSION['last_regeneration'] = time();
     }
 }
