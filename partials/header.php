@@ -557,9 +557,9 @@
                             <?php 
                             // Determine correct path to notifications.php based on current directory
                             $currentDir = basename(dirname($_SERVER['PHP_SELF']));
-                            $notificationsPath = ($currentDir === 'admin' || $currentDir === 'patients' || $currentDir === 'logs' || $currentDir === 'reports' || $currentDir === 'medical') ? '../notifications.php' : 'notifications.php';
+                            $notificationsPath = ($currentDir === 'admin' || $currentDir === 'patients' || $currentDir === 'logs' || $currentDir === 'reports' || $currentDir === 'medical' || $currentDir === 'rfid' || $currentDir === 'auth') ? '../notifications.php' : 'notifications.php';
                             ?>
-                            <a href="<?= $notificationsPath ?>" class="block text-center text-sm text-clinic-blue hover:text-clinic-blue/80 font-poppins">View all notifications</a>
+                            <a href="<?= $notificationsPath ?>" class="block text-center text-sm text-clinic-blue hover:text-clinic-blue/80 font-poppins font-medium">View all notifications</a>
                         </div>
                     </div>
                 </div>
@@ -572,11 +572,8 @@
                 </a>
                 <?php endif; ?>
                 
-                <!-- Dashboard and logout - only show if user is logged in -->
+                <!-- Logout - only show if user is logged in -->
                 <?php if (isset($_SESSION['user']) && !empty($_SESSION['user'])): ?>
-                <a href="../admin/dashboard.php" class="px-4 py-2 bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
-                    Dashboard
-                </a>
                 <a href="../logout.php" class="px-4 py-2 bg-clinic-red/10 hover:bg-clinic-red/20 text-clinic-red rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
                     Logout
                 </a>
