@@ -1,0 +1,19 @@
+# Security Framework - Logs Directory
+# Allow authorized admin access through secure interface
+
+# Prevent directory browsing
+Options -Indexes
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set Referrer-Policy "no-referrer"
+
+# Only allow .log files to be accessed through admin interface
+<FilesMatch "\.log$">
+    # Log files accessible only via admin panels with authentication
+    Order Allow,Deny
+    Allow from localhost
+    Allow from 127.0.0.1
+    # Block direct external access to log files
+</FilesMatch>

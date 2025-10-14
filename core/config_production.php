@@ -1,63 +1,62 @@
-<?php
-// Care CMS - Production Configuration
+# Care CMS - Production Configuration
 
-// Database Configuration for Hostinger Production
+# Database Configuration for Hostinger Production
 $DB_HOST = getenv('DB_HOST') ?: 'localhost';
 $DB_NAME = getenv('DB_NAME') ?: 'u258651435_CareOlsh_cms';
 $DB_USER = getenv('DB_USER') ?: 'u258651435_athena';
 $DB_PASS = getenv('DB_PASS') ?: '015hc@r3_Care';
 $DB_CHARSET = 'utf8mb4';
 
-// Production Environment Settings
+# Production Environment Settings
 $ENVIRONMENT = 'production';
 $DEBUG_MODE = false;
 $LOG_LEVEL = 'error';
 
-// Security Settings
+# Security Settings
 $ENCRYPTION_KEY = getenv('ENCRYPTION_KEY') ?: 'your_32_character_encryption_key_here';
 $JWT_SECRET = getenv('JWT_SECRET') ?: 'your_jwt_secret_key_here';
 
-// Session Configuration
+# Session Configuration
 $SESSION_LIFETIME = 3600; // 1 hour
 $SESSION_SECURE = true; // Use HTTPS
 $SESSION_HTTPONLY = true;
 $SESSION_SAMESITE = 'Strict';
 
-// File Upload Settings
+# File Upload Settings
 $MAX_UPLOAD_SIZE = '10M';
 $ALLOWED_FILE_TYPES = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
 
-// Email Configuration (if needed)
+# Email Configuration (if needed)
 $SMTP_HOST = getenv('SMTP_HOST') ?: 'smtp.hostinger.com';
 $SMTP_PORT = getenv('SMTP_PORT') ?: 587;
 $SMTP_USER = getenv('SMTP_USER') ?: '';
 $SMTP_PASS = getenv('SMTP_PASS') ?: '';
 
-// Rate Limiting
+# Rate Limiting
 $RATE_LIMIT_REQUESTS = 100; // requests per minute
 $RATE_LIMIT_WINDOW = 60; // seconds
 
-// Backup Settings
+# Backup Settings
 $BACKUP_ENABLED = true;
 $BACKUP_RETENTION_DAYS = 30;
 
-// Monitoring
+# Monitoring
 $MONITORING_ENABLED = true;
 $ERROR_REPORTING = false; // Set to false in production
 
-// Domain Configuration
+# Domain Configuration
 $BASE_URL = 'https://olshacare.com';
 $ADMIN_EMAIL = 'admin@olshacare.com';
 
-// RFID Configuration
+# RFID Configuration
 $RFID_ENABLED = true;
 $RFID_TIMEOUT = 30; // seconds
 
-// Archive Settings
+# Archive Settings
 $AUTO_ARCHIVE_ENABLED = true;
 $ARCHIVE_AFTER_DAYS = 365; // Archive records older than 1 year
 
-// Security Headers
+# Security Headers
 $SECURITY_HEADERS = [
     'X-Content-Type-Options' => 'nosniff',
     'X-Frame-Options' => 'DENY',
@@ -66,28 +65,28 @@ $SECURITY_HEADERS = [
     'Content-Security-Policy' => "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
 ];
 
-// Performance Settings
+# Performance Settings
 $CACHE_ENABLED = true;
 $CACHE_LIFETIME = 3600; // 1 hour
 $COMPRESSION_ENABLED = true;
 
-// Logging Configuration
+# Logging Configuration
 $LOG_FILE = '/home/u258651435/domains/olshacare.com/public_html/logs/app.log';
 $LOG_MAX_SIZE = '10MB';
 $LOG_ROTATION = true;
 
-// Database Connection Pooling
+# Database Connection Pooling
 $DB_POOL_SIZE = 10;
 $DB_TIMEOUT = 30;
 
-// File Permissions
+# File Permissions
 $FILE_PERMISSIONS = 0644;
 $DIRECTORY_PERMISSIONS = 0755;
 
-// Timezone
+# Timezone
 date_default_timezone_set('Asia/Manila');
 
-// Error Handling
+# Error Handling
 if ($ENVIRONMENT === 'production') {
     error_reporting(0);
     ini_set('display_errors', 0);
@@ -98,12 +97,12 @@ if ($ENVIRONMENT === 'production') {
     ini_set('display_errors', 1);
 }
 
-// Memory and Execution Limits
+# Memory and Execution Limits
 ini_set('memory_limit', '256M');
 ini_set('max_execution_time', 300);
 ini_set('max_input_time', 300);
 
-// Session Configuration
+# Session Configuration
 if (session_status() !== PHP_SESSION_ACTIVE) {
     ini_set('session.cookie_httponly', $SESSION_HTTPONLY ? 1 : 0);
     ini_set('session.cookie_secure', $SESSION_SECURE ? 1 : 0);
@@ -123,7 +122,7 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     }
 }
 
-// Create a shared PDO instance with connection pooling
+# Create a shared PDO instance with connection pooling
 function get_pdo(): PDO {
     static $pdo = null;
     if ($pdo instanceof PDO) {
@@ -143,7 +142,7 @@ function get_pdo(): PDO {
     return $pdo;
 }
 
-// CSRF Protection
+# CSRF Protection
 function csrf_token(): string {
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
@@ -155,7 +154,7 @@ function verify_csrf(?string $token): bool {
     return is_string($token) && isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
 }
 
-// Security Headers Function
+# Security Headers Function
 function set_security_headers() {
     global $SECURITY_HEADERS;
     foreach ($SECURITY_HEADERS as $header => $value) {
@@ -163,21 +162,21 @@ function set_security_headers() {
     }
 }
 
-// Initialize security headers
+# Initialize security headers
 set_security_headers();
 
-// Compression
+# Compression
 if ($COMPRESSION_ENABLED && !ob_get_level()) {
     ob_start('ob_gzhandler');
 }
 
-// Cache Headers
+# Cache Headers
 if ($CACHE_ENABLED) {
     header('Cache-Control: public, max-age=' . $CACHE_LIFETIME);
     header('Expires: ' . gmdate('D, d M Y H:i:s', time() + $CACHE_LIFETIME) . ' GMT');
 }
 
-// Database Health Check
+# Database Health Check
 function check_database_connection(): bool {
     try {
         $pdo = get_pdo();
@@ -189,7 +188,7 @@ function check_database_connection(): bool {
     }
 }
 
-// Performance Monitoring
+# Performance Monitoring
 function log_performance(string $operation, float $start_time): void {
     $execution_time = microtime(true) - $start_time;
     if ($execution_time > 1.0) { // Log slow operations (>1 second)
@@ -197,7 +196,7 @@ function log_performance(string $operation, float $start_time): void {
     }
 }
 
-// Backup Function
+# Backup Function
 function create_backup(): bool {
     global $BACKUP_ENABLED, $BACKUP_RETENTION_DAYS;
     if (!$BACKUP_ENABLED) return false;
@@ -235,7 +234,7 @@ function create_backup(): bool {
     }
 }
 
-// Auto-backup on critical operations
+# Auto-backup on critical operations
 register_shutdown_function(function() {
     if (isset($_SESSION['backup_needed']) && $_SESSION['backup_needed']) {
         create_backup();

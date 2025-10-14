@@ -1,79 +1,68 @@
-# Care CMS - Working Security with Logging
-# Block malicious requests while allowing normal operation
+# Security Headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
-# Block directory browsing
-Options -Indexes
+# Hide sensitive files
+<Files "*.sql">
+    Order allow,deny
+    Deny from all
+</Files>
 
-# Security headers
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';"
+<Files "*.log">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files ".env*">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# PHP Security
+php_flag display_errors Off
+php_flag log_errors On
+php_value max_execution_time 300
+php_value memory_limit 256M
+
+# Compression
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
 </IfModule>
 
-# Block access to sensitive files
-<FilesMatch "\.(sql|bak|backup|config|ini|log)$">
-    Require all denied
-</FilesMatch>
+# Cache Control
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/svg+xml "access plus 1 month"
+</IfModule>
 
-# Block debug and test files
-<FilesMatch "(debug|test|temp|tmp).*\.php$">
-    Require all denied
-</FilesMatch>
-
-# Block common debug patterns
-<FilesMatch ".*\.(debug|test|dev|local)\.php$">
-    Require all denied
-</FilesMatch>
-
-# SQL Injection Protection with Logging
+# URL Rewriting
 RewriteEngine On
 
-# URL Rewriting for Clean URLs (Temporarily Disabled)
-# RewriteRule ^patient/([a-zA-Z0-9+/=]+)/?$ patients/patient_view.php?token=$1 [L,QSA]
-# RewriteRule ^medical/([a-zA-Z0-9+/=]+)/?$ patients/medical_record_view.php?token=$1 [L,QSA]
-# RewriteRule ^dashboard/?$ admin/dashboard.php [L,QSA]
-# RewriteRule ^settings/?$ admin/settings.php [L,QSA]
-# RewriteRule ^rfid/?$ rfid/rfid_portal.php [L,QSA]
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Custom Error Pages
-ErrorDocument 404 /Care/error_pages/404.php
-ErrorDocument 500 /Care/error_pages/500.php
+# Remove trailing slashes
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{THE_REQUEST} /+[^?\s]*?/[\s?]
+RewriteRule ^(.*)/$ /$1 [R=301,L]
 
-# Log and block SQL injection patterns
-RewriteCond %{QUERY_STRING} union.*select [NC,OR]
-RewriteCond %{QUERY_STRING} drop.*table [NC,OR]
-RewriteCond %{QUERY_STRING} insert.*into [NC,OR]
-RewriteCond %{QUERY_STRING} delete.*from [NC,OR]
-RewriteCond %{QUERY_STRING} update.*set [NC,OR]
-RewriteCond %{QUERY_STRING} create.*table [NC,OR]
-RewriteCond %{QUERY_STRING} alter.*table [NC,OR]
-RewriteCond %{QUERY_STRING} exec.*\( [NC,OR]
-RewriteCond %{QUERY_STRING} load_file [NC,OR]
-RewriteCond %{QUERY_STRING} information_schema [NC,OR]
-RewriteCond %{QUERY_STRING} or.*1.*=.*1 [NC,OR]
-RewriteCond %{QUERY_STRING} and.*1.*=.*1 [NC,OR]
-RewriteCond %{QUERY_STRING} or.*'.*'.*=.*'.*' [NC,OR]
-RewriteCond %{QUERY_STRING} and.*'.*'.*=.*'.*' [NC]
-RewriteRule ^(.*)$ /Care/security_logger.php?type=sql_injection&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]
-
-# Log and block XSS attempts
-RewriteCond %{QUERY_STRING} \<script [NC,OR]
-RewriteCond %{QUERY_STRING} javascript: [NC,OR]
-RewriteCond %{QUERY_STRING} onload= [NC,OR]
-RewriteCond %{QUERY_STRING} onerror= [NC,OR]
-RewriteCond %{QUERY_STRING} onclick= [NC,OR]
-RewriteCond %{QUERY_STRING} alert\( [NC,OR]
-RewriteCond %{QUERY_STRING} prompt\( [NC,OR]
-RewriteCond %{QUERY_STRING} confirm\( [NC]
-RewriteRule ^(.*)$ /Care/security_logger.php?type=xss&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]
-
-# Log and block directory traversal
-RewriteCond %{QUERY_STRING} \.\./ [NC,OR]
-RewriteCond %{QUERY_STRING} \.\.\\ [NC,OR]
-RewriteCond %{QUERY_STRING} %2e%2e [NC]
-RewriteRule ^(.*)$ /Care/security_logger.php?type=directory_traversal&url=%{REQUEST_URI}&query=%{QUERY_STRING} [R=403,L]
+# Custom error pages
+ErrorDocument 404 /error_pages/404.php
+ErrorDocument 500 /error_pages/500.php
