@@ -1,3 +1,10 @@
+# Care CMS - Production .htaccess
+
+# Force HTTPS
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
 # Security Headers
 Header always set X-Content-Type-Options nosniff
 Header always set X-Frame-Options DENY
@@ -16,6 +23,11 @@ Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains
 </Files>
 
 <Files ".env*">
+    Order allow,deny
+    Deny from all
+</Files>
+
+<Files ".git*">
     Order allow,deny
     Deny from all
 </Files>
@@ -53,10 +65,6 @@ php_value memory_limit 256M
 
 # URL Rewriting
 RewriteEngine On
-
-# Force HTTPS
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Remove trailing slashes
 RewriteCond %{REQUEST_FILENAME} !-d
