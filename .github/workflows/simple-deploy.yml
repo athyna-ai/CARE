@@ -1,8 +1,8 @@
-name: Deploy Care CMS to Hostinger
+name: Simple Deploy to Hostinger
 
 on:
   push:
-    branches: [ main, production, yan-na-yon- ]
+    branches: [ yan-na-yon- ]
   workflow_dispatch:
 
 jobs:
@@ -13,27 +13,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.1'
-        extensions: pdo_mysql, mysqli, gd, curl, json, mbstring, openssl, zip
-        
-    - name: Install Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      run: |
-        cd assets
-        npm install
-        
-    - name: Build CSS
-      run: |
-        cd assets
-        npm run build-css-prod
-        
     - name: Create deployment package
       run: |
         # Create deployment directory
@@ -56,7 +35,7 @@ jobs:
           ./ deploy/
         
         # Create production config
-        cp core/config_production.php deploy/core/config.php
+        cp core/config.php deploy/core/config.php
         
         # Create .htaccess for security
         cat > deploy/.htaccess << 'EOF'
@@ -166,34 +145,6 @@ jobs:
         </urlset>
         EOF
         
-        # Create database setup script
-        cat > deploy/setup_database.php << 'EOF'
-        <?php
-        // Database setup script for production
-        require_once 'core/config.php';
-        
-        try {
-            $pdo = get_pdo();
-            
-            // Read and execute the database schema
-            $sql = file_get_contents('database/care_cms_database.sql');
-            $statements = explode(';', $sql);
-            
-            foreach ($statements as $statement) {
-                $statement = trim($statement);
-                if (!empty($statement)) {
-                    $pdo->exec($statement);
-                }
-            }
-            
-            echo "Database setup completed successfully!";
-            
-        } catch (Exception $e) {
-            echo "Database setup failed: " . $e->getMessage();
-        }
-        ?>
-        EOF
-        
         # Create directories
         mkdir -p deploy/logs
         mkdir -p deploy/backup
@@ -206,23 +157,7 @@ jobs:
         chmod 644 deploy/robots.txt
         chmod 644 deploy/sitemap.xml
         
-    - name: Deploy to Hostinger
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.HOSTINGER_HOST }}
-        username: ${{ secrets.HOSTINGER_USERNAME }}
-        key: ${{ secrets.HOSTINGER_SSH_KEY }}
-        port: 22
-        script: |
-          # Create backup of current site
-          if [ -d "/home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html" ]; then
-            cp -r /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/backup_$(date +%Y%m%d_%H%M%S)
-          fi
-          
-          # Create deployment directory
-          mkdir -p /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/deploy_temp
-          
-    - name: Upload files
+    - name: Upload files to Hostinger
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.HOSTINGER_HOST }}
@@ -230,9 +165,9 @@ jobs:
         key: ${{ secrets.HOSTINGER_SSH_KEY }}
         port: 22
         source: "deploy/*"
-        target: "/home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/deploy_temp/"
+        target: "/home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/"
         
-    - name: Finalize deployment
+    - name: Set permissions
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.HOSTINGER_HOST }}
@@ -240,10 +175,6 @@ jobs:
         key: ${{ secrets.HOSTINGER_SSH_KEY }}
         port: 22
         script: |
-          # Move files to public_html
-          rm -rf /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/*
-          mv /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/deploy_temp/* /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/
-          
           # Set proper permissions
           chmod -R 755 /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/
           chmod 644 /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/.htaccess
@@ -261,12 +192,6 @@ jobs:
           chmod 755 /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/backup
           chmod 755 /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/cache
           chmod 755 /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/public_html/tmp
-          
-          # Clean up
-          rm -rf /home/${{ secrets.HOSTINGER_USERNAME }}/domains/olshacare.com/deploy_temp
-          
-          # Restart services if needed
-          # systemctl reload apache2 2>/dev/null || true
           
           echo "Deployment completed successfully!"
           
