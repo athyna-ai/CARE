@@ -61,7 +61,7 @@ include __DIR__ . '/partials/header.php';
                     Clinic Administration of Records System
                 </p>
                 <p class="text-lg text-clinic-dark/60 font-poppins italic">
-                    A School Clinic management Information system
+                    A School Clinic management Information system - Live Update Test
                 </p>
             </div>
 
