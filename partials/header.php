@@ -568,7 +568,7 @@
                 <!-- Index button - only show on login page -->
                 <?php if (basename($_SERVER['PHP_SELF']) === 'login.php'): ?>
                 <a href="../index.php" class="px-4 py-2 bg-clinic-ivory/60 hover:bg-clinic-ivory/80 text-clinic-dark rounded-xl font-poppins font-medium transition-all duration-200 hover:scale-105">
-                    Index
+                    Home
                 </a>
                 <?php endif; ?>
                 

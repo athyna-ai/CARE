@@ -217,7 +217,7 @@ include __DIR__ . '/partials/header.php';
                         <span class="text-white font-bold text-xl">HM</span>
                     </div>
                     <h3 class="text-xl font-semibold text-clinic-dark mb-2">Hannah Athena A. Mauricio</h3>
-                    <p class="text-clinic-dark/60 text-sm">Lead Developer</p>
+                    <p class="text-clinic-dark/60 text-sm">Lead & Backend Developer</p>
                 </div>
 
                 <!-- Developer 2 -->
@@ -226,7 +226,7 @@ include __DIR__ . '/partials/header.php';
                         <span class="text-white font-bold text-xl">JL</span>
                     </div>
                     <h3 class="text-xl font-semibold text-clinic-dark mb-2">Jeremae L. Lalo</h3>
-                    <p class="text-clinic-dark/60 text-sm">Backend Developer</p>
+                    <p class="text-clinic-dark/60 text-sm">Design & Frontend Developer</p>
                 </div>
 
                 <!-- Developer 3 -->
@@ -235,7 +235,7 @@ include __DIR__ . '/partials/header.php';
                         <span class="text-white font-bold text-xl">SO</span>
                     </div>
                     <h3 class="text-xl font-semibold text-clinic-dark mb-2">Shanael Angelyn N. Orodio</h3>
-                    <p class="text-clinic-dark/60 text-sm">Frontend Developer</p>
+                    <p class="text-clinic-dark/60 text-sm">Design & Frontend Developer</p>
                 </div>
 
                 <!-- Developer 4 -->
@@ -244,7 +244,7 @@ include __DIR__ . '/partials/header.php';
                         <span class="text-white font-bold text-xl">DB</span>
                     </div>
                     <h3 class="text-xl font-semibold text-clinic-dark mb-2">Dhennis Jhon P. Biag</h3>
-                    <p class="text-clinic-dark/60 text-sm">Full Stack Developer</p>
+                    <p class="text-clinic-dark/60 text-sm">Software Developer</p>
                 </div>
             </div>
         </div>
