@@ -22,8 +22,8 @@ try {
     // Create notification_reads table if it doesn't exist
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS notification_reads (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
             notification_id VARCHAR(255) NOT NULL,
             read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_user_notification (user_id, notification_id),
@@ -104,6 +104,7 @@ try {
             FROM activity_logs 
             WHERE (success = 0 AND user_type = 'system') 
                 OR action IN ('login_failed', 'SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach', 'Unauthorized Admin Access', 'Unauthorized Medical Access')
+                AND action NOT IN ('admin_creation_attempt', 'user_deletion_attempt')
                 AND timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
             ORDER BY timestamp DESC
             LIMIT 15

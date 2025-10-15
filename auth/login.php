@@ -349,7 +349,7 @@ $pageTitle = 'Login'; $showTopNav = false; $showSidebar = false; include __DIR__
 		const rfidStatus = document.getElementById('rfidStatus');
 		
 		// Check if there's a pending login session (credentials verified, RFID needed)
-		const hasPendingLogin = <?= isset($_SESSION['pending_login']) && !empty($_SESSION['pending_login']) ? 'true' : 'false' ?>;
+		const hasPendingLogin = <?php echo isset($_SESSION['pending_login']) && !empty($_SESSION['pending_login']) ? 'true' : 'false'; ?>;
 		
 		if (hasPendingLogin) {
 			// Show RFID modal - credentials were verified

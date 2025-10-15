@@ -12,8 +12,8 @@ try {
     // Create medical_records table
     echo "<h3>Creating medical_records table...</h3>";
     $pdo->exec("CREATE TABLE IF NOT EXISTS medical_records (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        patient_id INT NOT NULL,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        patient_id INT UNSIGNED NOT NULL,
         patient_type ENUM('student', 'faculty') NOT NULL,
         form_type VARCHAR(50) NOT NULL,
         form_data JSON NOT NULL,
@@ -29,8 +29,8 @@ try {
     // Create visitation_logs table
     echo "<h3>Creating visitation_logs table...</h3>";
     $pdo->exec("CREATE TABLE IF NOT EXISTS visitation_logs (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        patient_id INT NOT NULL,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        patient_id INT UNSIGNED NOT NULL,
         patient_type ENUM('student', 'faculty') NOT NULL,
         reason VARCHAR(100) NOT NULL,
         visit_date DATETIME NOT NULL,
@@ -59,8 +59,8 @@ try {
     // Create archive tables
     echo "<h3>Creating archive tables...</h3>";
     $pdo->exec("CREATE TABLE IF NOT EXISTS students_archive (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        original_id INT NOT NULL,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        original_id INT UNSIGNED NOT NULL,
         name VARCHAR(255) NOT NULL,
         level VARCHAR(50) NOT NULL,
         year_grade VARCHAR(20) NULL,
@@ -85,8 +85,8 @@ try {
     echo "<p style='color: green;'>✓ students_archive table created</p>";
     
     $pdo->exec("CREATE TABLE IF NOT EXISTS faculty_archive (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        original_id INT NOT NULL,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        original_id INT UNSIGNED NOT NULL,
         name VARCHAR(255) NOT NULL,
         department VARCHAR(100) NULL,
         address TEXT NULL,

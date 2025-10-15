@@ -1,9 +1,15 @@
 <?php
 declare(strict_types=1);
+// Prevent any output before JSON response
+ob_start();
+
 require_once __DIR__ . '/../core/config.php';
 require_once __DIR__ . '/../core/helpers.php';
 
-header('Content-Type: application/json');
+// Clear any output buffer
+ob_clean();
+
+header('Content-Type: application/json; charset=utf-8');
 
 // Check if there's a pending login
 if (!isset($_SESSION['pending_login'])) {
@@ -30,16 +36,23 @@ try {
     // Handle both hashed and plain text RFID values
     $rfidMatches = false;
     if ($pendingUser['rfid']) {
+        // Debug: Log what we're comparing
+        error_log("RFID Debug - Stored: " . substr($pendingUser['rfid'], 0, 30) . "...");
+        error_log("RFID Debug - Provided: " . $rfid);
+        error_log("RFID Debug - Stored length: " . strlen($pendingUser['rfid']));
+        
         // Check if it's a hashed value (starts with $2y$)
         if (strpos($pendingUser['rfid'], '$2y$') === 0) {
             // It's hashed, verify using password_verify
             $rfidMatches = password_verify($rfid, $pendingUser['rfid']);
-            // Password verification result logged to activity logs only
+            error_log("RFID verification (hashed): " . ($rfidMatches ? 'SUCCESS' : 'FAILED'));
         } else {
             // It's plain text, do direct comparison
             $rfidMatches = ($pendingUser['rfid'] === $rfid);
-            // Direct comparison result logged to activity logs only
+            error_log("RFID verification (plain): " . ($rfidMatches ? 'SUCCESS' : 'FAILED'));
         }
+    } else {
+        error_log("RFID verification: No RFID set for user: " . $pendingUser['name']);
     }
     
     // RFID verification now working properly - no bypass needed
@@ -56,6 +69,11 @@ try {
             'is_admin' => $pendingUser['is_admin'],
         ];
         $_SESSION['last_activity'] = time();
+        
+        // Also set security framework session variables for compatibility
+        $_SESSION['user_id'] = $pendingUser['id'];
+        $_SESSION['role'] = 'admin';
+        $_SESSION['username'] = $pendingUser['name'];
         
         // Clear pending login
         unset($_SESSION['pending_login']);
@@ -80,6 +98,11 @@ try {
             'is_admin' => $pendingUser['is_admin'],
         ];
         $_SESSION['last_activity'] = time();
+        
+        // Also set security framework session variables for compatibility
+        $_SESSION['user_id'] = $pendingUser['id'];
+        $_SESSION['role'] = 'admin';
+        $_SESSION['username'] = $pendingUser['name'];
         
         // Clear pending login
         unset($_SESSION['pending_login']);

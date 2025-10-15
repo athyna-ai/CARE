@@ -18,6 +18,10 @@ if (isset($_GET['token'])) {
         $recordId = (int)$tokenData['id'];
         $isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
     } else {
+        if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+            echo '<div class="text-center py-8 text-red-600">Invalid medical record token.</div>';
+            exit;
+        }
         header('Location: ../admin/dashboard.php?error=invalid_medical_token');
         exit;
     }
@@ -28,6 +32,10 @@ if (isset($_GET['token'])) {
 }
 
 if ($recordId <= 0) {
+    if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+        echo '<div class="text-center py-8 text-red-600">Invalid record ID.</div>';
+        exit;
+    }
     header('Location: ../admin/dashboard.php?error=invalid_record');
     exit;
 }
@@ -35,15 +43,19 @@ if ($recordId <= 0) {
 // Get medical record (check if archived)
 $record = null;
 if ($isArchived) {
-    // Try to get from archive tables
+    // Try to get from archive tables - check both student and faculty archives
     $archiveTables = ['student_medical_archive', 'faculty_medical_archive'];
     foreach ($archiveTables as $table) {
-        $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ?");
-        $stmt->execute([$recordId]);
-        $record = $stmt->fetch();
-        if ($record) {
-            $record['is_archived'] = true;
-            break;
+        // Check if table exists first
+        $tableExists = $pdo->query("SHOW TABLES LIKE '{$table}'")->rowCount() > 0;
+        if ($tableExists) {
+            $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ?");
+            $stmt->execute([$recordId]);
+            $record = $stmt->fetch();
+            if ($record) {
+                $record['is_archived'] = true;
+                break;
+            }
         }
     }
 } else {
@@ -54,6 +66,11 @@ if ($isArchived) {
 }
 
 if (!$record) {
+    if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+        // For AJAX requests, return error content instead of redirecting
+        echo '<div class="text-center py-8 text-red-600">Medical record not found.</div>';
+        exit;
+    }
     header('Location: ../admin/dashboard.php?error=record_not_found');
     exit;
 }
@@ -129,7 +146,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         <div class="space-y-6">
             <!-- Record Information -->
             <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <h3 class="text-lg font-semibold text-slate-800 mb-3">Record Information</h3>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-semibold text-slate-800">Record Information</h3>
+                    <?php if (isset($record['is_archived']) && $record['is_archived']): ?>
+                        <span class="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">ARCHIVED</span>
+                    <?php endif; ?>
+                </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
                             <div class="text-xs text-slate-600 mb-1">Record ID</div>
@@ -320,6 +342,19 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                     </div>
                 <?php endif; ?>
             </div>
+            
+            <!-- Restore Button for Archived Records -->
+            <?php if (isset($record['is_archived']) && $record['is_archived']): ?>
+                <div class="mt-6 pt-6 border-t border-slate-200">
+                    <button onclick="restoreMedicalRecord(<?= $record['id'] ?>)" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Restore This Medical Record
+                    </button>
+                    <p class="text-xs text-slate-500 text-center mt-2">This will move the record back to active medical records</p>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
     <?php
@@ -339,6 +374,10 @@ if ($record['patient_type'] === 'student') {
 }
 
 if (!$patient) {
+    if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+        echo '<div class="text-center py-8 text-red-600">Patient not found.</div>';
+        exit;
+    }
     header('Location: ../admin/dashboard.php?error=patient_not_found');
     exit;
 }

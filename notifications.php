@@ -56,6 +56,7 @@ try {
             FROM activity_logs 
             WHERE (success = 0 AND user_type = 'system') 
                 OR action IN ('login_failed', 'SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach', 'Unauthorized Admin Access', 'Unauthorized Medical Access')
+                AND action NOT IN ('admin_creation_attempt', 'user_deletion_attempt')
                 AND timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
             ORDER BY timestamp DESC
             LIMIT 20

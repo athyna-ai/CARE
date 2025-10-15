@@ -107,18 +107,12 @@ include __DIR__ . '/partials/header.php';
                     Sign in to manage patient records, medical forms, and clinic operations
                 </p>
                 
-                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-                    <a href="auth/login.php" class="w-full sm:w-auto inline-block px-8 sm:px-12 py-4 sm:py-5 bg-clinic-blue hover:bg-clinic-blue/90 text-white rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 sm:gap-4 border-2 border-clinic-blue/20">
+                <div class="flex justify-center items-center">
+                    <a href="auth/login.php" class="inline-block px-8 sm:px-12 py-4 sm:py-5 bg-clinic-blue hover:bg-clinic-blue/90 text-white rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 sm:gap-4 border-2 border-clinic-blue/20">
                         <svg class="w-5 h-5 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                         </svg>
                         <span class="text-white font-bold">ENTER SYSTEM</span>
-                    </a>
-                    <a href="pages/about_us.php" class="w-full sm:w-auto inline-block px-8 sm:px-12 py-4 sm:py-5 bg-white/80 hover:bg-white text-clinic-dark rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 sm:gap-4 border-2 border-clinic-tea/30">
-                        <svg class="w-5 h-5 sm:w-7 sm:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <span class="font-bold">LEARN MORE</span>
                     </a>
                 </div>
             </div>
@@ -244,7 +238,7 @@ include __DIR__ . '/partials/header.php';
                         <span class="text-white font-bold text-xl">DB</span>
                     </div>
                     <h3 class="text-xl font-semibold text-clinic-dark mb-2">Dhennis Jhon P. Biag</h3>
-                    <p class="text-clinic-dark/60 text-sm">Software Developer</p>
+                    <p class="text-clinic-dark/60 text-sm">Backend Support</p>
                 </div>
             </div>
         </div>

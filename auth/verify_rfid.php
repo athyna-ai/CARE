@@ -9,7 +9,7 @@ if (!isset($_SESSION['user']['id'])) {
     exit;
 }
 
-$rfid = $_POST['rfid'] ?? null;
+$rfid = $_POST['rfid'] ?? $_POST['rfid_code'] ?? null;
 
 if (!$rfid) {
     echo json_encode(['success' => false, 'message' => 'RFID required']);
@@ -19,25 +19,42 @@ if (!$rfid) {
 try {
     $pdo = get_pdo();
     
-    // Check if RFID belongs to an admin user
-    $stmt = $pdo->prepare("SELECT id, name, role FROM users WHERE rfid = ? AND role = 'admin'");
-    $stmt->execute([$rfid]);
-    $admin = $stmt->fetch();
+    // Get current user's RFID for verification
+    $stmt = $pdo->prepare("SELECT id, name, email, rfid FROM users WHERE id = ? AND is_admin = 1");
+    $stmt->execute([$_SESSION['user']['id']]);
+    $user = $stmt->fetch();
     
-    if ($admin) {
+    if (!$user || !$user['rfid']) {
+        echo json_encode(['success' => false, 'message' => 'No RFID set for this user']);
+        exit;
+    }
+    
+    // Check if RFID matches (handle both hashed and plain text)
+    $rfidMatches = false;
+    if (strpos($user['rfid'], '$2y$') === 0) {
+        // It's hashed, verify using password_verify
+        $rfidMatches = password_verify($rfid, $user['rfid']);
+        error_log("RFID verification (hashed): " . ($rfidMatches ? 'SUCCESS' : 'FAILED') . " for user: " . $user['name']);
+    } else {
+        // It's plain text, do direct comparison
+        $rfidMatches = ($user['rfid'] === $rfid);
+        error_log("RFID verification (plain): " . ($rfidMatches ? 'SUCCESS' : 'FAILED') . " for user: " . $user['name']);
+    }
+    
+    if ($rfidMatches) {
         // Log the access
         log_activity(
             $pdo,
             $_SESSION['user']['id'],
             'rfid_verification',
-            "RFID verification successful for admin: {$admin['name']} (RFID: {$rfid})",
-            'patient_view.php'
+            "RFID verification successful for admin: {$user['name']} (RFID: {$rfid})",
+            'rfid_verify'
         );
         
         echo json_encode([
             'success' => true, 
             'message' => 'RFID verified successfully',
-            'admin_name' => $admin['name']
+            'admin_name' => $user['name']
         ]);
     } else {
         // Log failed attempt
@@ -46,7 +63,7 @@ try {
             $_SESSION['user']['id'],
             'rfid_verification_failed',
             "Failed RFID verification attempt: {$rfid}",
-            'patient_view.php'
+            'rfid_verify'
         );
         
         echo json_encode(['success' => false, 'message' => 'Invalid RFID card']);

@@ -1968,7 +1968,7 @@ function viewMedicalRecord(recordId, status = 'active') {
         });
 }
 
-function viewVisitationRecord(visitId) {
+function viewVisitationRecord(visitId, status = 'active') {
     // Show loading
     document.getElementById('visitationLogDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
     
@@ -1977,7 +1977,7 @@ function viewVisitationRecord(visitId) {
     document.getElementById('visitationLogDetailsModal').classList.add('flex');
     
     // Fetch visitation log details
-    fetch(`../logs/visitation_details_view.php?id=${visitId}&ajax=1`)
+    fetch(`../logs/visitation_details_view.php?id=${visitId}&archived=${status === 'archived' ? '1' : '0'}&ajax=1`)
         .then(response => response.text())
         .then(html => {
             document.getElementById('visitationLogDetailsContent').innerHTML = html;
@@ -2035,16 +2035,8 @@ function showVisitationDetails(visitId) {
 
 function archiveVisitation(visitId) {
     if (confirm('Are you sure you want to archive this visitation record? It will be moved to the patient\'s archive.')) {
-        // Show loading notification
         showNotification('Archiving visitation record...', 'info');
         
-        // Show loading on button
-        const button = event.target;
-        const originalText = button.textContent;
-        button.textContent = 'Archiving...';
-        button.disabled = true;
-        
-        // Archive visitation
         fetch('../admin/archive_visitation.php', {
             method: 'POST',
             headers: {
@@ -2056,20 +2048,48 @@ function archiveVisitation(visitId) {
         .then(data => {
             if (data.success) {
                 showNotification('Visitation record archived successfully!', 'success');
-                // Reload the page after a short delay
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
             } else {
                 showNotification('Error archiving visitation: ' + (data.message || 'Unknown error'), 'error');
-                button.textContent = originalText;
-                button.disabled = false;
             }
         })
         .catch(error => {
             showNotification('Error archiving visitation: ' + error.message, 'error');
-            button.textContent = originalText;
-            button.disabled = false;
+        });
+    }
+}
+
+function restoreVisitation(archiveId) {
+    if (confirm('Are you sure you want to restore this archived visitation record? This will move it back to active records.')) {
+        showNotification('Restoring visitation record...', 'info');
+        
+        fetch('../admin/restore_visitation.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `archive_id=${archiveId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
+        })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    showNotification('Visitation record restored successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error restoring visitation record: ' + data.message, 'error');
+                }
+            } catch (e) {
+                showNotification('Error restoring visitation record: Invalid response from server', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error restoring visitation record. Please try again.', 'error');
         });
     }
 }
@@ -2545,34 +2565,129 @@ function viewAllMedicalForms() {
 
 function archiveMedicalRecord(recordId) {
     if (confirm('Are you sure you want to archive this medical record? This will move it to archived records.')) {
-        // Create a form to submit the archive request
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'archive_medical_record.php';
+        // Show loading notification
+        showNotification('Archiving medical record...', 'info');
         
-        // Add hidden fields
-        const recordIdInput = document.createElement('input');
-        recordIdInput.type = 'hidden';
-        recordIdInput.name = 'record_id';
-        recordIdInput.value = recordId;
-        
-        const patientIdInput = document.createElement('input');
-        patientIdInput.type = 'hidden';
-        patientIdInput.name = 'patient_id';
-        patientIdInput.value = '<?= $patientId ?>';
-        
-        const patientTypeInput = document.createElement('input');
-        patientTypeInput.type = 'hidden';
-        patientTypeInput.name = 'patient_type';
-        patientTypeInput.value = '<?= $patientType ?>';
-        
-        form.appendChild(recordIdInput);
-        form.appendChild(patientIdInput);
-        form.appendChild(patientTypeInput);
-        
-        document.body.appendChild(form);
-        form.submit();
+        // Archive medical record using AJAX
+        fetch('../admin/archive_medical_record.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `id=${recordId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
+        })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    showNotification('Medical record archived successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error archiving medical record: ' + data.message, 'error');
+                }
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                console.error('Response text:', text);
+                showNotification('Error archiving medical record: Invalid response from server', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error archiving medical record:', error);
+            showNotification('Error archiving medical record. Please try again.', 'error');
+        });
     }
+}
+
+function restoreMedicalRecord(archiveId) {
+    if (confirm('Are you sure you want to restore this archived medical record? This will move it back to active records.')) {
+        // Show loading notification
+        showNotification('Restoring medical record...', 'info');
+        
+        // Restore archived medical record
+        fetch('../admin/restore_medical_record.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `archive_id=${archiveId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
+        })
+        .then(response => response.text())
+        .then(text => {
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    showNotification('Medical record restored successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showNotification('Error restoring medical record: ' + data.message, 'error');
+                }
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+                console.error('Response text:', text);
+                showNotification('Error restoring medical record: Invalid response from server', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error restoring medical record:', error);
+            showNotification('Error restoring medical record. Please try again.', 'error');
+        });
+    }
+}
+
+// Notification system
+function showNotification(message, type = 'info') {
+    // Create notification container if it doesn't exist
+    let container = document.getElementById('notificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'notificationContainer';
+        container.className = 'fixed top-4 right-4 z-50 space-y-2';
+        document.body.appendChild(container);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `px-4 py-3 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full opacity-0`;
+    
+    // Set colors based on type
+    switch (type) {
+        case 'success':
+            notification.className += ' bg-green-500 text-white';
+            break;
+        case 'error':
+            notification.className += ' bg-red-500 text-white';
+            break;
+        case 'warning':
+            notification.className += ' bg-yellow-500 text-white';
+            break;
+        default:
+            notification.className += ' bg-blue-500 text-white';
+    }
+    
+    notification.textContent = message;
+    
+    // Add to container
+    container.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full', 'opacity-0');
+    }, 100);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        notification.classList.add('translate-x-full', 'opacity-0');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
 }
 
 function openFullScreenMedicalForm(formType) {

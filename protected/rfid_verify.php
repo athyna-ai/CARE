@@ -19,28 +19,58 @@ $redirect_url = $_GET['redirect'] ?? 'secure_admin_panel.php';
 
 // Handle RFID verification
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    require_once __DIR__ . '/../auth/verify_rfid.php'; // Your existing RFID verification
-    
     $rfid_code = $_POST['rfid_code'] ?? '';
     
     if (!empty($rfid_code)) {
         // Clean the RFID input
         $rfid_code = trim($rfid_code);
         
-        // Verify RFID code - modify this to match your existing RFID verification logic
-        if (verifyRFIDCode($rfid_code, $_SESSION['user']['id'])) {
-            $_SESSION['rfid_verified'] = true;
-            $_SESSION['rfid_verification_required'] = false;
+        try {
+            $pdo = get_pdo();
             
-            // Log successful RFID verification
-            logActivity('RFID_VERIFICATION_SUCCESS', "RFID verified for admin: {$rfid_code}");
+            // Get current user's RFID for verification
+            $stmt = $pdo->prepare("SELECT id, name, email, rfid FROM users WHERE id = ? AND is_admin = 1");
+            $stmt->execute([$_SESSION['user']['id']]);
+            $user = $stmt->fetch();
             
-            // Redirect to intended page
-            header("Location: {$redirect_url}");
-            exit;
-        } else {
-            logSecurityEvent('RFID_VERIFICATION_FAILED', "Invalid RFID attempt: {$rfid_code} for user {$_SESSION['user']['id']}");
-            $error_message = "Invalid RFID code. Please try again.";
+            if (!$user || !$user['rfid']) {
+                $error_message = "No RFID set for this user.";
+            } else {
+                // Check if RFID matches (handle both hashed and plain text)
+                $rfidMatches = false;
+                error_log("RFID Debug - Stored: " . substr($user['rfid'], 0, 30) . "...");
+                error_log("RFID Debug - Provided: " . $rfid_code);
+                error_log("RFID Debug - Stored length: " . strlen($user['rfid']));
+                
+                if (strpos($user['rfid'], '$2y$') === 0) {
+                    // It's hashed, verify using password_verify
+                    $rfidMatches = password_verify($rfid_code, $user['rfid']);
+                    error_log("RFID verification (hashed): " . ($rfidMatches ? 'SUCCESS' : 'FAILED'));
+                } else {
+                    // It's plain text, do direct comparison
+                    $rfidMatches = ($user['rfid'] === $rfid_code);
+                    error_log("RFID verification (plain): " . ($rfidMatches ? 'SUCCESS' : 'FAILED'));
+                }
+                
+                if ($rfidMatches) {
+                    $_SESSION['rfid_verified'] = true;
+                    $_SESSION['rfid_verification_required'] = false;
+                    
+                    // Log successful RFID verification
+                    log_activity($pdo, $_SESSION['user']['id'], 'rfid_verification', "RFID verified for admin: {$user['name']} (RFID: {$rfid_code})", 'rfid_verify');
+                    
+                    // Redirect to intended page
+                    header("Location: {$redirect_url}");
+                    exit;
+                } else {
+                    // Log failed attempt
+                    log_activity($pdo, $_SESSION['user']['id'], 'rfid_verification_failed', "Failed RFID verification attempt: {$rfid_code}", 'rfid_verify');
+                    $error_message = "Invalid RFID code. Please try again.";
+                }
+            }
+        } catch (Exception $e) {
+            error_log('Error verifying RFID: ' . $e->getMessage());
+            $error_message = "Error verifying RFID. Please try again.";
         }
     } else {
         $error_message = "Please enter your RFID code.";

@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($faculty) {
                 // Create archive table if it doesn't exist
                 $pdo->exec('CREATE TABLE IF NOT EXISTS faculty_archive (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    original_id INT NOT NULL,
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    original_id INT UNSIGNED NOT NULL,
                     name VARCHAR(255) NOT NULL,
                     department VARCHAR(100) NULL,
                     address TEXT NULL,

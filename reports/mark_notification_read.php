@@ -207,8 +207,8 @@ try {
     $pdo = get_pdo();
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS notification_reads (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL,
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
             notification_id VARCHAR(255) NOT NULL,
             read_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY unique_user_notification (user_id, notification_id),

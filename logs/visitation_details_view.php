@@ -9,8 +9,13 @@ if (!isset($_SESSION['user']) || ($_SESSION['user']['is_admin'] ?? 0) !== 1) {
 }
 
 $visitId = $_GET['id'] ?? null;
+$isArchived = isset($_GET['archived']) && $_GET['archived'] == '1';
 
 if (!$visitId) {
+    if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+        echo '<div class="text-center py-8 text-red-600">Missing visit ID</div>';
+        exit;
+    }
     echo '<div class="min-h-screen flex items-center justify-center bg-slate-100">
         <div class="text-center">
             <h1 class="text-2xl font-bold text-red-600 mb-4">Error</h1>
@@ -24,12 +29,35 @@ if (!$visitId) {
 try {
     $pdo = get_pdo();
     
-    // Get visitation details
-    $stmt = $pdo->prepare("SELECT * FROM visitation_logs WHERE id = ?");
-    $stmt->execute([$visitId]);
-    $visit = $stmt->fetch();
+    // Get visitation details (check if archived)
+    $visit = null;
+    if ($isArchived) {
+        // Try to get from archive tables
+        $archiveTables = ['student_visitation_archive', 'faculty_visitation_archive'];
+        foreach ($archiveTables as $table) {
+            $tableExists = $pdo->query("SHOW TABLES LIKE '{$table}'")->rowCount() > 0;
+            if ($tableExists) {
+                $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ?");
+                $stmt->execute([$visitId]);
+                $visit = $stmt->fetch();
+                if ($visit) {
+                    $visit['is_archived'] = true;
+                    break;
+                }
+            }
+        }
+    } else {
+        // Get from active visitation logs
+        $stmt = $pdo->prepare("SELECT * FROM visitation_logs WHERE id = ?");
+        $stmt->execute([$visitId]);
+        $visit = $stmt->fetch();
+    }
     
     if (!$visit) {
+        if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
+            echo '<div class="text-center py-8 text-red-600">Visitation record not found</div>';
+            exit;
+        }
         echo '<div class="min-h-screen flex items-center justify-center bg-slate-100">
             <div class="text-center">
                 <h1 class="text-2xl font-bold text-red-600 mb-4">Not Found</h1>
@@ -60,7 +88,12 @@ try {
             <div class="space-y-6">
                 <!-- Visit Information -->
                 <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                    <h3 class="text-lg font-semibold text-slate-800 mb-3">Visit Information</h3>
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-slate-800">Visit Information</h3>
+                        <?php if (isset($visit['is_archived']) && $visit['is_archived']): ?>
+                            <span class="px-3 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">ARCHIVED</span>
+                        <?php endif; ?>
+                    </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div class="py-2 px-3 bg-white rounded-lg border border-slate-200">
                             <div class="text-xs text-slate-600 mb-1">Visit ID</div>
@@ -203,6 +236,19 @@ try {
                         <?php endif; ?>
                     </div>
                 </div>
+                
+                <!-- Restore Button for Archived Records -->
+                <?php if (isset($visit['is_archived']) && $visit['is_archived']): ?>
+                    <div class="mt-6 pt-6 border-t border-slate-200">
+                        <button onclick="restoreVisitation(<?= $visit['id'] ?>)" class="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Restore This Visitation Record
+                        </button>
+                        <p class="text-xs text-slate-500 text-center mt-2">This will move the record back to active visitation logs</p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php

@@ -80,18 +80,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$info[] = 'Faculty updated successfully.';
 				
 				// Log activity (public registration - no user session)
-				log_activity($pdo, 0, 'faculty_update', "Updated faculty: {$name} ({$department})", 'faculty_form');
+				try {
+					log_activity($pdo, 0, 'faculty_update', "Updated faculty: {$name} ({$department})", 'faculty_form');
+				} catch (Exception $e) {
+					error_log("Activity logging failed: " . $e->getMessage());
+				}
 			} else {
 				$ins = $pdo->prepare('INSERT INTO faculty (name, department, gender, rfid, address, age, sr, dob, religion, emergency_contact, allergies) VALUES (?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?)');
 				$ins->execute([$name,$department,$gender,$rfid,$address,$age,$sr,$dob,$religion,$emergency,$allergies]);
 				$info[] = 'Faculty registered successfully.';
 				
 				// Log activity (public registration - no user session)
-				log_activity($pdo, 0, 'faculty_register', "Registered new faculty: {$name} ({$department})", 'faculty_form');
+				try {
+					log_activity($pdo, 0, 'faculty_register', "Registered new faculty: {$name} ({$department})", 'faculty_form');
+				} catch (Exception $e) {
+					error_log("Activity logging failed: " . $e->getMessage());
+				}
 			}
-			// Redirect back to RFID portal after successful registration
-			header('Location: ../rfid/rfid_portal.php?success=1&type=faculty');
-			exit;
+			
+			// Smart redirect based on where user came from
+			try {
+				$referrer = $_SERVER['HTTP_REFERER'] ?? '';
+				if (strpos($referrer, 'dashboard.php') !== false) {
+					// Came from dashboard - redirect back to dashboard
+					header('Location: ../admin/dashboard.php?success=1&type=faculty');
+				} elseif (strpos($referrer, 'rfid_portal.php') !== false) {
+					// Came from RFID portal - redirect back to RFID portal
+					header('Location: ../rfid/rfid_portal.php?success=1&type=faculty');
+				} elseif (strpos($referrer, 'faculty_listing.php') !== false) {
+					// Came from faculty listing - redirect back to faculty listing
+					header('Location: ../patients/faculty_listing.php?success=1&type=faculty');
+				} else {
+					// Default fallback - redirect to dashboard
+					header('Location: ../admin/dashboard.php?success=1&type=faculty');
+				}
+				exit;
+			} catch (Exception $e) {
+				// Fallback redirect if anything fails
+				error_log("Redirect failed: " . $e->getMessage());
+				header('Location: ../admin/dashboard.php?success=1&type=faculty');
+				exit;
+			}
 		}
 	}
 }
@@ -109,7 +138,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					Back
 				</button>
 			</div>
-			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Faculty' : 'Register Faculty' ?></h1>
+			<div class="flex items-center justify-between mb-4">
+				<h1 class="text-2xl font-semibold"><?= $id ? 'Edit Faculty' : 'Register Faculty' ?></h1>
+				<button type="button" id="clearAllFieldsBtnTop" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center gap-2">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+					</svg>
+					Clear All
+				</button>
+			</div>
 			<!-- Popup notifications container -->
 			<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
 			<form method="post" class="grid md:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
@@ -229,9 +266,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					</div>
 				</div>
 				<div class="md:col-span-2">
-					<button id="saveStudentBtn" class="w-full bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed" disabled>
-						<span id="continueText">Complete all required fields and read the Data Privacy Consent</span>
-					</button>
+					<div class="flex gap-3">
+						<button id="saveStudentBtn" class="flex-1 bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed" disabled>
+							<span id="continueText">Complete all required fields and read the Data Privacy Consent</span>
+						</button>
+					</div>
 					<div id="formHelp" class="mt-2 text-xs text-slate-500 text-center">
 						<span id="formHelpText">Fill in all required fields (Name, RFID) and read the complete Data Privacy Consent</span>
 					</div>
@@ -268,12 +307,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php include __DIR__ . '/../partials/footer.php'; ?>
 
 <script>
+// Clear All Fields functionality (Top Button) - Added to main DOMContentLoaded
+
+
 // Age calculation is handled by validation.js
 
 // Popup notification system
 function showNotification(message, type = 'success', duration = 2000) {
     const container = document.getElementById('notificationContainer');
     if (!container) return;
+    
+    // Clear any existing notifications to prevent duplicates
+    container.innerHTML = '';
     
     // Create notification element
     const notification = document.createElement('div');
@@ -475,6 +520,59 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize enter navigation
     setupEnterNavigation();
+    
+    // Clear All Fields functionality (Top Button)
+    const clearAllBtnTop = document.getElementById('clearAllFieldsBtnTop');
+    if (clearAllBtnTop && !clearAllBtnTop.hasAttribute('data-listener-attached')) {
+        clearAllBtnTop.setAttribute('data-listener-attached', 'true');
+        clearAllBtnTop.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all fields? This action cannot be undone.')) {
+                // Clear all input fields
+                const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea');
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+                
+                // Clear all select fields
+                const selects = document.querySelectorAll('select');
+                selects.forEach(select => {
+                    select.selectedIndex = 0;
+                });
+                
+                // Clear checkboxes
+                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                
+                // Reset consent checkbox
+                const consentCheckbox = document.getElementById('consentedChk');
+                if (consentCheckbox) {
+                    consentCheckbox.checked = false;
+                    consentCheckbox.disabled = true;
+                }
+                
+                // Reset submit button
+                const submitBtn = document.getElementById('saveStudentBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.className = submitBtn.className.replace('bg-clinic-blue', 'bg-slate-400');
+                }
+                
+                // Reset form help text
+                const formHelpText = document.getElementById('formHelpText');
+                if (formHelpText) {
+                    formHelpText.textContent = 'Fill in all required fields (Name, RFID) and read the complete Data Privacy Consent';
+                }
+                
+                // Reset continue text
+                const continueText = document.getElementById('continueText');
+                if (continueText) {
+                    continueText.textContent = 'Complete all required fields and read the Data Privacy Consent';
+                }
+            }
+        });
+    }
 });
 
 // Handle ESC key to redirect to dashboard (outside DOMContentLoaded)

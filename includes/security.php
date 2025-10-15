@@ -112,19 +112,23 @@ class SecurityFramework {
      * Perform comprehensive security checks
      */
     private static function performSecurityChecks() {
-        // URL Manipulation Detection
+        // Only perform strict security checks for unauthenticated users
+        // Authenticated users navigating through the interface should have more lenient checks
+        $is_authenticated = isset($_SESSION['user']) && !empty($_SESSION['user']);
+        
+        // URL Manipulation Detection (always check)
         self::detectURLManipulation();
         
-        // Parameter Validation
+        // Parameter Validation (always check)
         self::validateInputParameters();
         
-        // HTTP Method Validation
+        // HTTP Method Validation (always check)
         self::validateHTTPMethod();
         
-        // Rate Limiting Check
+        // Rate Limiting Check (always check)
         self::checkRateLimiting();
         
-        // Suspicious Activity Detection
+        // Suspicious Activity Detection (more lenient for authenticated users)
         self::detectSuspiciousActivity();
     }
     
@@ -177,7 +181,7 @@ class SecurityFramework {
         // Check POST parameters
         foreach ($_POST as $key => $value) {
             if (self::isParameterSuspicious($key, $value)) {
-                self::logShippingEvent('SUSPICIOUS_PARAMETER', "Suspicious POST parameter: $key=$value");
+                self::logSecurityEvent('SUSPICIOUS_PARAMETER', "Suspicious POST parameter: $key=$value");
                 $suspicious_found = true;
             }
         }
@@ -273,7 +277,10 @@ class SecurityFramework {
         $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
         $referer = $_SERVER['HTTP_REFERER'] ?? '';
         
-        // Check for suspicious user agents
+        // Check if user is authenticated admin
+        $is_admin = isset($_SESSION['user']) && !empty($_SESSION['user']) && ($_SESSION['user']['is_admin'] ?? 0) == 1;
+        
+        // Check for suspicious user agents (always check)
         $suspicious_agents = ['bot', 'crawler', 'scanner', 'hack', 'exploit'];
         foreach ($suspicious_agents as $agent) {
             if (stripos($user_agent, $agent) !== false) {
@@ -281,9 +288,24 @@ class SecurityFramework {
             }
         }
         
-        // Check for rapid requests (potential DoS or scanning)
-        if (!$referer && (microtime(true) - $request_time) < 0.1) {
-            self::logSecurityEvent('RAPID_REQUEST', "Rapid request detected without referer");
+        // Check for rapid requests (potential DoS or scanning) - but only for unauthenticated users
+        // Authenticated users navigating through sidebar may not have referrer headers
+        if (!$is_admin) {
+            if (!$referer && (microtime(true) - $request_time) < 0.1) {
+                self::logSecurityEvent('RAPID_REQUEST', "Rapid request detected without referer from unauthenticated user");
+            }
+        }
+        
+        // For admin users, only check for very suspicious patterns
+        if ($is_admin) {
+            // Only log if it's an external referer trying to access admin areas
+            $currentDomain = $_SERVER['HTTP_HOST'] ?? '';
+            if (!empty($referer) && strpos($referer, 'http') === 0 && strpos($referer, $currentDomain) === false) {
+                // This is an external referer - could be suspicious
+                if (strpos($_SERVER['REQUEST_URI'] ?? '', '/admin/') !== false) {
+                    self::logSecurityEvent('EXTERNAL_REFERER_ADMIN', "External referer accessing admin area: " . substr($referer, 0, 100));
+                }
+            }
         }
     }
     

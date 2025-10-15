@@ -49,6 +49,15 @@ try {
     $stmt->execute([$patientId, $patientType]);
     $medicalRecords = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Debug: Check for records with ID 0
+    if (!empty($medicalRecords)) {
+        foreach ($medicalRecords as $record) {
+            if ($record['id'] == 0) {
+                error_log("Warning: Found medical record with ID 0 for patient {$patientId}");
+            }
+        }
+    }
+    
 } catch (Exception $e) {
     error_log("Error loading medical forms: " . $e->getMessage());
     $medicalRecords = [];
@@ -65,17 +74,17 @@ include __DIR__ . '/../partials/header.php';
 
 <!-- Confirmation Modal -->
 <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all duration-300 scale-95 opacity-0" id="confirmationModalContent">
+    <div class="bg-white rounded-xl shadow-2xl w-80 mx-4 transform transition-all duration-300 scale-95 opacity-0" id="confirmationModalContent">
         <div class="p-6">
             <!-- Modal Header -->
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
                         <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-lg font-semibold text-gray-900" id="confirmationTitle">Confirm Action</h3>
+                    <h3 class="text-lg font-semibold text-gray-900" id="confirmationTitle">Archive Medical Record</h3>
                 </div>
                 <button onclick="closeConfirmationModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,10 +94,10 @@ include __DIR__ . '/../partials/header.php';
             </div>
             
             <!-- Modal Body -->
-            <div class="mb-6">
-                <p class="text-gray-600" id="confirmationMessage">Are you sure you want to perform this action?</p>
-                <div class="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div class="flex items-start gap-2">
+            <div class="mb-8">
+                <p class="text-gray-600 mb-4" id="confirmationMessage">Are you sure you want to archive this medical record?</p>
+                <div class="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div class="flex items-start gap-3">
                         <svg class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -190,12 +199,20 @@ include __DIR__ . '/../partials/header.php';
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    <?php if ($record['id'] > 0): ?>
                                     <button onclick="viewMedicalRecord(<?= $record['id'] ?>)" class="group/btn w-10 h-10 rounded-xl bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 flex items-center justify-center">
                                         <svg class="w-4 h-4 group-hover/btn:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
                                         </svg>
                                     </button>
+                                    <?php else: ?>
+                                    <div class="w-10 h-10 rounded-xl bg-gray-100 text-gray-400 flex items-center justify-center" title="Invalid record - cannot view">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                        </svg>
+                                    </div>
+                                    <?php endif; ?>
                                     <button onclick="archiveMedicalRecord(<?= $record['id'] ?>)" class="group/btn w-10 h-10 rounded-xl bg-orange-100 hover:bg-orange-200 text-orange-600 transition-all duration-200 flex items-center justify-center">
                                         <svg class="w-4 h-4 group-hover/btn:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l4 4-4 4m5-4h6m-6 0V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V8"></path>
@@ -267,6 +284,25 @@ include __DIR__ . '/../partials/header.php';
     </div>
 </div>
 
+<!-- Medical Record Details Modal -->
+<div id="medicalHistoryDetailsModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 md:p-8">
+    <div class="absolute inset-0 bg-slate-900/50"></div>
+    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-semibold text-slate-800">Medical Record Details</h2>
+            <button onclick="closeMedicalHistoryDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        
+        <div id="medicalHistoryDetailsContent">
+            <!-- Content will be loaded via JavaScript -->
+        </div>
+    </div>
+</div>
+
 <script>
 function openMedicalFormModal() {
     document.getElementById('medicalFormModal').classList.remove('hidden');
@@ -276,6 +312,11 @@ function openMedicalFormModal() {
 function closeMedicalFormModal() {
     document.getElementById('medicalFormModal').classList.add('hidden');
     document.getElementById('medicalFormModal').classList.remove('flex');
+}
+
+function closeMedicalHistoryDetailsModal() {
+    document.getElementById('medicalHistoryDetailsModal').classList.add('hidden');
+    document.getElementById('medicalHistoryDetailsModal').classList.remove('flex');
 }
 
 function createMedicalForm(type) {
@@ -295,8 +336,29 @@ function createMedicalForm(type) {
 }
 
 function viewMedicalRecord(recordId) {
-    // For now, use the old URL format - will be updated when medical record encryption is fully implemented
-    window.location.href = `medical_record_view.php?id=${recordId}`;
+    // Check if record ID is valid
+    if (!recordId || recordId <= 0) {
+        alert('Invalid medical record ID. Please try creating a new medical form.');
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('medicalHistoryDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
+    
+    // Show modal
+    document.getElementById('medicalHistoryDetailsModal').classList.remove('hidden');
+    document.getElementById('medicalHistoryDetailsModal').classList.add('flex');
+    
+    // Fetch medical record details
+    fetch(`medical_record_view.php?id=${recordId}&ajax=1`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('medicalHistoryDetailsContent').innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error loading medical record:', error);
+            document.getElementById('medicalHistoryDetailsContent').innerHTML = '<div class="text-center py-8 text-red-600">Error loading medical record details.</div>';
+        });
 }
 
 function editMedicalRecord(recordId) {
@@ -348,12 +410,18 @@ function closeConfirmationModal() {
 
 // Confirm archive action
 function confirmArchiveAction() {
-    if (!currentRecordId) return;
+    if (!currentRecordId) {
+        console.error('No current record ID set');
+        showNotification('Error: No record selected for archiving', 'error');
+        return;
+    }
+    
+    console.log('User confirmed archiving record:', currentRecordId);
+    console.log('Patient ID:', <?= $patientId ?>);
+    console.log('Patient Type:', '<?= $patientType ?>');
     
     // Close modal first
     closeConfirmationModal();
-    
-    console.log('User confirmed archiving record:', currentRecordId);
     
     // Show loading notification
     showNotification('Archiving medical record...', 'info');
@@ -372,17 +440,33 @@ function confirmArchiveAction() {
         },
         body: `id=${currentRecordId}&patient_id=<?= $patientId ?>&patient_type=<?= $patientType ?>`
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Show success message and reload the page
-            showNotification('Medical record archived successfully!', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        } else {
-            // Show error message
-            showNotification('Error archiving medical record: ' + data.message, 'error');
+    .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        return response.text(); // Get text first to see what's returned
+    })
+    .then(text => {
+        console.log('Raw response:', text);
+        try {
+            const data = JSON.parse(text);
+            console.log('Parsed data:', data);
+            
+            if (data.success) {
+                // Show success message and reload the page
+                showNotification('Medical record archived successfully!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                // Show error message
+                showNotification('Error archiving medical record: ' + data.message, 'error');
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        } catch (e) {
+            console.error('Error parsing JSON:', e);
+            console.error('Response text:', text);
+            showNotification('Error archiving medical record: Invalid response from server', 'error');
             button.textContent = originalText;
             button.disabled = false;
         }

@@ -109,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
             'age' => $student['age'],
             'religion' => $student['religion'],
             'guardian' => $student['guardian'],
+            'emergency_contact' => $student['emergency_contact'],
             'contacts' => $student['contacts'],
             'allergies' => $student['allergies']
         ];
@@ -118,13 +119,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
             UPDATE students SET 
                 name = ?, gender = ?, level = ?, year_grade = ?, section = ?, strand = ?, 
                 course = ?, block = ?, rfid = ?, address = ?, dob = STR_TO_DATE(?,"%d/%m/%Y"), 
-                age = ?, religion = ?, guardian = ?, contacts = ?, allergies = ?, 
+                age = ?, religion = ?, guardian = ?, emergency_contact = ?, contacts = ?, allergies = ?, 
                 status = "Active", updated_at = CURRENT_TIMESTAMP 
             WHERE id = ?
         ');
         $updateStmt->execute([
             $name, $gender, $level, $year_grade, $section, $strand, $course, $block, $rfid, 
-            $address, $dob, $age, $religion, $guardian, $contactsJson, $allergies, $studentId
+            $address, $dob, $age, $religion, $guardian, $emergency_contact, $contactsJson, $allergies, $studentId
         ]);
         
         // Archive old medical records before re-enrollment

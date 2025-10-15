@@ -20,7 +20,7 @@ function detectBreachAttempt() {
     $additional_data = [];
     
     // Check for admin directory breach (only for sensitive files)
-    $sensitive_admin_files = ['run_database_update.php', 'create_new_admin.php', 'clear_failed_attempts.php', 'export_security_report.php'];
+    $sensitive_admin_files = ['run_database_update.php', 'clear_failed_attempts.php', 'export_security_report.php'];
     
     if (strpos($_SERVER['REQUEST_URI'], '/admin/') !== false) {
         $requested_file = basename($_SERVER['REQUEST_URI']);

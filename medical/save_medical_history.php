@@ -96,9 +96,16 @@ try {
         $_SESSION['user']['id']
     ]);
     
+    // Get the inserted record ID
+    $recordId = $pdo->lastInsertId();
+    
+    if (!$recordId || $recordId <= 0) {
+        throw new Exception('Failed to create medical record - no ID returned');
+    }
+    
     // Log the activity
     log_activity($pdo, $_SESSION['user']['id'], $formTypeValue . '_created', 
-        "Created {$formTypeValue} form for patient ID {$patientId}", 
+        "Created {$formTypeValue} form for patient ID {$patientId} (Record ID: {$recordId})", 
         'medical/history'
     );
     

@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($student) {
                 // Create archive table if it doesn't exist
                 $pdo->exec('CREATE TABLE IF NOT EXISTS students_archive (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    original_id INT NOT NULL,
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    original_id INT UNSIGNED NOT NULL,
                     name VARCHAR(255) NOT NULL,
                     gender ENUM("Male","Female") NULL,
                     level VARCHAR(50) NOT NULL,

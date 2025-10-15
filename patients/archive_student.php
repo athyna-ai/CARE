@@ -35,8 +35,8 @@ try {
     
     // Create archived_students table if it doesn't exist
     $pdo->exec('CREATE TABLE IF NOT EXISTS archived_students (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        original_id INT NOT NULL,
+        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        original_id INT UNSIGNED NOT NULL,
         name VARCHAR(255) NOT NULL,
         gender ENUM("Male", "Female") NOT NULL,
         level VARCHAR(100) NOT NULL,

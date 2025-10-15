@@ -41,16 +41,22 @@ if (!isset($_SESSION['last_activity']) || (time() - $_SESSION['last_activity']) 
     exit;
 }
 
-// 4. Check referrer for additional security
+// 4. Check referrer for additional security (more lenient for authenticated users)
 $allowedReferrers = [
     'http://localhost/Care/admin/dashboard.php',
     'http://localhost/Care/admin/settings.php',
     'https://localhost/Care/admin/dashboard.php',
-    'https://localhost/Care/admin/settings.php'
+    'https://localhost/Care/admin/settings.php',
+    'https://olshacare.com/admin/dashboard.php',
+    'https://olshacare.com/admin/settings.php',
+    'http://olshacare.com/admin/dashboard.php',
+    'http://olshacare.com/admin/settings.php'
 ];
 
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
 $isValidReferer = false;
+
+// Check if referer is from allowed domains
 foreach ($allowedReferrers as $allowed) {
     if (strpos($referer, $allowed) === 0) {
         $isValidReferer = true;
@@ -58,14 +64,32 @@ foreach ($allowedReferrers as $allowed) {
     }
 }
 
-// Allow direct access only if coming from login or dashboard
+// Also allow referers from the same domain (for production)
+$currentDomain = $_SERVER['HTTP_HOST'] ?? '';
+if (strpos($referer, $currentDomain) !== false) {
+    $isValidReferer = true;
+}
+
+// Only log suspicious referers for unauthenticated users or very suspicious patterns
 if (!empty($referer) && !$isValidReferer && !strpos($referer, 'login.php')) {
-    logSecurityBreach('SUSPICIOUS_REFERER_SETTINGS', 'Suspicious referer accessing settings', [
-        'referer' => $referer,
-        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
-        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
-    ]);
-    // Don't block, but log for monitoring
+    // Check if it's a very suspicious referer (external domains, etc.)
+    $suspiciousPatterns = ['http://', 'https://'];
+    $isExternalReferer = false;
+    foreach ($suspiciousPatterns as $pattern) {
+        if (strpos($referer, $pattern) === 0 && strpos($referer, $currentDomain) === false) {
+            $isExternalReferer = true;
+            break;
+        }
+    }
+    
+    // Only log if it's an external referer or very suspicious
+    if ($isExternalReferer) {
+        logSecurityBreach('SUSPICIOUS_REFERER_SETTINGS', 'External referer accessing settings', [
+            'referer' => $referer,
+            'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+    }
 }
 
 require_admin_auth();
@@ -657,12 +681,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'create_admin':
-                // Log admin creation attempt
-                logSecurityBreach('ADMIN_CREATION_ATTEMPT', 'Admin creation attempt in settings', [
-                    'admin_name' => $_POST['new_name'] ?? 'unknown',
-                    'admin_email' => $_POST['new_email'] ?? 'unknown',
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
-                ]);
+                // Log admin creation as normal admin activity (not security breach)
+                log_activity($pdo, (int)$user['id'], 'admin_creation_attempt', 'Admin creation attempt in settings', 'settings');
                 
                 $newName = sanitize_string($_POST['new_name'] ?? '');
                 $newEmail = sanitize_string($_POST['new_email'] ?? '');
@@ -676,11 +696,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     try {
                         // Check if email already exists
-                        $check = $pdo->prepare('SELECT id FROM users WHERE email = ? OR rfid = ? LIMIT 1');
-                        $check->execute([$newEmail, $newRfid]);
+                        $check = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+                        $check->execute([$newEmail]);
                         if ($check->fetch()) {
-                            $errors[] = 'Email or RFID already in use.';
-                        } else {
+                            $errors[] = 'Email already in use.';
+                        } else if ($newRfid !== '') {
+                            // Check if RFID already exists (compare with hashed values)
+                            $rfidCheck = $pdo->prepare('SELECT id, rfid FROM users WHERE rfid IS NOT NULL');
+                            $rfidCheck->execute();
+                            $existingUsers = $rfidCheck->fetchAll();
+                            
+                            $rfidExists = false;
+                            foreach ($existingUsers as $existingUser) {
+                                if (strpos($existingUser['rfid'], '$2y$') === 0) {
+                                    // It's hashed, verify using password_verify
+                                    if (password_verify($newRfid, $existingUser['rfid'])) {
+                                        $rfidExists = true;
+                                        break;
+                                    }
+                                } else {
+                                    // It's plain text, do direct comparison
+                                    if ($existingUser['rfid'] === $newRfid) {
+                                        $rfidExists = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if ($rfidExists) {
+                                $errors[] = 'RFID already in use.';
+                            }
+                        }
+                        
+                        if (empty($errors)) {
                             $hash = password_hash($newPassword, PASSWORD_DEFAULT);
                             $rfidHash = $newRfid ? password_hash($newRfid, PASSWORD_DEFAULT) : null;
                             $ins = $pdo->prepare('INSERT INTO users (name, email, password_hash, rfid, is_admin, is_active) VALUES (?, ?, ?, ?, 1, 1)');
@@ -698,11 +746,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'delete_user':
                 $userId = (int)($_POST['user_id'] ?? 0);
                 
-                // Log user deletion attempt
-                logSecurityBreach('USER_DELETION_ATTEMPT', 'User deletion attempt in settings', [
-                    'target_user_id' => $userId,
-                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
-                ]);
+                // Log user deletion as normal admin activity (not security breach)
+                log_activity($pdo, (int)$user['id'], 'user_deletion_attempt', 'User deletion attempt in settings', 'settings');
                 
                 if ($userId <= 0) {
                     $errors[] = 'Invalid user ID.';

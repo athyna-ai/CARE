@@ -189,7 +189,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				$info[] = 'Student updated successfully.';
 				
 				// Log activity (public registration - no user session)
-				log_activity($pdo, 0, 'student_update', "Updated student: {$name} ({$level})", 'student_form');
+				try {
+					log_activity($pdo, 0, 'student_update', "Updated student: {$name} ({$level})", 'student_form');
+				} catch (Exception $e) {
+					error_log("Activity logging failed: " . $e->getMessage());
+				}
 			} else {
 				// Handle re-enrollment or new registration
 				if ($reenrollmentStudent) {
@@ -203,46 +207,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					$previousBlock = $reenrollmentStudent['block'];
 					
 					// Re-enroll existing graduated student
-					$reenrollStmt = $pdo->prepare('UPDATE students SET name=?, gender=?, level=?, course=?, block=?, section=?, strand=?, year_grade=?, rfid=?, address=?, age=?, dob=STR_TO_DATE(?,"%d/%m/%Y"), religion=?, guardian=?, allergies=?, contacts=?, status="Active", updated_at=CURRENT_TIMESTAMP WHERE id=?');
-					$reenrollStmt->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$allergies,$contactsJson,$reenrollmentStudent['id']]);
+					$reenrollStmt = $pdo->prepare('UPDATE students SET name=?, gender=?, level=?, course=?, block=?, section=?, strand=?, year_grade=?, rfid=?, address=?, age=?, dob=STR_TO_DATE(?,"%d/%m/%Y"), religion=?, guardian=?, emergency_contact=?, allergies=?, contacts=?, status="Active", updated_at=CURRENT_TIMESTAMP WHERE id=?');
+					$reenrollStmt->execute([$name,$gender,$level,$course,$block,$section,$strand,$year_grade,$rfid,$address,$age,$dob,$religion,$guardian,$emergency_contact,$allergies,$contactsJson,$reenrollmentStudent['id']]);
 					
-					// Record enrollment history
-					$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
-						student_id, enrollment_type, previous_level, new_level, previous_status, new_status,
-						previous_year_grade, new_year_grade, previous_section, new_section,
-						previous_strand, new_strand, previous_course, new_course,
-						previous_block, new_block, enrollment_year, notes, created_by
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-					
-					$currentYear = date('Y');
-					$notes = "Re-enrolled from {$previousLevel} to {$level}";
-					
-					$historyStmt->execute([
-						$reenrollmentStudent['id'],
-						're_enrollment',
-						$previousLevel,
-						$level,
-						$previousStatus,
-						'Active',
-						$previousYearGrade,
-						$year_grade,
-						$previousSection,
-						$section,
-						$previousStrand,
-						$strand,
-						$previousCourse,
-						$course,
-						$previousBlock,
-						$block,
-						$currentYear,
-						$notes,
-						4
-					]);
+					// Record enrollment history with personal data
+					try {
+						$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
+							student_id, enrollment_type, previous_level, new_level, previous_status, new_status,
+							previous_year_grade, new_year_grade, previous_section, new_section,
+							previous_strand, new_strand, previous_course, new_course,
+							previous_block, new_block, enrollment_year, notes, created_by,
+							previous_rfid, previous_name, previous_gender, previous_dob, previous_age,
+							previous_religion, previous_guardian_name, previous_emergency_contact,
+							previous_contacts, previous_allergies
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+						
+						$currentYear = date('Y');
+						$notes = "Re-enrolled from {$previousLevel} to {$level}";
+						
+						$historyStmt->execute([
+							$reenrollmentStudent['id'],
+							're_enrollment',
+							$previousLevel,
+							$level,
+							$previousStatus,
+							'Active',
+							$previousYearGrade,
+							$year_grade,
+							$previousSection,
+							$section,
+							$previousStrand,
+							$strand,
+							$previousCourse,
+							$course,
+							$previousBlock,
+							$block,
+							$currentYear,
+							$notes,
+							$_SESSION['user']['id'] ?? 4,
+							// Previous personal data
+							$reenrollmentStudent['rfid'],
+							$reenrollmentStudent['name'],
+							$reenrollmentStudent['gender'],
+							$reenrollmentStudent['dob'],
+							$reenrollmentStudent['age'],
+							$reenrollmentStudent['religion'],
+							$reenrollmentStudent['guardian'],
+							$reenrollmentStudent['emergency_contact'],
+							$reenrollmentStudent['contacts'],
+							$reenrollmentStudent['allergies']
+						]);
+					} catch (Exception $e) {
+						// Log error but don't stop execution
+						error_log("Enrollment history insertion failed: " . $e->getMessage());
+					}
 					
 					$info[] = 'Student re-enrolled successfully.';
 					
 					// Log activity (public registration - no user session)
-					log_activity($pdo, 0, 'student_reenroll', "Re-enrolled student: {$name} ({$level})", 'student_form');
+					try {
+						log_activity($pdo, 0, 'student_reenroll', "Re-enrolled student: {$name} ({$level})", 'student_form');
+					} catch (Exception $e) {
+						error_log("Activity logging failed: " . $e->getMessage());
+					}
 				} else {
 					// Register new student
 					$ins = $pdo->prepare('INSERT INTO students (name, gender, level, course, block, section, strand, year_grade, rfid, address, age, dob, religion, guardian, allergies, contacts) VALUES (?,?,?,?,?,?,?,?,?,?,?,STR_TO_DATE(?,"%d/%m/%Y"),?,?,?,?)');
@@ -251,39 +278,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					$newStudentId = $pdo->lastInsertId();
 					
 					// Record initial enrollment history
-					$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
-						student_id, enrollment_type, new_level, new_status,
-						new_year_grade, new_section, new_strand, new_course,
-						new_block, enrollment_year, notes, created_by
-					) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-					
-					$currentYear = date('Y');
-					$notes = "Initial enrollment in {$level}";
-					
-					$historyStmt->execute([
-						$newStudentId,
-						'initial',
-						$level,
-						'Active',
-						$year_grade,
-						$section,
-						$strand,
-						$course,
-						$block,
-						$currentYear,
-						$notes,
-						4
-					]);
+					try {
+						$historyStmt = $pdo->prepare('INSERT INTO enrollment_history (
+							student_id, enrollment_type, new_level, new_status,
+							new_year_grade, new_section, new_strand, new_course,
+							new_block, enrollment_year, notes, created_by
+						) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+						
+						$currentYear = date('Y');
+						$notes = "Initial enrollment in {$level}";
+						
+						$historyStmt->execute([
+							$newStudentId,
+							'initial',
+							$level,
+							'Active',
+							$year_grade,
+							$section,
+							$strand,
+							$course,
+							$block,
+							$currentYear,
+							$notes,
+							4
+						]);
+					} catch (Exception $e) {
+						// Log error but don't stop execution
+						error_log("Initial enrollment history insertion failed: " . $e->getMessage());
+					}
 					
 					$info[] = 'Student registered successfully.';
 					
 					// Log activity (public registration - no user session)
-					log_activity($pdo, 0, 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
+					try {
+						log_activity($pdo, 0, 'student_register', "Registered new student: {$name} ({$level})", 'student_form');
+					} catch (Exception $e) {
+						error_log("Activity logging failed: " . $e->getMessage());
+					}
 				}
 			}
-			// Redirect back to RFID portal after successful registration
-			header('Location: ../rfid/rfid_portal.php?success=1&type=student');
-			exit;
+			
+			// Smart redirect based on where user came from
+			try {
+				$referrer = $_SERVER['HTTP_REFERER'] ?? '';
+				if (strpos($referrer, 'dashboard.php') !== false) {
+					// Came from dashboard - redirect back to dashboard
+					header('Location: ../admin/dashboard.php?success=1&type=student');
+				} elseif (strpos($referrer, 'rfid_portal.php') !== false) {
+					// Came from RFID portal - redirect back to RFID portal
+					header('Location: ../rfid/rfid_portal.php?success=1&type=student');
+				} elseif (strpos($referrer, 'school_listing.php') !== false) {
+					// Came from school listing - redirect back to school listing
+					header('Location: ../patients/school_listing.php?success=1&type=student');
+				} else {
+					// Default fallback - redirect to dashboard
+					header('Location: ../admin/dashboard.php?success=1&type=student');
+				}
+				exit;
+			} catch (Exception $e) {
+				// Fallback redirect if anything fails
+				error_log("Redirect failed: " . $e->getMessage());
+				header('Location: ../admin/dashboard.php?success=1&type=student');
+				exit;
+			}
 		}
 	}
 }
@@ -301,7 +358,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					Back
 				</button>
 			</div>
-			<h1 class="text-2xl font-semibold mb-4"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
+			<div class="flex items-center justify-between mb-4">
+				<h1 class="text-2xl font-semibold"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
+				<button type="button" id="clearAllFieldsBtnTop" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center gap-2">
+					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+					</svg>
+					Clear All
+				</button>
+			</div>
 			
 			<!-- Re-enrollment Detection Notice -->
 			<?php if ($reenrollmentDetected && $reenrollmentStudent): ?>
@@ -532,14 +597,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				<div class="md:col-span-2">
 					<label class="block text-slate-700 mb-1">Emergency Contacts <span class="text-red-500">*</span></label>
 					<div id="contactsContainer" class="space-y-2">
-						<div class="flex items-center gap-2">
-							<input type="text" name="contacts[]" 
-								   class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" 
-								   placeholder="09xxxxxxxxx" 
-								   pattern="09[0-9]{9}" 
-								   data-next-field="allergies" />
-							<button type="button" class="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors remove-contact-btn" style="display: none;">Remove</button>
-						</div>
+						<?php if (!empty($student['emergency_contacts']) && is_array($student['emergency_contacts'])): ?>
+							<?php foreach ($student['emergency_contacts'] as $index => $contact): ?>
+								<div class="flex items-center gap-2">
+									<input type="text" name="contacts[]" 
+										   value="<?= htmlspecialchars($contact) ?>"
+										   class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" 
+										   placeholder="09xxxxxxxxx" 
+										   pattern="09[0-9]{9}" 
+										   data-next-field="allergies" />
+									<?php if ($index > 0): ?>
+										<button type="button" class="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors remove-contact-btn">Remove</button>
+									<?php endif; ?>
+								</div>
+							<?php endforeach; ?>
+						<?php else: ?>
+							<div class="flex items-center gap-2">
+								<input type="text" name="contacts[]" 
+									   class="w-full rounded-xl bg-white border border-slate-300 px-4 py-3" 
+									   placeholder="09xxxxxxxxx" 
+									   pattern="09[0-9]{9}" 
+									   data-next-field="allergies" />
+								<button type="button" class="px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors remove-contact-btn" style="display: none;">Remove</button>
+							</div>
+						<?php endif; ?>
 					</div>
 					<button type="button" id="addContactBtn" class="mt-2 px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 transition-colors">Add another contact</button>
 					<p class="mt-1 text-xs text-slate-500">Add emergency contact numbers (at least one required)</p>
@@ -569,15 +650,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</div>
 
 				<div class="md:col-span-2">
-					<button id="saveStudentBtn" type="submit" class="w-full bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed flex items-center justify-center gap-2" disabled>
-						<span id="continueText">Complete all required fields and read the Data Privacy Consent</span>
-						<div id="submitSpinner" class="hidden">
-							<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-								<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-								<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-							</svg>
-						</div>
-					</button>
+					<div class="flex gap-3">
+						<button id="saveStudentBtn" type="submit" class="flex-1 bg-slate-400 text-white font-semibold py-3 rounded-xl transition cursor-not-allowed flex items-center justify-center gap-2" disabled>
+							<span id="continueText">Complete all required fields and read the Data Privacy Consent</span>
+							<div id="submitSpinner" class="hidden">
+								<svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+							</div>
+						</button>
+					</div>
 					<div id="formHelp" class="mt-2 text-xs text-slate-500 text-center">
 						<span id="formHelpText">Fill in all required fields (Name, Level, RFID) and read the complete Data Privacy Consent</span>
 					</div>
@@ -618,6 +701,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 function showNotification(message, type = 'success', duration = 2000) {
     const container = document.getElementById('notificationContainer');
     if (!container) return;
+    
+    // Clear any existing notifications to prevent duplicates
+    container.innerHTML = '';
     
     // Create notification element
     const notification = document.createElement('div');
@@ -890,6 +976,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const contactsContainer = document.getElementById('contactsContainer');
     
     if (addContactBtn && contactsContainer) {
+        // Show remove buttons for existing contacts (except the first one)
+        const existingContacts = contactsContainer.querySelectorAll('input[name="contacts[]"]');
+        existingContacts.forEach((input, index) => {
+            if (index > 0) {
+                const removeBtn = input.parentNode.querySelector('.remove-contact-btn');
+                if (removeBtn) {
+                    removeBtn.style.display = 'block';
+                }
+            }
+        });
+        
         addContactBtn.addEventListener('click', function() {
             // Check if we already have 2 contacts (1 default + 1 added)
             const existingContacts = contactsContainer.querySelectorAll('input[name="contacts[]"]');
@@ -910,7 +1007,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const removeBtn = document.createElement('button');
             removeBtn.type = 'button';
-            removeBtn.className = 'px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors';
+            removeBtn.className = 'px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors remove-contact-btn';
             removeBtn.textContent = 'Remove';
             removeBtn.onclick = function() {
                 newContactDiv.remove();
@@ -1013,6 +1110,59 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize auto-capitalization
     setupAutoCapitalization();
+    
+    // Clear All Fields functionality (Top Button)
+    const clearAllBtnTop = document.getElementById('clearAllFieldsBtnTop');
+    if (clearAllBtnTop && !clearAllBtnTop.hasAttribute('data-listener-attached')) {
+        clearAllBtnTop.setAttribute('data-listener-attached', 'true');
+        clearAllBtnTop.addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all fields? This action cannot be undone.')) {
+                // Clear all input fields
+                const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea');
+                inputs.forEach(input => {
+                    input.value = '';
+                });
+                
+                // Clear all select fields
+                const selects = document.querySelectorAll('select');
+                selects.forEach(select => {
+                    select.selectedIndex = 0;
+                });
+                
+                // Clear checkboxes
+                const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                
+                // Reset consent checkbox
+                const consentCheckbox = document.getElementById('consentedChk');
+                if (consentCheckbox) {
+                    consentCheckbox.checked = false;
+                    consentCheckbox.disabled = true;
+                }
+                
+                // Reset submit button
+                const submitBtn = document.getElementById('saveStudentBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.className = submitBtn.className.replace('bg-clinic-blue', 'bg-slate-400');
+                }
+                
+                // Reset form help text
+                const formHelpText = document.getElementById('formHelpText');
+                if (formHelpText) {
+                    formHelpText.textContent = 'Fill in all required fields (Name, Level, RFID) and read the complete Data Privacy Consent';
+                }
+                
+                // Reset continue text
+                const continueText = document.getElementById('continueText');
+                if (continueText) {
+                    continueText.textContent = 'Complete all required fields and read the Data Privacy Consent';
+                }
+            }
+        });
+    }
     
 });
 
@@ -1457,6 +1607,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dobInput.addEventListener('input', checkForReenrollment);
     }
 });
+
+// Clear All Fields functionality (Top Button) - Added to main DOMContentLoaded
+
 
 // Form submission handler with loading spinner
 document.addEventListener('DOMContentLoaded', function() {

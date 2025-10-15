@@ -52,6 +52,11 @@ try {
         throw new Exception('Archived medical record not found');
     }
     
+    // Get a valid admin user ID for restoring
+    $adminStmt = $pdo->query("SELECT id FROM users WHERE is_admin = 1 LIMIT 1");
+    $adminUser = $adminStmt->fetch();
+    $restoredBy = $adminUser ? $adminUser['id'] : 1; // Fallback to 1 if no admin found
+    
     // Insert back into medical_records table
     $insertSQL = "
         INSERT INTO medical_records (
@@ -66,7 +71,7 @@ try {
         $archivedRecord['form_type'],
         $archivedRecord['form_data'],
         $archivedRecord['created_at'],
-        $_SESSION['user']['id']
+        $restoredBy
     ]);
     
     if (!$result) {
@@ -80,7 +85,7 @@ try {
     // Log the activity
     log_activity(
         $pdo,
-        $_SESSION['user']['id'],
+        $restoredBy,
         'restore_medical_record',
         "Restored medical record #{$archivedRecord['original_id']} for " . ucfirst($patientType) . " ID {$patientId}",
         'patient_archive.php'

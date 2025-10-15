@@ -208,14 +208,6 @@ if ($studentId) {
                         <h3 class="text-lg font-semibold text-slate-800">Enrollment History</h3>
                         <p class="text-sm text-slate-600 mt-1">Complete history of student enrollments and changes</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="archiveStudent(<?= $student['id'] ?>)" class="px-3 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm font-medium">
-                            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8l6 6 6-6"></path>
-                            </svg>
-                            Archive Student
-                        </button>
-                    </div>
                 </div>
             </div>
             
@@ -827,30 +819,6 @@ function viewMedicalRecordDetails(recordId) {
         });
 }
 
-function archiveStudent(studentId) {
-    if (confirm('Are you sure you want to archive this student? This will move them to archived records and they will no longer appear in active lists.')) {
-        // Create form and submit
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'archive_student.php';
-        
-        const studentIdInput = document.createElement('input');
-        studentIdInput.type = 'hidden';
-        studentIdInput.name = 'student_id';
-        studentIdInput.value = studentId;
-        
-        const csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrf_token';
-        csrfInput.value = '<?= htmlspecialchars(csrf_token()) ?>';
-        
-        form.appendChild(studentIdInput);
-        form.appendChild(csrfInput);
-        
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

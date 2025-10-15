@@ -1,11 +1,27 @@
 <?php
 // Care CMS - Production Configuration
 
-// Database Configuration for Hostinger Production
-$DB_HOST = getenv('DB_HOST') ?: 'localhost';
-$DB_NAME = getenv('DB_NAME') ?: 'u258651435_CareOlsh_cms';
-$DB_USER = getenv('DB_USER') ?: 'u258651435_athena';
-$DB_PASS = getenv('DB_PASS') ?: '015hc@r3_Care';
+// Database Configuration - Auto-detect environment
+$isLocal = (
+    (isset($_SERVER['HTTP_HOST']) && strpos($_SERVER['HTTP_HOST'], 'localhost') !== false) ||
+    (isset($_SERVER['SERVER_NAME']) && strpos($_SERVER['SERVER_NAME'], 'localhost') !== false) ||
+    (isset($_SERVER['SERVER_ADDR']) && $_SERVER['SERVER_ADDR'] === '127.0.0.1') ||
+    (php_sapi_name() === 'cli') // Command line interface
+);
+
+if ($isLocal) {
+    // Local development settings
+    $DB_HOST = 'localhost';
+    $DB_NAME = 'care_cms';
+    $DB_USER = 'root';
+    $DB_PASS = '';
+} else {
+    // Production settings
+    $DB_HOST = getenv('DB_HOST') ?: 'localhost';
+    $DB_NAME = getenv('DB_NAME') ?: 'u258651435_CareOlsh_cms';
+    $DB_USER = getenv('DB_USER') ?: 'u258651435_athena';
+    $DB_PASS = getenv('DB_PASS') ?: '015hc@r3_Care';
+}
 $DB_CHARSET = 'utf8mb4';
 
 // Production Environment Settings
@@ -140,6 +156,10 @@ function get_pdo(): PDO {
         PDO::ATTR_PERSISTENT => true, // Enable persistent connections
     ];
     $pdo = new PDO($dsn, $DB_USER, $DB_PASS, $options);
+    
+    // Set timezone to Asia/Manila for all database operations
+    $pdo->exec("SET time_zone = '+08:00'");
+    
     return $pdo;
 }
 

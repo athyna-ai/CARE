@@ -93,6 +93,11 @@ try {
         }
     }
     
+    // Get a valid admin user ID for archiving
+    $adminStmt = $pdo->query("SELECT id FROM users WHERE is_admin = 1 LIMIT 1");
+    $adminUser = $adminStmt->fetch();
+    $archivedBy = $adminUser ? $adminUser['id'] : 1; // Fallback to 1 if no admin found
+    
     // Check if created_at column exists in archive table
     $columnCheck = $pdo->query("SHOW COLUMNS FROM `{$archiveTable}` LIKE 'created_at'");
     $hasCreatedAt = $columnCheck->rowCount() > 0;
@@ -114,7 +119,7 @@ try {
             $record['form_type'],
             $record['form_data'],
             $record['created_at'],
-            $_SESSION['user']['id']
+            $archivedBy
         ]);
     } else {
         // Insert without created_at column
@@ -132,7 +137,7 @@ try {
             $record['patient_type'],
             $record['form_type'],
             $record['form_data'],
-            $_SESSION['user']['id']
+            $archivedBy
         ]);
     }
     
@@ -143,7 +148,7 @@ try {
     // Log the activity
     log_activity(
         $pdo,
-        $_SESSION['user']['id'],
+        $archivedBy,
         'archive_medical_record',
         "Archived medical record #{$recordId} for " . ucfirst($patientType) . " ID {$patientId}",
         'medical_forms_management.php'
