@@ -19,23 +19,6 @@ jobs:
         php-version: '8.1'
         extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, curl, json, openssl
         
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        cache-dependency-path: 'assets/package-lock.json'
-        
-    - name: Install Node dependencies
-      run: |
-        cd assets
-        npm ci
-        
-    - name: Build CSS
-      run: |
-        cd assets
-        npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify
-        
     - name: Create deployment package
       run: |
         # Create a clean deployment package

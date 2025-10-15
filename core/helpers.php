@@ -187,18 +187,16 @@ function log_patient_access(PDO $pdo, int $patientId, string $patientType, strin
  * Generate secure patient URL with encrypted token
  */
 function generate_patient_url(int $patientId, string $patientType = 'student'): string {
-	// For now, use the old URL format to ensure compatibility
-	// TODO: Re-enable encryption once system is stable
-	return "/Care/patients/patient_view.php?id={$patientId}&type={$patientType}";
+	// Use relative path that works on both local and Hostinger
+	return "../patients/patient_view.php?id={$patientId}&type={$patientType}";
 }
 
 /**
  * Generate secure medical record URL with encrypted token
  */
 function generate_medical_url(int $recordId): string {
-	// For now, use the old URL format to ensure compatibility
-	// TODO: Re-enable encryption once system is stable
-	return "/Care/patients/medical_record_view.php?id={$recordId}";
+	// Use relative path that works on both local and Hostinger
+	return "../patients/medical_record_view.php?id={$recordId}";
 }
 
 ?>
