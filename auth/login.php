@@ -143,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
 <?php
-$pageTitle = 'Admin Login'; $showTopNav = false; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
+$pageTitle = 'Login'; $showTopNav = false; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
     <!-- Background with floating particles -->
     <div class="h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla relative overflow-hidden flex items-center justify-center p-4" style="overflow: hidden;">
         <!-- Floating particles animation -->
