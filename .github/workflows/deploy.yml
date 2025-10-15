@@ -1,8 +1,8 @@
-name: Deploy to Hostinger
+name: Deploy CARE System to Hostinger
 
 on:
   push:
-    branches: [ main, master, production ]
+    branches: [ main, master, production, yan-na-yon- ]
   workflow_dispatch:
 
 jobs:
@@ -11,17 +11,30 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: '8.1'
-        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, curl, json, openssl
         
-    - name: Install dependencies
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: 'assets/package-lock.json'
+        
+    - name: Install Node dependencies
       run: |
-        composer install --no-dev --optimize-autoloader
+        cd assets
+        npm ci
+        
+    - name: Build CSS
+      run: |
+        cd assets
+        npm run build-css-prod
         
     - name: Create deployment package
       run: |
@@ -35,13 +48,17 @@ jobs:
                   --exclude='logs' \
                   --exclude='*.log' \
                   --exclude='.env' \
-                  --exclude='deploy_to_hostinger.php' \
-                  --exclude='deploy_config.json' \
+                  --exclude='deploy_*' \
                   --exclude='README.md' \
                   --exclude='.DS_Store' \
                   --exclude='Thumbs.db' \
                   --exclude='.github' \
+                  --exclude='test_*' \
+                  --exclude='src/' \
+                  --exclude='assets/node_modules/' \
                   ./ deploy_package/
+        
+        echo "Deployment package created successfully"
                   
     - name: Deploy to Hostinger via FTP
       uses: SamKirkland/FTP-Deploy-Action@4.3.3
@@ -63,6 +80,9 @@ jobs:
           **/README.md
           **/.DS_Store
           **/Thumbs.db
+          **/test_*
+          **/src/**
+          **/assets/node_modules/**
           
     - name: Run database migrations
       run: |
