@@ -34,7 +34,7 @@ jobs:
     - name: Build CSS
       run: |
         cd assets
-        npm run build-css-prod
+        npx tailwindcss -i ./src/input.css -o ./dist/output.css --minify
         
     - name: Create deployment package
       run: |
