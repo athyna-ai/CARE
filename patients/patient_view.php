@@ -232,7 +232,7 @@ include __DIR__ . '/../partials/header.php';
 ?>
 
 <!-- Notification Container -->
-<div id="notificationContainer" class="fixed top-20 right-4 z-50 pointer-events-none"></div>
+<!-- Notification container now handled globally in header.php -->
 
 <style>
 html, body {
@@ -427,8 +427,55 @@ document.addEventListener('DOMContentLoaded', function() {
     const formType = urlParams.get('form_type');
     const openHistory = urlParams.get('open_history');
     
+    console.log('URL parameters:', { message, messageType, formType, openHistory });
+    
     if (message) {
-        showNotification(decodeURIComponent(message), messageType, 8000);
+        // Create notification directly without relying on global system
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 transform transition-all duration-500 ease-out translate-x-full opacity-0 ${
+            messageType === 'success' ? 'border-l-4 border-l-green-500' : 
+            messageType === 'error' ? 'border-l-4 border-l-red-500' : 
+            messageType === 'warning' ? 'border-l-4 border-l-yellow-500' : 
+            'border-l-4 border-l-blue-500'
+        }`;
+        
+        notification.innerHTML = `
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">
+                        ${messageType === 'success' ? '✅' : 
+                          messageType === 'error' ? '❌' : 
+                          messageType === 'warning' ? '⚠️' : 
+                          'ℹ️'}
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">${decodeURIComponent(message)}</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                    <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+        
+        // Auto remove after 8 seconds
+        setTimeout(() => {
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 8000);
     }
     
     // Handle form type parameter to open specific form popup
@@ -465,8 +512,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize medical history form behavior
     initializeMedicalHistoryForm();
     
+    // Test function to manually trigger notifications
+    window.testNotification = function() {
+        console.log('Testing notification system...');
+        showNotification('Test notification - Medical form saved successfully!', 'success', 5000);
+    };
     
-    // Auto-capitalization functions
+    // Auto-test notification after 2 seconds if no URL parameters
+    if (!message && !formType && !openHistory) {
+        setTimeout(() => {
+            console.log('Auto-testing notification system...');
+            showNotification('Test: Medical form saved successfully!', 'success', 3000);
+        }, 2000);
+    }
+});
+
+// Auto-capitalization functions
     function toTitleCase(str) {
         return str.replace(/\w\S*/g, function(txt) {
             return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
@@ -629,14 +690,24 @@ window.closeNotification = closeNotification;
             <!-- Back Button -->
             <div class="mb-4">
                 <?php 
-                // Always go back to dashboard
-                $backUrl = '../admin/dashboard.php';
+                // Go back to appropriate listing page based on patient type
+                if ($patientType === 'faculty') {
+                    $backUrl = 'faculty_listing.php';
+                } else {
+                    // For students, we need to determine the level to go back to the right listing
+                    $patientLevel = $patient['level'] ?? '';
+                    if ($patientLevel) {
+                        $backUrl = 'school_listing.php?level=' . urlencode($patientLevel);
+                    } else {
+                        $backUrl = '../admin/dashboard.php'; // Fallback to dashboard
+                    }
+                }
                 ?>
                 <a href="<?= $backUrl ?>" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-clinic-ivory/60 border border-clinic-tea/20 text-clinic-dark hover:bg-clinic-tea/20 hover:border-clinic-tea/40 transition-all duration-200 font-poppins font-medium">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                     </svg>
-                    Back to Dashboard
+                    Back to List
                 </a>
             </div>
             
@@ -1900,14 +1971,60 @@ function submitVisitationForm(event) {
     .then(data => {
         if (data.success) {
             // Show success notification and close modal quickly
-            showNotification(data.message, 'success');
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 transform transition-all duration-500 ease-out translate-x-full opacity-0 border-l-4 border-l-green-500`;
+            
+            notification.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">✅</div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">${data.message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                        <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full', 'opacity-0');
+            }, 100);
+            
             setTimeout(() => {
                 closeVisitationModal();
                 window.location.reload();
             }, 1000);
         } else {
-            showNotification(data.message, 'error');
-            // Keep modal open so user can fix validation errors
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 transform transition-all duration-500 ease-out translate-x-full opacity-0 border-l-4 border-l-red-500`;
+            
+            notification.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">❌</div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">${data.message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                        <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.remove('translate-x-full', 'opacity-0');
+            }, 100);
         }
     })
     .catch(error => {
@@ -2047,12 +2164,50 @@ function archiveVisitation(visitId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification('Visitation record archived successfully!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
+                const notification = document.createElement('div');
+                notification.className = `fixed top-4 right-4 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 transform transition-all duration-500 ease-out translate-x-full opacity-0 border-l-4 border-l-green-500`;
+                
+                notification.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">✅</div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">Visitation record archived successfully!</p>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                            <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                setTimeout(() => notification.classList.remove('translate-x-full', 'opacity-0'), 100);
+                setTimeout(() => window.location.reload(), 1500);
             } else {
-                showNotification('Error archiving visitation: ' + (data.message || 'Unknown error'), 'error');
+                const notification = document.createElement('div');
+                notification.className = `fixed top-4 right-4 z-[99999] max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 transform transition-all duration-500 ease-out translate-x-full opacity-0 border-l-4 border-l-red-500`;
+                
+                notification.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">❌</div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">Error archiving visitation: ${data.message || 'Unknown error'}</p>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                            <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                document.body.appendChild(notification);
+                setTimeout(() => notification.classList.remove('translate-x-full', 'opacity-0'), 100);
             }
         })
         .catch(error => {
@@ -2639,56 +2794,8 @@ function restoreMedicalRecord(archiveId) {
     }
 }
 
-// Notification system
-function showNotification(message, type = 'info') {
-    // Create notification container if it doesn't exist
-    let container = document.getElementById('notificationContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notificationContainer';
-        container.className = 'fixed top-4 right-4 z-50 space-y-2';
-        document.body.appendChild(container);
-    }
-    
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `px-4 py-3 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full opacity-0`;
-    
-    // Set colors based on type
-    switch (type) {
-        case 'success':
-            notification.className += ' bg-green-500 text-white';
-            break;
-        case 'error':
-            notification.className += ' bg-red-500 text-white';
-            break;
-        case 'warning':
-            notification.className += ' bg-yellow-500 text-white';
-            break;
-        default:
-            notification.className += ' bg-blue-500 text-white';
-    }
-    
-    notification.textContent = message;
-    
-    // Add to container
-    container.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full', 'opacity-0');
-    }, 100);
-    
-    // Auto remove after 3 seconds
-    setTimeout(() => {
-        notification.classList.add('translate-x-full', 'opacity-0');
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
-}
+// Notification system - now uses global system from header.php
+// The showNotification function is now globally available
 
 function openFullScreenMedicalForm(formType) {
     // Set the form type and title

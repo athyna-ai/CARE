@@ -1467,6 +1467,73 @@ try {
                     <p class="text-clinic-dark/60 mt-2">Manage IP blocks, failed login attempts, and security settings</p>
                 </div>
 
+                <!-- Security Status Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <?php
+                    try {
+                        // Get current user's security status
+                        $userId = $_SESSION['user']['id'];
+                        $user = $pdo->prepare('SELECT failed_attempts, locked_until, last_login FROM users WHERE id = ?');
+                        $user->execute([$userId]);
+                        $userData = $user->fetch();
+                        
+                        // Failed Attempts Card
+                        $failedAttempts = $userData['failed_attempts'] ?? 0;
+                        $attemptsColor = $failedAttempts >= 3 ? 'text-red-600' : ($failedAttempts >= 1 ? 'text-orange-600' : 'text-green-600');
+                        $attemptsBg = $failedAttempts >= 3 ? 'bg-red-50 border-red-200' : ($failedAttempts >= 1 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200');
+                        
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4 ' . $attemptsBg . '">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Failed Attempts</h4>';
+                                echo '</div>';
+                        echo '<p class="text-2xl font-bold ' . $attemptsColor . '">' . $failedAttempts . '</p>';
+                        echo '<p class="text-xs text-slate-500">Recent failed logins</p>';
+                        echo '</div>';
+                        echo '<button onclick="clearFailedAttempts()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs rounded-lg transition-colors">Clear</button>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                        // Account Status Card
+                        $isLocked = $userData['locked_until'] && strtotime($userData['locked_until']) > time();
+                        $statusColor = $isLocked ? 'text-red-600' : 'text-green-600';
+                        $statusBg = $isLocked ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200';
+                        $statusText = $isLocked ? 'Locked' : 'Active';
+                        $statusIcon = $isLocked ? '🔒' : '✅';
+                        
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4 ' . $statusBg . '">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Account Status</h4>';
+                                echo '</div>';
+                        echo '<p class="text-2xl font-bold ' . $statusColor . '">' . $statusText . '</p>';
+                        echo '<p class="text-xs text-slate-500">Current state</p>';
+                        echo '</div>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                        // Last Login Card
+                        $lastLogin = $userData['last_login'] ? date('M j, g:i A', strtotime($userData['last_login'])) : 'Never';
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Last Login</h4>';
+                                echo '</div>';
+                        echo '<p class="text-lg font-semibold text-clinic-dark">' . $lastLogin . '</p>';
+                        echo '<p class="text-xs text-slate-500">Most recent login</p>';
+                        echo '</div>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                    } catch (Exception $e) {
+                        echo '<p class="text-red-500 text-sm">Error loading security status</p>';
+                    }
+                    ?>
+                </div>
+
                 <!-- Security Management Buttons -->
                 <div class="p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">IP & Login Security</h3>
@@ -1489,11 +1556,122 @@ try {
                             </svg>
                             Clear Failed Attempts
                         </button>
+                        <a href="../logs/logs.php?filter=security" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            View Security Logs
+                        </a>
                     </div>
                     <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p class="text-sm text-blue-800">
                             <strong>Note:</strong> IPs are automatically unblocked after 24 hours. Use these buttons for immediate unblocking when needed.
                         </p>
+                    </div>
+                </div>
+
+                <!-- Security Monitoring Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-clinic-dark mb-3">
+                            Recent Activity
+                        </h4>
+                        <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Get only unique recent activities (grouped by description to avoid repetition)
+                                $recentLogins = $pdo->query('
+                                    SELECT description, COUNT(*) as count, MAX(timestamp) as latest_time, MAX(success) as success
+                                    FROM activity_logs 
+                                    WHERE action IN ("login_success", "login_failed", "account_locked", "rfid_verification_failed")
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                                    GROUP BY description
+                                    ORDER BY latest_time DESC 
+                                    LIMIT 5
+                                ')->fetchAll();
+                                
+                                if ($recentLogins) {
+                                    foreach ($recentLogins as $log) {
+                                        $timeAgo = time() - strtotime($log['latest_time']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        $bgColor = $log['success'] ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                                        $textColor = $log['success'] ? 'text-green-800' : 'text-red-800';
+                                        
+                                        echo '<div class="flex items-center gap-3 p-2 rounded-lg border ' . $bgColor . '">';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-xs font-medium ' . $textColor . '">' . htmlspecialchars($log['description']) . '</p>';
+                                        echo '<p class="text-xs text-slate-500">' . $log['count'] . ' times • ' . $timeText . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-200">';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-xs font-medium text-slate-600">No recent activity</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading activity: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-semibold text-clinic-dark mb-3">
+                            Security Alerts
+                        </h4>
+                        <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Check for suspicious IPs (only show if there are any)
+                                $suspiciousIPs = $pdo->query('
+                                    SELECT ip_address, COUNT(*) as failed_count, MAX(timestamp) as last_attempt
+                                    FROM activity_logs 
+                                    WHERE action = "login_failed" 
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                    GROUP BY ip_address 
+                                    HAVING failed_count >= 5
+                                    ORDER BY failed_count DESC
+                                    LIMIT 3
+                                ')->fetchAll();
+                                
+                                if ($suspiciousIPs) {
+                                    foreach ($suspiciousIPs as $suspicious) {
+                                        $timeAgo = time() - strtotime($suspicious['last_attempt']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        $severity = $suspicious['failed_count'] >= 10 ? 'bg-red-100 border-red-300' : 'bg-orange-100 border-orange-300';
+                                        $severityText = $suspicious['failed_count'] >= 10 ? 'text-red-800' : 'text-orange-800';
+                                        
+                                        echo '<div class="flex items-center gap-3 p-2 rounded-lg border ' . $severity . '">';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-xs font-medium ' . $severityText . '">' . $suspicious['failed_count'] . ' failed attempts</p>';
+                                        echo '<p class="text-xs text-slate-500">' . htmlspecialchars($suspicious['ip_address']) . ' • ' . $timeText . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-2 bg-green-50 rounded-lg border border-green-200">';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-xs font-medium text-green-800">No security alerts</p>';
+                                    echo '<p class="text-xs text-slate-500">All systems secure</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading alerts: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
                     </div>
                 </div>
 
@@ -1539,81 +1717,8 @@ try {
 </div>
 
 <script>
-// Notification system
-function showNotification(message, type = 'success', duration = 3000) {
-    const container = document.getElementById('notificationContainer');
-    if (!container) return;
-    
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.id = 'notification-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    notification.className = `transform transition-all duration-500 ease-out translate-x-full opacity-0 max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-6 ${
-        type === 'success' ? 'border-l-4 border-l-clinic-tea' : 
-        type === 'error' ? 'border-l-4 border-l-red-500' : 
-        type === 'warning' ? 'border-l-4 border-l-clinic-vanilla' : 
-        'border-l-4 border-l-clinic-blue'
-    }`;
-    
-    // Create content
-    notification.innerHTML = `
-        <div class="flex items-start gap-4">
-            <div class="flex-shrink-0">
-                <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">
-                    ${type === 'success' ? '✅' : 
-                      type === 'error' ? '❌' : 
-                      type === 'warning' ? '⚠️' : 
-                      'ℹ️'}
-                </div>
-            </div>
-            <div class="flex-1">
-                <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">${message}</p>
-            </div>
-            <button class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
-                <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-    `;
-    
-    // Add to container
-    container.appendChild(notification);
-    
-    // Add event listener to close button
-    const closeBtn = notification.querySelector('.close-btn');
-    closeBtn.addEventListener('click', () => {
-        closeNotification(closeBtn);
-    });
-    
-    // Animate in
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full', 'opacity-0');
-        notification.classList.add('translate-x-0', 'opacity-100');
-    }, 100);
-    
-    // Auto-remove after duration
-    if (duration > 0) {
-        setTimeout(() => {
-            closeNotification(closeBtn);
-        }, duration);
-    }
-}
-
-function closeNotification(button) {
-    const notification = button.closest('div[id^="notification-"]');
-    if (!notification) return;
-    
-    // Animate out
-    notification.classList.remove('translate-x-0', 'opacity-100');
-    notification.classList.add('translate-x-full', 'opacity-0');
-    
-    // Remove from DOM after animation
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 500);
-}
+// Notification system - now uses global system from header.php
+// The showNotification function is now globally available
 
 // Log search and filtering
 document.getElementById('logTypeFilter').addEventListener('change', filterLogs);

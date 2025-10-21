@@ -70,6 +70,7 @@
                 this.isOpen = false;
                 this.refreshInterval = null;
                 this.notifications = [];
+                this.loading = false;
                 
                 this.init();
             }
@@ -129,7 +130,16 @@
             }
             
             async loadNotifications() {
+                // Prevent multiple simultaneous loads
+                if (this.loading) {
+                    console.log('Already loading notifications, skipping...');
+                    return;
+                }
+                
+                this.loading = true;
+                
                 try {
+                    console.log('Loading notifications from server...');
                     // Show loading state
                     this.showLoading();
                     
@@ -147,6 +157,8 @@
                 } catch (error) {
                     console.error('Error loading notifications:', error);
                     this.renderError('Network error occurred');
+                } finally {
+                    this.loading = false;
                 }
             }
             
@@ -181,7 +193,36 @@
                     return;
                 }
                 
-                this.list.innerHTML = notifications.map(notification => {
+                // Filter out login_failed notifications and show them via global system
+                const loginFailedNotifications = notifications.filter(n => 
+                    n.title.includes('Failed Login Attempt') || 
+                    n.message.includes('login_failed') || 
+                    n.message.includes('Invalid credentials')
+                );
+                
+                // Show login_failed notifications via global system
+                loginFailedNotifications.forEach(notification => {
+                    console.log('Found login_failed notification:', notification.message);
+                    // Check if this notification was already closed
+                    const loginKey = 'login_failed_' + btoa(notification.message).substr(0, 20);
+                    const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
+                    
+                    if (!closedNotifications.includes(loginKey)) {
+                        console.log('Showing login_failed notification via global system');
+                        window.GlobalNotifications.show(notification.message, 'error', 8000);
+                    } else {
+                        console.log('Login_failed notification already closed, skipping');
+                    }
+                });
+                
+                // Remove login_failed notifications from the dropdown list
+                const filteredNotifications = notifications.filter(n => 
+                    !n.title.includes('Failed Login Attempt') && 
+                    !n.message.includes('login_failed') && 
+                    !n.message.includes('Invalid credentials')
+                );
+                
+                this.list.innerHTML = filteredNotifications.map(notification => {
                     const timeAgo = this.getTimeAgo(notification.timestamp);
                     const iconClass = this.getIconClass(notification.type);
                     const bgClass = notification.read ? 'bg-white' : 'bg-clinic-ivory/50';
@@ -420,13 +461,305 @@
         // Initialize notification center when DOM is loaded
         let notificationCenter;
         document.addEventListener('DOMContentLoaded', () => {
-            notificationCenter = new NotificationCenter();
+            if (!window.notificationCenter) {
+                notificationCenter = new NotificationCenter();
+                window.notificationCenter = notificationCenter;
+            }
         });
         
         // Clean up when page unloads
         window.addEventListener('beforeunload', () => {
             if (notificationCenter) {
                 notificationCenter.destroy();
+            }
+        });
+    </script>
+    
+    <!-- Global Notification System -->
+    <script>
+        // Global notification system that persists across page loads
+        window.GlobalNotifications = {
+            container: null,
+            notifications: new Map(),
+            
+            init() {
+                // Get or create the global notification container
+                this.container = document.getElementById('globalNotificationContainer');
+                if (!this.container) {
+                    this.container = document.createElement('div');
+                    this.container.id = 'globalNotificationContainer';
+                    this.container.className = 'fixed top-4 right-4 z-[99999] space-y-2 pointer-events-none';
+                    document.body.appendChild(this.container);
+                }
+                
+                // Load persisted notifications from localStorage
+                this.loadPersistedNotifications();
+            },
+            
+            show(message, type = 'info', duration = 4000, persistent = false) {
+                if (!this.container) this.init();
+                
+                // Create unique identifier for failed login attempts to prevent duplicates
+                let id = 'notification-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+                
+                // Special handling for failed login attempts
+                if (message.includes('login_failed') || message.includes('Invalid credentials') || message.includes('attempt')) {
+                    const loginKey = 'login_failed_' + btoa(message).substr(0, 20);
+                    
+                    // Check if this exact login failure notification was already shown and closed
+                    const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
+                    if (closedNotifications.includes(loginKey)) {
+                        console.log('Login failure notification already closed, skipping...');
+                        return null;
+                    }
+                    
+                    // Use the login key as ID for failed login attempts
+                    id = loginKey;
+                }
+                
+                // Create notification element
+                const notification = document.createElement('div');
+                notification.id = id;
+                notification.className = `transform transition-all duration-500 ease-out translate-x-full opacity-0 max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 p-4 pointer-events-auto ${
+                    type === 'success' ? 'border-l-4 border-l-green-500' : 
+                    type === 'error' ? 'border-l-4 border-l-red-500' : 
+                    type === 'warning' ? 'border-l-4 border-l-yellow-500' : 
+                    'border-l-4 border-l-blue-500'
+                }`;
+                
+                // Create content
+                notification.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-xl bg-clinic-ivory/60 flex items-center justify-center text-lg">
+                                ${type === 'success' ? '✅' : 
+                                  type === 'error' ? '❌' : 
+                                  type === 'warning' ? '⚠️' : 
+                                  'ℹ️'}
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-clinic-dark font-poppins font-medium text-sm leading-relaxed">${message}</p>
+                        </div>
+                        <button onclick="window.GlobalNotifications.close('${id}')" class="close-btn flex-shrink-0 w-6 h-6 rounded-lg hover:bg-clinic-ivory/40 flex items-center justify-center transition-colors duration-200">
+                            <svg class="w-4 h-4 text-clinic-dark/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                // Store notification data
+                this.notifications.set(id, {
+                    message,
+                    type,
+                    persistent,
+                    timestamp: Date.now()
+                });
+                
+                // Add to container
+                this.container.appendChild(notification);
+                
+                // Animate in
+                setTimeout(() => {
+                    notification.classList.remove('translate-x-full', 'opacity-0');
+                }, 100);
+                
+                // Auto remove if not persistent
+                if (!persistent) {
+                    setTimeout(() => {
+                        this.close(id);
+                    }, duration);
+                }
+                
+                // Persist to localStorage if persistent
+                if (persistent) {
+                    this.persistNotifications();
+                }
+                
+                return id;
+            },
+            
+            close(id) {
+                const notification = document.getElementById(id);
+                if (notification) {
+                    notification.classList.add('translate-x-full', 'opacity-0');
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    }, 300);
+                }
+                
+                // Track closed notifications for failed login attempts
+                if (id.startsWith('login_failed_')) {
+                    const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
+                    if (!closedNotifications.includes(id)) {
+                        closedNotifications.push(id);
+                        localStorage.setItem('closedNotifications', JSON.stringify(closedNotifications));
+                    }
+                }
+                
+                // Remove from storage
+                this.notifications.delete(id);
+                this.persistNotifications();
+            },
+            
+            closeAll() {
+                this.notifications.forEach((_, id) => {
+                    this.close(id);
+                });
+            },
+            
+            persistNotifications() {
+                const persistentNotifications = Array.from(this.notifications.entries())
+                    .filter(([_, data]) => data.persistent)
+                    .map(([id, data]) => ({ id, ...data }));
+                
+                localStorage.setItem('globalNotifications', JSON.stringify(persistentNotifications));
+            },
+            
+            loadPersistedNotifications() {
+                try {
+                    const stored = localStorage.getItem('globalNotifications');
+                    if (stored) {
+                        const notifications = JSON.parse(stored);
+                        const now = Date.now();
+                        
+                        notifications.forEach(notificationData => {
+                            // Only show notifications that are less than 24 hours old
+                            if (now - notificationData.timestamp < 24 * 60 * 60 * 1000) {
+                                this.show(notificationData.message, notificationData.type, 0, true);
+                            }
+                        });
+                        
+                        // Clear old notifications
+                        localStorage.removeItem('globalNotifications');
+                    }
+                } catch (error) {
+                    console.error('Error loading persisted notifications:', error);
+                    localStorage.removeItem('globalNotifications');
+                }
+                
+                // Clean up old closed notifications (older than 1 hour)
+                this.cleanupClosedNotifications();
+            },
+            
+            cleanupClosedNotifications() {
+                try {
+                    const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
+                    const now = Date.now();
+                    const oneHourAgo = now - (60 * 60 * 1000);
+                    
+                    // Remove closed notifications older than 1 hour
+                    const recentClosed = closedNotifications.filter(id => {
+                        // Extract timestamp from ID if possible, or assume recent
+                        return true; // For now, keep all closed notifications for 1 hour
+                    });
+                    
+                    if (recentClosed.length !== closedNotifications.length) {
+                        localStorage.setItem('closedNotifications', JSON.stringify(recentClosed));
+                    }
+                } catch (error) {
+                    console.error('Error cleaning up closed notifications:', error);
+                    localStorage.removeItem('closedNotifications');
+                }
+            },
+            
+            handleURLParameters() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const message = urlParams.get('message');
+                const messageType = urlParams.get('message_type') || urlParams.get('type') || 'info';
+                
+                if (message) {
+                    // Decode the message
+                    const decodedMessage = decodeURIComponent(message);
+                    
+                    // Check if this is a login failure notification
+                    if (decodedMessage.includes('login_failed') || decodedMessage.includes('Invalid credentials') || decodedMessage.includes('attempt')) {
+                        // Use the global notification system which handles duplicates
+                        this.show(decodedMessage, messageType, 8000);
+                    } else {
+                        // Regular notification
+                        this.show(decodedMessage, messageType, 4000);
+                    }
+                    
+                    // Clean up URL parameters
+                    this.cleanURLParameters();
+                }
+            },
+            
+            cleanURLParameters() {
+                const url = new URL(window.location);
+                const paramsToRemove = ['message', 'message_type', 'type'];
+                
+                let hasChanges = false;
+                paramsToRemove.forEach(param => {
+                    if (url.searchParams.has(param)) {
+                        url.searchParams.delete(param);
+                        hasChanges = true;
+                    }
+                });
+                
+                if (hasChanges) {
+                    window.history.replaceState({}, document.title, url.pathname + url.search);
+                }
+            }
+        };
+        
+        // Initialize on DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.GlobalNotifications.init();
+            
+            // Handle URL parameters for notifications across ALL pages
+            window.GlobalNotifications.handleURLParameters();
+        });
+        
+        // Global showNotification function that uses the global system
+        window.showNotification = function(message, type = 'info', duration = 4000) {
+            return window.GlobalNotifications.show(message, type, duration, false);
+        };
+        
+        // Global showPersistentNotification function
+        window.showPersistentNotification = function(message, type = 'info') {
+            return window.GlobalNotifications.show(message, type, 0, true);
+        };
+        
+        // Global function to clear all closed notifications (useful for testing)
+        window.clearClosedNotifications = function() {
+            localStorage.removeItem('closedNotifications');
+            console.log('All closed notifications cleared');
+        };
+        
+        // Debug function to check what's in localStorage
+        window.debugNotifications = function() {
+            const closed = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
+            console.log('Closed notifications:', closed);
+            const global = JSON.parse(localStorage.getItem('globalNotifications') || '[]');
+            console.log('Global notifications:', global);
+        };
+        
+        // Override any existing showNotification functions on pages to use global system
+        // This ensures ALL pages use the global notification system
+        const originalShowNotification = window.showNotification;
+        window.showNotification = function(message, type = 'info', duration = 4000) {
+            // Always use the global system for consistency
+            return window.GlobalNotifications.show(message, type, duration, false);
+        };
+        
+        // Override any local notification containers to redirect to global system
+        // This prevents individual pages from creating their own notification systems
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find any local notification containers and hide them
+            const localContainers = document.querySelectorAll('#notificationContainer:not(#globalNotificationContainer)');
+            localContainers.forEach(container => {
+                container.style.display = 'none';
+                console.log('Hidden local notification container, using global system instead');
+            });
+            
+            // Override any page-specific notification functions
+            if (typeof window.showNotification === 'function' && window.showNotification !== window.GlobalNotifications.show) {
+                console.log('Overriding page-specific showNotification function');
             }
         });
     </script>
@@ -581,6 +914,9 @@
             </div>
         </div>
     </header>
+
+    <!-- Global Notification Container -->
+    <div id="globalNotificationContainer" class="fixed top-4 right-4 z-[99999] space-y-2 pointer-events-none"></div>
 
     <!-- Sidebar -->
     <?php if ($showSidebar ?? false): ?>

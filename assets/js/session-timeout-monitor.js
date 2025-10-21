@@ -217,13 +217,13 @@ class SessionTimeoutMonitor {
     }
     
     showNotification(message, type = 'info') {
-        // Use existing notification system if available
-        if (typeof showNotification === 'function') {
-            showNotification(message, type, 5000);
+        // Use global notification system if available
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type, 5000);
         } else {
             // Fallback notification
             const notification = document.createElement('div');
-            notification.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-white ${
+            notification.className = `fixed top-4 right-4 z-[99999] px-4 py-2 rounded-lg text-white ${
                 type === 'success' ? 'bg-green-500' : 
                 type === 'warning' ? 'bg-yellow-500' : 
                 type === 'error' ? 'bg-red-500' : 'bg-blue-500'

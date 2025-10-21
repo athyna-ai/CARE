@@ -51,7 +51,7 @@ include __DIR__ . '/../partials/header.php';
 ?>
 
 <!-- Popup Notification Container -->
-<div id="notificationContainer" class="fixed top-20 right-4 z-50"></div>
+<!-- Notification container now handled globally in header.php -->
 
 <!-- Confirmation Modal -->
 <div id="confirmationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
@@ -318,53 +318,8 @@ include __DIR__ . '/../partials/header.php';
 </div>
 
 <script>
-// Initialize notifications on page load
-document.addEventListener('DOMContentLoaded', function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const message = urlParams.get('message');
-    const type = urlParams.get('type') || 'info';
-    
-    if (message) {
-        showNotification(decodeURIComponent(message), type);
-        const url = new URL(window.location);
-        url.searchParams.delete('message');
-        url.searchParams.delete('type');
-        window.history.replaceState({}, '', url);
-    }
-});
-
-// Popup notification functions
-function showNotification(message, type = 'info') {
-    const container = document.getElementById('notificationContainer');
-    const notification = document.createElement('div');
-    
-    const colors = {
-        success: 'bg-green-500',
-        error: 'bg-red-500',
-        warning: 'bg-yellow-500',
-        info: 'bg-blue-500'
-    };
-    
-    notification.className = `${colors[type] || colors.info} text-white px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full`;
-    notification.textContent = message;
-    
-    container.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-    }, 100);
-    
-    // Auto remove after 2 seconds
-    setTimeout(() => {
-        notification.classList.add('translate-x-full');
-        setTimeout(() => {
-            if (container.contains(notification)) {
-                container.removeChild(notification);
-            }
-        }, 300);
-    }, 2000);
-}
+// Notification system - now uses global system from header.php
+// The showNotification function is now globally available
 
 // Global variable to store current faculty ID for archiving
 let currentFacultyId = null;

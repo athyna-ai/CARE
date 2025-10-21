@@ -1219,49 +1219,8 @@ function checkBloodPressureStatus() {
     }
 }
 
-// Notification system
-function showNotification(message, type = 'info') {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full`;
-    
-    // Set background color based on type
-    if (type === 'success') {
-        notification.classList.add('bg-green-500', 'text-white');
-    } else if (type === 'error') {
-        notification.classList.add('bg-red-500', 'text-white');
-    } else {
-        notification.classList.add('bg-blue-500', 'text-white');
-    }
-    
-    notification.innerHTML = `
-        <div class="flex items-center justify-between">
-            <span>${message}</span>
-            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-    }, 100);
-    
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        notification.classList.add('translate-x-full');
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.remove();
-            }
-        }, 300);
-    }, 5000);
-}
+// Notification system - now uses global system from header.php
+// The showNotification function is now globally available
 
 // Handle URL parameters for notifications
 document.addEventListener('DOMContentLoaded', function() {
