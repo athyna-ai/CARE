@@ -32,19 +32,22 @@ try {
     // Get visitation details (check if archived)
     $visit = null;
     if ($isArchived) {
-        // Try to get from archive tables
-        $archiveTables = ['student_visitation_archive', 'faculty_visitation_archive'];
-        foreach ($archiveTables as $table) {
-            $tableExists = $pdo->query("SHOW TABLES LIKE '{$table}'")->rowCount() > 0;
-            if ($tableExists) {
-                $stmt = $pdo->prepare("SELECT * FROM `{$table}` WHERE id = ?");
-                $stmt->execute([$visitId]);
-                $visit = $stmt->fetch();
-                if ($visit) {
-                    $visit['is_archived'] = true;
-                    break;
-                }
+        // Try to get from archive table
+        $archiveTable = 'visitation_logs_archive';
+        $tableExists = $pdo->query("SHOW TABLES LIKE '{$archiveTable}'")->rowCount() > 0;
+        if ($tableExists) {
+            // Search by original_id first (the ID we're passing is from the original record)
+            $stmt = $pdo->prepare("SELECT * FROM `{$archiveTable}` WHERE original_id = ? OR id = ?");
+            $stmt->execute([$visitId, $visitId]);
+            $visit = $stmt->fetch();
+            if ($visit) {
+                $visit['is_archived'] = true;
             }
+        }
+        
+        // Debug log if not found
+        if (!$visit) {
+            error_log("Archived visitation log not found - ID: {$visitId}, Table exists: " . ($tableExists ? 'yes' : 'no'));
         }
     } else {
         // Get from active visitation logs
@@ -54,8 +57,13 @@ try {
     }
     
     if (!$visit) {
+        error_log("Visitation log not found - ID: {$visitId}, Archived: " . ($isArchived ? 'yes' : 'no'));
         if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
-            echo '<div class="text-center py-8 text-red-600">Visitation record not found</div>';
+            echo '<div class="text-center py-8 text-red-600">
+                <p class="font-bold mb-2">Visitation record not found.</p>
+                <p class="text-sm">Visit ID: ' . htmlspecialchars($visitId) . '</p>
+                <p class="text-sm">Archived: ' . ($isArchived ? 'Yes' : 'No') . '</p>
+            </div>';
             exit;
         }
         echo '<div class="min-h-screen flex items-center justify-center bg-slate-100">

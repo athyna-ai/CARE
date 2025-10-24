@@ -139,7 +139,16 @@ class SecurityMonitor {
         // Clear existing alerts
         container.innerHTML = '';
         
-        alerts.slice(0, 3).forEach(alert => {
+        // Filter out unauthorized_access alerts
+        const filteredAlerts = alerts.filter(alert => {
+            const eventType = (alert.event_type || '').toLowerCase();
+            const description = (alert.description || '').toLowerCase();
+            return !eventType.includes('unauthorized_access') && 
+                   !eventType.includes('unauthorized') && 
+                   !description.includes('unauthorized access attempt to:');
+        });
+        
+        filteredAlerts.slice(0, 3).forEach(alert => {
             const notification = document.createElement('div');
             notification.className = 'security-notification bg-red-500 text-white p-3 rounded-lg shadow-lg';
             notification.innerHTML = `

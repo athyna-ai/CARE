@@ -93,8 +93,6 @@ try {
                     WHEN action LIKE '%XSS Attack%' THEN 'XSS Attack Attempt'
                     WHEN action LIKE '%Directory Traversal%' THEN 'Directory Traversal Attempt'
                     WHEN action LIKE '%Admin Directory%' THEN 'Admin Directory Breach'
-                    WHEN action LIKE '%Unauthorized%' THEN 'Unauthorized Access Attempt'
-                    WHEN action LIKE '%login_failed%' THEN 'Failed Login Attempt'
                     ELSE 'Security Breach Attempt'
                 END as title,
                 CONCAT(action, ' from IP ', ip_address, ' - ', description) as message,
@@ -102,9 +100,11 @@ try {
                 CASE WHEN timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 0 ELSE 1 END as read_status,
                 CONCAT('logs/logs.php?filter=security&ip=', ip_address) as action_url
             FROM activity_logs 
-            WHERE (success = 0 AND user_type = 'system') 
-                OR action IN ('login_failed', 'SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach', 'Unauthorized Admin Access', 'Unauthorized Medical Access')
-                AND action NOT IN ('admin_creation_attempt', 'user_deletion_attempt')
+            WHERE action IN ('SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach')
+                AND action NOT IN ('admin_creation_attempt', 'user_deletion_attempt', 'login_failed')
+                AND action NOT LIKE '%login_failed%'
+                AND action NOT LIKE '%unauthorized_access%'
+                AND action NOT LIKE '%Unauthorized%'
                 AND timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
             ORDER BY timestamp DESC
             LIMIT 15

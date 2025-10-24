@@ -76,15 +76,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
         $errors[] = 'At least one emergency contact is required.';
     }
     
+    // Set primary emergency contact (first contact)
+    $emergency_contact = !empty($contacts) ? $contacts[0] : '';
+    
     if (empty($errors)) {
         // Build address
         $addressParts = array_filter([$barangay, $municipality, $province]);
         $address = implode(', ', $addressParts);
         
-        // Calculate age
+        // Calculate age from HTML5 date input (YYYY-MM-DD format)
         $age = null;
         if ($dob) {
+            // Try parsing as HTML5 date format first (YYYY-MM-DD)
+            $dobDate = DateTime::createFromFormat('Y-m-d', $dob);
+            
+            // Fallback to DD/MM/YYYY format if HTML5 format fails
+            if (!$dobDate) {
             $dobDate = DateTime::createFromFormat('d/m/Y', $dob);
+            }
+            
             if ($dobDate) {
                 $age = $dobDate->diff(new DateTime())->y;
             }
@@ -92,6 +102,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
         
         // Prepare contacts JSON
         $contactsJson = json_encode($contacts);
+        
+        // Convert date to DD/MM/YYYY format for database (if needed)
+        $dobFormatted = '';
+        if ($dob && $dobDate) {
+            $dobFormatted = $dobDate->format('d/m/Y');
+        } elseif ($dob) {
+            $dobFormatted = $dob; // Use as-is if parsing failed
+        }
         
         // Store old data for enrollment history
         $oldData = [
@@ -125,10 +143,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
         ');
         $updateStmt->execute([
             $name, $gender, $level, $year_grade, $section, $strand, $course, $block, $rfid, 
-            $address, $dob, $age, $religion, $guardian, $emergency_contact, $contactsJson, $allergies, $studentId
+            $address, $dobFormatted, $age, $religion, $guardian, $emergency_contact, $contactsJson, $allergies, $studentId
         ]);
         
-        // Archive old medical records before re-enrollment
+        // Parse old address for enrollment history
+        $oldBarangay = '';
+        $oldMunicipality = '';
+        $oldProvince = '';
+        if (!empty($oldData['address'])) {
+            $oldAddressParts = explode(',', $oldData['address']);
+            $oldBarangay = trim($oldAddressParts[0] ?? '');
+            $oldMunicipality = trim($oldAddressParts[1] ?? '');
+            $oldProvince = trim($oldAddressParts[2] ?? '');
+        }
+        
+        // Record enrollment history FIRST (so we can get the enrollment_id for medical record archiving)
+        $historyStmt = $pdo->prepare('
+            INSERT INTO enrollment_history 
+            (student_id, enrollment_type, previous_level, previous_status, previous_year_grade, 
+             previous_section, previous_strand, previous_course, previous_block, 
+             new_level, new_status, new_year_grade, new_section, new_strand, new_course, 
+             new_block, notes, created_by, previous_rfid, previous_name, previous_gender, previous_dob, 
+             previous_age, previous_religion, previous_barangay, previous_municipality, 
+             previous_province, previous_guardian_name, previous_emergency_contact, 
+             previous_contacts, previous_allergies) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+        
+        $historyStmt->execute([
+            $studentId, 're_enrollment', $oldData['level'], 'Graduated', $oldData['year_grade'],
+            $oldData['section'], $oldData['strand'], $oldData['course'], $oldData['block'],
+            $level, 'Active', $year_grade, $section, $strand, $course, $block,
+            "Re-enrolled from {$oldData['level']} to {$level}", $_SESSION['user']['id'],
+            // Previous personal data
+            $oldData['rfid'], $oldData['name'], $oldData['gender'], $oldData['dob'], $oldData['age'],
+            $oldData['religion'], $oldBarangay, $oldMunicipality, $oldProvince,
+            $oldData['guardian'], $oldData['emergency_contact'], $oldData['contacts'], $oldData['allergies']
+        ]);
+        
+        // Get the enrollment_id we just created
+        $enrollmentId = $pdo->lastInsertId();
+        
+        // Archive old medical records AFTER enrollment history (so we can link them)
         try {
             // Get all medical records for this student
             $medicalStmt = $pdo->prepare('SELECT * FROM medical_records WHERE patient_id = ? AND patient_type = ?');
@@ -152,21 +208,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
                         `created_at` timestamp NOT NULL,
                         `archived_at` timestamp DEFAULT CURRENT_TIMESTAMP,
                         `archived_by` int(11) NOT NULL,
+                        `education_level` varchar(100) DEFAULT NULL,
+                        `enrollment_id` int(11) DEFAULT NULL,
                         PRIMARY KEY (`id`),
                         KEY `patient_id` (`patient_id`),
                         KEY `archived_at` (`archived_at`),
-                        KEY `original_id` (`original_id`)
+                        KEY `original_id` (`original_id`),
+                        KEY `education_level` (`education_level`),
+                        KEY `enrollment_id` (`enrollment_id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
                     ";
                     $pdo->exec($createTableSQL);
+                } else {
+                    // Add new columns to existing table if they don't exist
+                    try {
+                        $pdo->exec("ALTER TABLE `{$archiveTable}` ADD COLUMN IF NOT EXISTS `education_level` varchar(100) DEFAULT NULL");
+                        $pdo->exec("ALTER TABLE `{$archiveTable}` ADD COLUMN IF NOT EXISTS `enrollment_id` int(11) DEFAULT NULL");
+                        $pdo->exec("ALTER TABLE `{$archiveTable}` ADD INDEX IF NOT EXISTS `idx_education_level` (`education_level`)");
+                        $pdo->exec("ALTER TABLE `{$archiveTable}` ADD INDEX IF NOT EXISTS `idx_enrollment_id` (`enrollment_id`)");
+                    } catch (Exception $e) {
+                        error_log("Note: Could not add new columns to archive table (they may already exist): " . $e->getMessage());
+                    }
                 }
                 
-                // Archive each medical record
+                // Archive each medical record with educational level information
                 foreach ($oldMedicalRecords as $record) {
                     $archiveStmt = $pdo->prepare("
                         INSERT INTO `{$archiveTable}` 
-                        (original_id, patient_id, patient_type, form_type, form_data, created_at, archived_at, archived_by)
-                        VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)
+                        (original_id, patient_id, patient_type, form_type, form_data, created_at, archived_at, archived_by, education_level, enrollment_id)
+                        VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
                     ");
                     $archiveStmt->execute([
                         $record['id'],
@@ -175,7 +245,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
                         $record['form_type'],
                         $record['form_data'],
                         $record['created_at'],
-                        $_SESSION['user']['id']
+                        $_SESSION['user']['id'],
+                        $oldData['level'], // Store the educational level
+                        $enrollmentId // Link to the enrollment history record
                     ]);
                 }
                 
@@ -189,40 +261,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $student) {
             error_log("Error archiving medical records during re-enrollment: " . $e->getMessage());
         }
         
-        // Record enrollment history with previous personal data
-        $historyStmt = $pdo->prepare('
-            INSERT INTO enrollment_history 
-            (student_id, enrollment_type, previous_level, previous_status, previous_year_grade, 
-             previous_section, previous_strand, previous_course, previous_block, 
-             new_level, new_status, new_year_grade, new_section, new_strand, new_course, 
-             new_block, notes, created_by, previous_rfid, previous_name, previous_gender, previous_dob, 
-             previous_age, previous_religion, previous_barangay, previous_municipality, 
-             previous_province, previous_guardian_name, previous_emergency_contact, 
-             previous_contacts, previous_allergies) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ');
-        
-        // Parse old address
-        $oldBarangay = '';
-        $oldMunicipality = '';
-        $oldProvince = '';
-        if (!empty($oldData['address'])) {
-            $oldAddressParts = explode(',', $oldData['address']);
-            $oldBarangay = trim($oldAddressParts[0] ?? '');
-            $oldMunicipality = trim($oldAddressParts[1] ?? '');
-            $oldProvince = trim($oldAddressParts[2] ?? '');
+        // Archive old visitation logs before re-enrollment
+        try {
+            // Get all visitation logs for this student
+            $visitationStmt = $pdo->prepare('SELECT * FROM visitation_logs WHERE patient_id = ? AND patient_type = ?');
+            $visitationStmt->execute([$studentId, 'student']);
+            $oldVisitationLogs = $visitationStmt->fetchAll();
+            
+            if (!empty($oldVisitationLogs)) {
+                // Create archive table if it doesn't exist
+                $visitArchiveTable = 'visitation_logs_archive';
+                $visitTableExists = $pdo->query("SHOW TABLES LIKE '{$visitArchiveTable}'")->rowCount() > 0;
+                
+                if (!$visitTableExists) {
+                    $createVisitTableSQL = "
+                    CREATE TABLE IF NOT EXISTS `{$visitArchiveTable}` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `original_id` int(11) NOT NULL,
+                        `patient_id` int(11) NOT NULL,
+                        `patient_type` enum('student','faculty') NOT NULL,
+                        `reason` text,
+                        `complaint` text,
+                        `diagnosis` text,
+                        `treatment` text,
+                        `medicine_given` text,
+                        `remarks` text,
+                        `visit_date` date DEFAULT NULL,
+                        `created_at` timestamp NOT NULL,
+                        `archived_at` timestamp DEFAULT CURRENT_TIMESTAMP,
+                        `archived_by` int(11) NOT NULL,
+                        `education_level` varchar(100) DEFAULT NULL,
+                        `enrollment_id` int(11) DEFAULT NULL,
+                        PRIMARY KEY (`id`),
+                        KEY `patient_id` (`patient_id`),
+                        KEY `archived_at` (`archived_at`),
+                        KEY `original_id` (`original_id`),
+                        KEY `education_level` (`education_level`),
+                        KEY `enrollment_id` (`enrollment_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    ";
+                    $pdo->exec($createVisitTableSQL);
+                } else {
+                    // Add new columns to existing table if they don't exist
+                    try {
+                        $pdo->exec("ALTER TABLE `{$visitArchiveTable}` ADD COLUMN IF NOT EXISTS `education_level` varchar(100) DEFAULT NULL");
+                        $pdo->exec("ALTER TABLE `{$visitArchiveTable}` ADD COLUMN IF NOT EXISTS `enrollment_id` int(11) DEFAULT NULL");
+                        $pdo->exec("ALTER TABLE `{$visitArchiveTable}` ADD INDEX IF NOT EXISTS `idx_visit_education_level` (`education_level`)");
+                        $pdo->exec("ALTER TABLE `{$visitArchiveTable}` ADD INDEX IF NOT EXISTS `idx_visit_enrollment_id` (`enrollment_id`)");
+                    } catch (Exception $e) {
+                        error_log("Note: Could not add new columns to visitation archive table (they may already exist): " . $e->getMessage());
+                    }
+                }
+                
+                // Archive each visitation log with educational level information
+                foreach ($oldVisitationLogs as $log) {
+                    $archiveVisitStmt = $pdo->prepare("
+                        INSERT INTO `{$visitArchiveTable}` 
+                        (original_id, patient_id, patient_type, reason, complaint, diagnosis, treatment, 
+                         medicine_given, remarks, visit_date, created_at, archived_at, archived_by, 
+                         education_level, enrollment_id)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?)
+                    ");
+                    $archiveVisitStmt->execute([
+                        $log['id'],
+                        $log['patient_id'],
+                        $log['patient_type'],
+                        $log['reason'] ?? null,
+                        $log['complaint'] ?? null,
+                        $log['diagnosis'] ?? null,
+                        $log['treatment'] ?? null,
+                        $log['medicine_given'] ?? null,
+                        $log['remarks'] ?? null,
+                        $log['visit_date'] ?? null,
+                        $log['created_at'],
+                        $_SESSION['user']['id'],
+                        $oldData['level'], // Store the educational level
+                        $enrollmentId // Link to the enrollment history record
+                    ]);
+                }
+                
+                // Delete old visitation logs from active table
+                $deleteVisitStmt = $pdo->prepare('DELETE FROM visitation_logs WHERE patient_id = ? AND patient_type = ?');
+                $deleteVisitStmt->execute([$studentId, 'student']);
+                
+                error_log("Archived " . count($oldVisitationLogs) . " visitation logs for re-enrolled student ID: {$studentId}");
+            }
+        } catch (Exception $e) {
+            error_log("Error archiving visitation logs during re-enrollment: " . $e->getMessage());
         }
-        
-        $historyStmt->execute([
-            $studentId, 're_enrollment', $oldData['level'], 'Graduated', $oldData['year_grade'],
-            $oldData['section'], $oldData['strand'], $oldData['course'], $oldData['block'],
-            $level, 'Active', $year_grade, $section, $strand, $course, $block,
-            "Re-enrolled from {$oldData['level']} to {$level}", $_SESSION['user']['id'],
-            // Previous personal data
-            $oldData['rfid'], $oldData['name'], $oldData['gender'], $oldData['dob'], $oldData['age'],
-            $oldData['religion'], $oldBarangay, $oldMunicipality, $oldProvince,
-            $oldData['guardian'], $oldData['emergency_contact'], $oldData['contacts'], $oldData['allergies']
-        ]);
         
         // Redirect to patient information with success message
         $_SESSION['success_message'] = 'Student re-enrolled successfully!';
@@ -249,6 +375,52 @@ if ($student && !empty($student['contacts'])) {
 
 ?>
 <?php $pageTitle = 'Re-enroll Student'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
+
+<style>
+/* Custom date picker styling to match clinic theme */
+input[type="date"] {
+    color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+}
+
+input[type="date"]::-webkit-datetime-edit {
+    color: #334155;
+    font-weight: 500;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    background: transparent;
+}
+
+input[type="date"]::-webkit-datetime-edit-text {
+    color: #64748b;
+    padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #334155;
+    background: transparent;
+}
+
+/* Firefox date picker styling */
+input[type="date"]::-moz-placeholder {
+    color: #94a3b8;
+}
+
+/* Custom calendar popup styling */
+input[type="date"]:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+</style>
 
 <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4">
     <div class="max-w-4xl mx-auto">
@@ -292,7 +464,7 @@ if ($student && !empty($student['contacts'])) {
                 <p class="text-white/90 mt-1">Complete the form below to re-enroll the student</p>
             </div>
             
-            <form method="post" class="grid md:grid-cols-2 gap-6 p-8" autocomplete="on">
+            <form method="post" class="grid md:grid-cols-2 gap-6 p-8" autocomplete="on" data-has-level-handler="true">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
                 
                 <!-- Personal Information -->
@@ -412,18 +584,21 @@ if ($student && !empty($student['contacts'])) {
                 
                 <div>
                     <label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-                    <input type="text" name="dob" id="dob" 
-                           value="<?= isset($student['dob']) && $student['dob'] ? date('d/m/Y', strtotime($student['dob'])) : '' ?>" 
-                           pattern="\d{2}/\d{2}/\d{4}" 
-                           placeholder="DD/MM/YYYY" 
-                           class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
-                           maxlength="10" required />
+                    <div class="relative">
+                        <input type="date" name="dob" id="dob" 
+                               value="<?= (!empty($student['dob']) && $student['dob'] !== '0000-00-00') ? date('Y-m-d', strtotime($student['dob'])) : '' ?>" 
+                               class="w-full rounded-xl bg-white border border-slate-300 focus:border-clinic-blue focus:ring-2 focus:ring-clinic-blue/20 px-4 py-3 text-slate-800 cursor-pointer hover:border-clinic-tea/40 transition-colors duration-200" 
+                               max="<?= date('Y-m-d') ?>" 
+                               required />
+                    </div>
                     <div id="dobError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
                 <div>
                     <label class="block text-slate-700 mb-1">Age <span class="text-slate-500 text-sm">(Auto-calculated)</span></label>
-                    <input type="number" name="age" id="ageInput" value="<?= htmlspecialchars((string)($student['age'] ?? '')) ?>" readonly class="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-3 text-slate-600 cursor-not-allowed" />
+                    <input type="number" name="age" id="ageInput" 
+                           value="<?= !empty($student['age']) ? htmlspecialchars((string)$student['age']) : '' ?>" 
+                           readonly class="w-full rounded-xl bg-slate-100 border border-slate-300 px-4 py-3 text-slate-600 cursor-not-allowed" />
                 </div>
                 
                 <div>
@@ -523,82 +698,134 @@ document.addEventListener('DOMContentLoaded', function() {
     const ageInput = document.getElementById('ageInput');
     const dobError = document.getElementById('dobError');
     
+    console.log('🔍 Reenroll Student - Field Elements Check:');
+    console.log('  - levelSelect:', levelSelect ? '✓ FOUND' : '✗ NOT FOUND');
+    console.log('  - yearGradeField:', yearGradeField ? '✓ FOUND' : '✗ NOT FOUND');
+    console.log('  - courseField:', courseField ? '✓ FOUND' : '✗ NOT FOUND');
+    console.log('  - blockField:', blockField ? '✓ FOUND' : '✗ NOT FOUND');
+    console.log('  - sectionField:', sectionField ? '✓ FOUND' : '✗ NOT FOUND');
+    console.log('  - strandField:', strandField ? '✓ FOUND' : '✗ NOT FOUND');
+    
+    // Check if all required elements exist
+    if (!levelSelect || !yearGradeField || !yearGradeInput || !yearGradeLabel || 
+        !sectionField || !strandField || !courseField || !blockField) {
+        console.error('❌ Some required form elements are missing!');
+        return;
+    }
+    
     // Level change handler
     function toggleFields() {
         const level = levelSelect.value;
+        console.log('🔧 toggleFields called with level:', level);
         
-        // Hide all fields first
+        // Hide all fields first (explicitly set display none)
         yearGradeField.classList.add('hidden');
+        yearGradeField.style.display = 'none';
         sectionField.classList.add('hidden');
+        sectionField.style.display = 'none';
         strandField.classList.add('hidden');
+        strandField.style.display = 'none';
         courseField.classList.add('hidden');
+        courseField.style.display = 'none';
         blockField.classList.add('hidden');
+        blockField.style.display = 'none';
+        
+        console.log('   ➡️ All fields hidden');
         
         // Clear all values
         yearGradeInput.innerHTML = '<option value="">Select Grade/Year</option>';
         
         if (level === 'Pre-school') {
             yearGradeField.classList.remove('hidden');
+            yearGradeField.style.display = '';
             yearGradeLabel.textContent = 'Year';
             const years = ['Year 1', 'Year 2'];
             years.forEach(year => {
                 yearGradeInput.innerHTML += `<option value="${year}">${year}</option>`;
             });
+            console.log('   ✓ Pre-school: Showing yearGrade');
         } else if (level === 'Elementary') {
             yearGradeField.classList.remove('hidden');
+            yearGradeField.style.display = '';
             sectionField.classList.remove('hidden');
+            sectionField.style.display = '';
             yearGradeLabel.textContent = 'Grade';
             const grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'];
             grades.forEach(grade => {
                 yearGradeInput.innerHTML += `<option value="${grade}">${grade}</option>`;
             });
+            console.log('   ✓ Elementary: Showing yearGrade + section');
         } else if (level === 'High School') {
             yearGradeField.classList.remove('hidden');
+            yearGradeField.style.display = '';
             sectionField.classList.remove('hidden');
+            sectionField.style.display = '';
             yearGradeLabel.textContent = 'Year';
             const years = ['Year 1', 'Year 2', 'Year 3', 'Year 4'];
             years.forEach(year => {
                 yearGradeInput.innerHTML += `<option value="${year}">${year}</option>`;
             });
+            console.log('   ✓ High School: Showing yearGrade + section');
         } else if (level === 'Senior High School') {
             yearGradeField.classList.remove('hidden');
+            yearGradeField.style.display = '';
             strandField.classList.remove('hidden');
+            strandField.style.display = '';
             yearGradeLabel.textContent = 'Grade';
             const grades = ['Grade 11', 'Grade 12'];
             grades.forEach(grade => {
                 yearGradeInput.innerHTML += `<option value="${grade}">${grade}</option>`;
             });
+            console.log('   ✓ Senior High: Showing yearGrade + strand');
         } else if (level === 'College') {
             yearGradeField.classList.remove('hidden');
+            yearGradeField.style.display = '';
             courseField.classList.remove('hidden');
+            courseField.style.display = '';
             blockField.classList.remove('hidden');
+            blockField.style.display = '';
             yearGradeLabel.textContent = 'Year';
             const years = ['1st Year', '2nd Year', '3rd Year', '4th Year'];
             years.forEach(year => {
                 yearGradeInput.innerHTML += `<option value="${year}">${year}</option>`;
             });
+            console.log('   ✓ College: Showing yearGrade + course + block');
+            console.log('   📊 Final status:');
+            console.log('      - yearGradeField display:', window.getComputedStyle(yearGradeField).display);
+            console.log('      - courseField display:', window.getComputedStyle(courseField).display);
+            console.log('      - blockField display:', window.getComputedStyle(blockField).display);
         }
         
         // Set existing values
         const existingYearGrade = yearGradeInput.getAttribute('data-existing-value');
         if (existingYearGrade) {
             yearGradeInput.value = existingYearGrade;
+            console.log('   📝 Set existing year/grade:', existingYearGrade);
         }
+        
+        console.log('   ✅ toggleFields completed');
     }
     
-    levelSelect.addEventListener('change', toggleFields);
+    if (levelSelect) {
+        levelSelect.addEventListener('change', toggleFields);
+        console.log('👂 Event listener attached to levelSelect');
+    }
     
     // Initialize fields on page load
-    toggleFields();
+    console.log('🚀 Initializing fields on page load...');
+    if (levelSelect && levelSelect.value) {
+        console.log('   Current level value:', levelSelect.value);
+        toggleFields();
+    } else {
+        console.log('   No level selected on load');
+    }
     
-    // Date of birth validation and age calculation
+    // Date of birth validation and age calculation for HTML5 date input
     dobInput.addEventListener('input', function() {
-        const dobValue = this.value;
-        const dobPattern = /^\d{2}\/\d{2}\/\d{4}$/;
+        const dobValue = this.value; // This will be in YYYY-MM-DD format for HTML5 date inputs
         
-        if (dobPattern.test(dobValue)) {
-            const [day, month, year] = dobValue.split('/');
-            const dobDate = new Date(year, month - 1, day);
+        if (dobValue) {
+            const dobDate = new Date(dobValue);
             const today = new Date();
             
             if (dobDate <= today && dobDate.getFullYear() >= 1900) {
@@ -619,11 +846,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('border-red-500');
                 ageInput.value = '';
             }
-        } else if (dobValue.length === 10) {
-            dobError.textContent = 'Please enter date in DD/MM/YYYY format';
-            dobError.classList.remove('hidden');
-            this.classList.add('border-red-500');
-            ageInput.value = '';
         } else {
             dobError.classList.add('hidden');
             this.classList.remove('border-red-500');
@@ -671,6 +893,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize remove buttons
     updateRemoveButtons();
+    
+    // Calculate age on page load if dob is already filled
+    if (dobInput.value) {
+        // Trigger the input event to calculate age
+        dobInput.dispatchEvent(new Event('input'));
+    }
 });
 </script>
 

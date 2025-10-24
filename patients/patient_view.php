@@ -66,10 +66,20 @@ if ($patientType === 'student') {
     $stmt = $pdo->prepare('SELECT * FROM students WHERE id = ?');
     $stmt->execute([$patientIdInt]);
     $patient = $stmt->fetch();
+    
+    // Debug: Log the DOB value to help diagnose issues
+    if ($patient) {
+        error_log("Patient DOB value for student ID {$patientIdInt}: " . var_export($patient['dob'], true));
+    }
 } else {
     $stmt = $pdo->prepare('SELECT * FROM faculty WHERE id = ?');
     $stmt->execute([$patientIdInt]);
     $patient = $stmt->fetch();
+    
+    // Debug: Log the DOB value to help diagnose issues
+    if ($patient) {
+        error_log("Patient DOB value for faculty ID {$patientIdInt}: " . var_export($patient['dob'], true));
+    }
 }
 
 // For display purposes, we need to get the actual data from the contacts JSON
@@ -938,12 +948,24 @@ window.closeNotification = closeNotification;
                                         <?php endif; ?>
                                     <?php endif; ?>
                                     <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
+                                        <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Gender</span>
+                                        <p class="text-sm font-poppins font-semibold text-clinic-dark"><?= htmlspecialchars($patient['gender'] ?? 'N/A') ?></p>
+                                    </div>
+                                    <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
                                         <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Age</span>
                                         <p class="text-sm font-poppins font-semibold text-clinic-dark"><?= htmlspecialchars((string)($patient['age'] ?? 'N/A')) ?> years old</p>
                                     </div>
                                     <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
                                         <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Date of Birth</span>
-                                        <p class="text-sm font-poppins font-semibold text-clinic-dark"><?= htmlspecialchars($patient['dob'] ? date('M j, Y', strtotime($patient['dob'])) : 'N/A') ?></p>
+                                        <p class="text-sm font-poppins font-semibold text-clinic-dark">
+                                            <?php 
+                                            if (!empty($patient['dob']) && $patient['dob'] !== '0000-00-00') {
+                                                echo htmlspecialchars(date('M j, Y', strtotime($patient['dob'])));
+                                            } else {
+                                                echo 'N/A';
+                                            }
+                                            ?>
+                                        </p>
                                     </div>
                                     <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
                                         <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Religion</span>
@@ -1110,7 +1132,7 @@ window.closeNotification = closeNotification;
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">Date of Birth</label>
-                            <input type="date" name="date_of_birth" value="<?= $patient['dob'] ? date('Y-m-d', strtotime($patient['dob'])) : '' ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
+                            <input type="date" name="date_of_birth" value="<?= (!empty($patient['dob']) && $patient['dob'] !== '0000-00-00') ? date('Y-m-d', strtotime($patient['dob'])) : '' ?>" class="w-full rounded-lg border border-slate-300 px-4 py-3 focus:border-sky-500 focus:ring-2 focus:ring-sky-200">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-slate-700 mb-2">Gender *</label>
@@ -1829,6 +1851,27 @@ function openVisitationModal() {
 function closeVisitationModal() {
     document.getElementById('visitationModal').classList.add('hidden');
     document.getElementById('visitationModal').classList.remove('flex');
+    
+    // Reset the visitation form
+    const form = document.getElementById('visitationForm');
+    if (form) {
+        form.reset();
+        
+        // Reset custom fields that might not reset with form.reset()
+        const otherReasonDiv = document.getElementById('otherReasonDiv');
+        const otherMedicationDiv = document.getElementById('otherMedicationDiv');
+        const otherFirstAidDiv = document.getElementById('otherFirstAidDiv');
+        
+        if (otherReasonDiv) otherReasonDiv.classList.add('hidden');
+        if (otherMedicationDiv) otherMedicationDiv.classList.add('hidden');
+        if (otherFirstAidDiv) otherFirstAidDiv.classList.add('hidden');
+        
+        // Clear any validation states
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.classList.remove('border-red-500', 'border-green-500');
+        });
+    }
 }
 
 // Edit modal functions
@@ -1845,6 +1888,16 @@ function openEditModal() {
 function closeEditModal() {
     document.getElementById('editModal').classList.add('hidden');
     document.getElementById('editModal').classList.remove('flex');
+    
+    // Reset any forms in the edit modal
+    const forms = document.querySelectorAll('#editModal form');
+    forms.forEach(form => {
+        form.reset();
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.classList.remove('border-red-500', 'border-green-500');
+        });
+    });
 }
 
 function toggleOtherReason() {
@@ -2275,6 +2328,24 @@ function closeMedicalFormFullScreen() {
     const modal = document.getElementById('medicalFormFullScreen');
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+    
+    // Reset the medical form
+    const form = document.getElementById('medicalForm');
+    if (form) {
+        form.reset();
+        
+        // Clear any validation states
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.classList.remove('border-red-500', 'border-green-500');
+        });
+    }
+    
+    // Clear the form content container
+    const content = document.getElementById('medicalFormContent');
+    if (content) {
+        content.innerHTML = '';
+    }
 }
 
 function loadMedicalFormContent(type, container) {
@@ -2589,6 +2660,16 @@ function openGeneralCheckUpModal() {
 function closeGeneralCheckUpModal() {
     document.getElementById('generalCheckUpModal').classList.add('hidden');
     document.getElementById('generalCheckUpModal').classList.remove('flex');
+    
+    // Reset any forms in the modal
+    const forms = document.querySelectorAll('#generalCheckUpModal form');
+    forms.forEach(form => {
+        form.reset();
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.classList.remove('border-red-500', 'border-green-500');
+        });
+    });
 }
 
 function closeMedicalHistoryDetailsModal() {

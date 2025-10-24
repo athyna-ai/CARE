@@ -68,7 +68,10 @@ function getRecentAlerts($pdo) {
     try {
         $sql = "SELECT id, timestamp, action as event_type, description, ip_address, success
                 FROM activity_logs 
-                WHERE (success = 0 OR user_type = 'system') 
+                WHERE action IN ('SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach')
+                AND action NOT LIKE '%unauthorized_access%'
+                AND action NOT LIKE '%Unauthorized%'
+                AND action NOT LIKE '%login_failed%'
                 AND timestamp > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
                 ORDER BY timestamp DESC
                 LIMIT 5";
@@ -90,26 +93,55 @@ function getRecentAlerts($pdo) {
 function getSecurityStats($pdo) {
     try {
         $today = date('Y-m-d');
+        $userId = $_SESSION['user']['id'] ?? 0;
         
-        // Get today's failed attempts
-        $sql = "SELECT COUNT(*) as count FROM activity_logs 
-                WHERE success = 0 AND DATE(timestamp) = ?";
+        // Get today's security alerts (excluding unauthorized_access and login_failed)
+        $sql = "SELECT id, timestamp, action, description, ip_address
+                FROM activity_logs 
+                WHERE action IN ('SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach')
+                AND action NOT LIKE '%unauthorized_access%'
+                AND action NOT LIKE '%Unauthorized%'
+                AND action NOT LIKE '%login_failed%'
+                AND DATE(timestamp) = ?
+                ORDER BY timestamp DESC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$today]);
-        $failed_attempts = $stmt->fetch()['count'];
+        $securityAlerts = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Get today's system events
-        $sql = "SELECT COUNT(*) as count FROM activity_logs 
-                WHERE user_type = 'system' AND DATE(timestamp) = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$today]);
-        $system_events = $stmt->fetch()['count'];
+        // Count unread security alerts
+        $unreadSecurityCount = 0;
+        foreach ($securityAlerts as $alert) {
+            $notificationId = 'security_' . md5($alert['action'] . ' from IP ' . $alert['ip_address'] . ' - ' . $alert['description'] . $alert['timestamp']);
+            
+            // Check if this notification has been read
+            $isRead = false;
+            
+            // Check session first
+            if (isset($_SESSION['read_notifications']) && in_array($notificationId, $_SESSION['read_notifications'])) {
+                $isRead = true;
+            } else {
+                // Check database
+                try {
+                    $readStmt = $pdo->prepare("SELECT COUNT(*) as count FROM notification_reads WHERE user_id = ? AND notification_id = ?");
+                    $readStmt->execute([$userId, $notificationId]);
+                    if ($readStmt->fetch()['count'] > 0) {
+                        $isRead = true;
+                    }
+                } catch (Exception $e) {
+                    // Ignore errors in read check
+                }
+            }
+            
+            if (!$isRead) {
+                $unreadSecurityCount++;
+            }
+        }
         
         return [
             'today_critical' => 0,
-            'today_high' => $failed_attempts,
-            'today_medium' => $system_events,
-            'total_attempts' => $failed_attempts + $system_events,
+            'today_high' => $unreadSecurityCount,
+            'today_medium' => 0,
+            'total_attempts' => count($securityAlerts),
             'blocked_ips' => 0
         ];
     } catch (Exception $e) {

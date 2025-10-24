@@ -221,11 +221,21 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                             <h4 class="font-medium text-slate-700 mb-3">Ongoing Medical Conditions</h4>
                             <div class="py-2 px-3 bg-white rounded border">
                                 <?php 
+                                // Function to format medical condition names
+                                function formatConditionName($condition) {
+                                    $formatted = str_replace('_', ' ', $condition);
+                                    $formatted = ucwords($formatted);
+                                    return $formatted;
+                                }
+                                
                                 $ongoingConditions = '';
                                 if (isset($formData['ongoing_conditions'])) {
                                     if (is_array($formData['ongoing_conditions'])) {
-                                        // Old format: array of conditions
-                                        $ongoingConditions = !empty($formData['ongoing_conditions']) ? implode(', ', $formData['ongoing_conditions']) : '';
+                                        // Old format: array of conditions - format each one
+                                        $formattedConditions = array_map('formatConditionName', array_filter($formData['ongoing_conditions'], function($c) {
+                                            return $c !== 'others';
+                                        }));
+                                        $ongoingConditions = !empty($formattedConditions) ? implode(', ', $formattedConditions) : '';
                                         if (!empty($formData['ongoing_conditions_other'])) {
                                             $ongoingConditions .= ($ongoingConditions ? ', ' : '') . $formData['ongoing_conditions_other'];
                                         }
@@ -250,9 +260,12 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
                                     // New format: string
                                     $familyHistory = $formData['family_history'];
                                 } elseif (isset($formData['family_conditions'])) {
-                                    // Old format: array of conditions
+                                    // Old format: array of conditions - format each one
                                     if (is_array($formData['family_conditions'])) {
-                                        $familyHistory = !empty($formData['family_conditions']) ? implode(', ', $formData['family_conditions']) : '';
+                                        $formattedFamilyConditions = array_map('formatConditionName', array_filter($formData['family_conditions'], function($c) {
+                                            return $c !== 'others';
+                                        }));
+                                        $familyHistory = !empty($formattedFamilyConditions) ? implode(', ', $formattedFamilyConditions) : '';
                                         if (!empty($formData['family_conditions_other'])) {
                                             $familyHistory .= ($familyHistory ? ', ' : '') . $formData['family_conditions_other'];
                                         }

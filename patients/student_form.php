@@ -347,6 +347,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ?>
 <?php $pageTitle = $id ? 'Edit Student' : 'Register Student'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
+
+<style>
+/* Custom date picker styling to match clinic theme */
+input[type="date"] {
+    color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    opacity: 1;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233971b8'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(57, 113, 184, 0.1);
+    transform: scale(1.05);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+    color: #334155;
+    font-weight: 500;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    background: transparent;
+}
+
+input[type="date"]::-webkit-datetime-edit-text {
+    color: #64748b;
+    padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #334155;
+    background: transparent;
+}
+
+/* Firefox date picker styling */
+input[type="date"]::-moz-placeholder {
+    color: #94a3b8;
+}
+
+/* Custom calendar popup styling */
+input[type="date"]:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+</style>
 	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-2 sm:p-4 md:p-8 overflow-hidden">
 		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-4 sm:p-6 md:p-10 max-h-full flex flex-col">
 			<!-- Back Button -->
@@ -358,15 +416,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					Back
 				</button>
 			</div>
-			<div class="flex items-center justify-between mb-4">
-				<h1 class="text-2xl font-semibold"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
-				<button type="button" id="clearAllFieldsBtnTop" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center gap-2">
-					<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-					</svg>
-					Clear All
-				</button>
-			</div>
+		<div class="flex items-center justify-between mb-4">
+			<h1 class="text-2xl font-semibold"><?= $id ? 'Edit Student' : 'Register Student' ?></h1>
+			<button type="button" id="clearAllFieldsBtnTop" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg transition-colors duration-200 flex items-center gap-2">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+				</svg>
+				Clear All
+			</button>
+		</div>
 			
 			<!-- Re-enrollment Detection Notice -->
 			<?php if ($reenrollmentDetected && $reenrollmentStudent): ?>
@@ -434,9 +492,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			</div>
 			<?php endif; ?>
 			
-			<!-- Popup notifications container -->
-			<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
-			<form method="post" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
+		<!-- Popup notifications container -->
+		<div id="notificationContainer" class="fixed top-20 right-4 z-50 space-y-2"></div>
+		<form method="post" class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto" autocomplete="on">
 				<input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
 				<div class="form-field">
 					<label class="block text-slate-700 mb-1">Full Name <span class="text-red-500">*</span></label>
@@ -457,17 +515,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 						<option value="Female" <?= ($student['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
 					</select>
 				</div>
-				<div>
-					<label class="block text-slate-700 mb-1">Education Level <span class="text-red-500">*</span></label>
-					<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" required data-next-field="rfid">
-						<option value="">Select Education Level</option>
-						<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel) === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
-						<option value="Elementary" <?= (($student['level'] ?? $prefillLevel) === 'Elementary') ? 'selected' : '' ?>>Elementary</option>
-						<option value="High School" <?= (($student['level'] ?? $prefillLevel) === 'High School') ? 'selected' : '' ?>>High School</option>
-						<option value="Senior High School" <?= (($student['level'] ?? $prefillLevel) === 'Senior High School') ? 'selected' : '' ?>>Senior High School</option>
-						<option value="College" <?= (($student['level'] ?? $prefillLevel) === 'College') ? 'selected' : '' ?>>College</option>
-					</select>
-				</div>
+			<div>
+				<label class="block text-slate-700 mb-1">Education Level <span class="text-red-500">*</span></label>
+				<select name="level" id="levelSelect" class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-3 sm:px-4 py-2 sm:py-3 text-slate-800 text-sm sm:text-base" required data-next-field="rfid">
+					<option value="">Select Education Level</option>
+					<option value="Pre-school" <?= (($student['level'] ?? $prefillLevel) === 'Pre-school') ? 'selected' : '' ?>>Pre-school</option>
+					<option value="Elementary" <?= (($student['level'] ?? $prefillLevel) === 'Elementary') ? 'selected' : '' ?>>Elementary</option>
+					<option value="High School" <?= (($student['level'] ?? $prefillLevel) === 'High School') ? 'selected' : '' ?>>High School</option>
+					<option value="Senior High School" <?= (($student['level'] ?? $prefillLevel) === 'Senior High School') ? 'selected' : '' ?>>Senior High School</option>
+					<option value="College" <?= (($student['level'] ?? $prefillLevel) === 'College') ? 'selected' : '' ?>>College</option>
+				</select>
+			</div>
 				<!-- Year/Grade field (dynamic based on level) -->
 				<div id="yearGradeField" class="hidden">
 					<label class="block text-slate-700 mb-1" id="yearGradeLabel">Year/Grade</label>
@@ -559,14 +617,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-					<input type="text" name="dob" id="dob" 
-						   value="<?= isset($student['dob']) && $student['dob'] ? date('d/m/Y', strtotime($student['dob'])) : '' ?>" 
-						   pattern="\d{2}/\d{2}/\d{4}" 
-						   placeholder="DD/MM/YYYY" 
-						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
-						   maxlength="10" 
-						   data-next-field="religion" 
-						   required />
+					<div class="relative">
+						<input type="text" name="dob" id="dob" 
+							   value="<?= isset($student['dob']) && $student['dob'] && $student['dob'] !== '0000-00-00' ? date('d/m/Y', strtotime($student['dob'])) : '' ?>" 
+							   placeholder="DD/MM/YYYY"
+							   class="w-full rounded-xl bg-white border border-slate-300 focus:border-clinic-blue focus:ring-2 focus:ring-clinic-blue/20 px-4 py-3 text-slate-800 cursor-pointer hover:border-clinic-tea/40 transition-colors duration-200" 
+							   data-next-field="religion" 
+							   readonly
+							   required />
+						<div class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer" onclick="toggleCustomCalendar('dob')">
+							<svg class="w-5 h-5 text-clinic-blue hover:text-clinic-tea transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+							</svg>
+						</div>
+					</div>
 					<div id="dobError" class="text-red-500 text-sm mt-1 hidden"></div>
 				</div>
 				<div>
@@ -666,9 +730,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 					</div>
 					<a href="../admin/dashboard.php" class="mt-2 inline-block w-full text-center border border-slate-300 rounded-xl py-3 hover:bg-slate-50">Cancel</a>
 				</div>
-			</form>
+		</form>
+	</div>
+</div>
+
+<!-- Custom Calendar Modal -->
+<div id="customCalendarModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+	<div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 w-80 max-w-[90vw] mx-4">
+		<!-- Calendar Header -->
+		<div class="flex items-center justify-between p-3 border-b border-clinic-tea/20">
+			<button id="prevMonth" class="p-1.5 rounded-lg bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 flex-shrink-0">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+				</svg>
+			</button>
+			<div class="flex items-center gap-1 flex-1 justify-center overflow-hidden">
+				<select id="monthSelect" class="bg-transparent text-clinic-dark font-semibold text-sm focus:outline-none cursor-pointer" size="1">
+					<option value="0">Jan</option>
+					<option value="1">Feb</option>
+					<option value="2">Mar</option>
+					<option value="3">Apr</option>
+					<option value="4">May</option>
+					<option value="5">Jun</option>
+					<option value="6">Jul</option>
+					<option value="7">Aug</option>
+					<option value="8">Sep</option>
+					<option value="9">Oct</option>
+					<option value="10">Nov</option>
+					<option value="11">Dec</option>
+				</select>
+				<select id="yearSelect" class="bg-transparent text-clinic-dark font-semibold text-sm focus:outline-none cursor-pointer" size="1">
+					<!-- Years will be populated by JavaScript -->
+				</select>
+			</div>
+			<button id="nextMonth" class="p-1.5 rounded-lg bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 flex-shrink-0">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+				</svg>
+			</button>
+		</div>
+		
+		<!-- Calendar Body -->
+		<div class="p-3">
+			<!-- Days of week -->
+			<div class="grid grid-cols-7 gap-0.5 mb-1">
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">S</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">M</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">T</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">W</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">T</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">F</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">S</div>
+			</div>
+			
+			<!-- Calendar grid with fixed height -->
+			<div id="calendarGrid" class="grid grid-cols-7 gap-0.5 h-48">
+				<!-- Calendar days will be populated by JavaScript -->
+			</div>
+		</div>
+		
+		<!-- Calendar Footer -->
+		<div class="flex items-center justify-between p-3 border-t border-clinic-tea/20">
+			<button id="clearDate" class="px-3 py-1.5 text-clinic-red hover:bg-clinic-red/10 rounded-lg transition-colors duration-200 font-medium text-sm">
+				Clear
+			</button>
+			<button id="todayDate" class="px-3 py-1.5 bg-clinic-blue text-white hover:bg-clinic-blue/80 rounded-lg transition-colors duration-200 font-medium text-sm">
+				Today
+			</button>
 		</div>
 	</div>
+</div>
+
+<!-- Back Button Script -->
+<script>
+// Education level handler is now handled by the simple handler below
+
+// Simple back navigation function - defined early for onclick handlers
+function goBack() {
+    console.log('goBack called - history length:', window.history.length);
+    // Always use browser back - this goes to the actual previous page
+    window.history.back();
+}
+
+// Add ESC key support for back navigation
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.key === 'Esc') {
+            console.log('ESC pressed - going back');
+            goBack();
+        }
+    });
+});
+</script>
+
+<!-- Calendar Dropdown Styling -->
+<style>
+	/* Calendar modal container */
+	#customCalendarModal {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 9999;
+	}
+	
+	/* Limit dropdown select width */
+	#monthSelect, #yearSelect {
+		max-width: 75px;
+		min-width: 60px;
+		text-align: center;
+		padding: 2px 4px;
+		border: 1px solid rgba(200, 214, 155, 0.3);
+		border-radius: 4px;
+	}
+	
+	#monthSelect {
+		max-width: 65px;
+	}
+	
+	#yearSelect {
+		max-width: 70px;
+	}
+	
+	/* Style the dropdown options to prevent overflow */
+	#yearSelect option, #monthSelect option {
+		padding: 4px;
+		font-size: 13px;
+	}
+	
+	/* Fixed calendar grid height */
+	#calendarGrid {
+		min-height: 192px;
+		max-height: 192px;
+		height: 192px;
+	}
+	
+	/* Ensure calendar modal stays within viewport */
+	#customCalendarModal > div {
+		max-height: calc(100vh - 2rem);
+		max-width: calc(100vw - 2rem);
+	}
+</style>
 
 	<!-- Data Privacy Modal -->
 	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
@@ -868,63 +1071,56 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize real-time validation
     setupRealTimeValidation();
+    
+    // Simple Education Level Handler
     const levelSelect = document.getElementById('levelSelect');
     const yearGradeField = document.getElementById('yearGradeField');
-    const yearGradeLabel = document.getElementById('yearGradeLabel');
     const yearGradeInput = document.getElementById('yearGradeInput');
     const courseField = document.getElementById('courseField');
     const blockField = document.getElementById('blockField');
     const sectionField = document.getElementById('sectionField');
     const strandField = document.getElementById('strandField');
 
-    function updateFieldsForLevel(level) {
+    function handleLevelChange() {
+        if (!levelSelect) return;
+        
+        const level = levelSelect.value;
+        
         // Hide all fields first
-        yearGradeField.classList.add('hidden');
-        courseField.classList.add('hidden');
-        blockField.classList.add('hidden');
-        sectionField.classList.add('hidden');
-        strandField.classList.add('hidden');
-
-        if (level === 'Pre-school') {
-            // Pre-school has no grade level or section fields
-        } else if (level === 'Elementary') {
-            yearGradeField.classList.remove('hidden');
-            yearGradeLabel.textContent = 'Grade Level';
-            yearGradeInput.innerHTML = '<option value="">Select Grade Level</option><option value="Grade 1">Grade 1</option><option value="Grade 2">Grade 2</option><option value="Grade 3">Grade 3</option><option value="Grade 4">Grade 4</option><option value="Grade 5">Grade 5</option><option value="Grade 6">Grade 6</option>';
-            sectionField.classList.remove('hidden');
+        if (yearGradeField) yearGradeField.classList.add('hidden');
+        if (courseField) courseField.classList.add('hidden');
+        if (blockField) blockField.classList.add('hidden');
+        if (sectionField) sectionField.classList.add('hidden');
+        if (strandField) strandField.classList.add('hidden');
+        
+        // Show fields based on level
+        if (level === 'Elementary') {
+            if (yearGradeField) yearGradeField.classList.remove('hidden');
+            if (sectionField) sectionField.classList.remove('hidden');
+            if (yearGradeInput) yearGradeInput.innerHTML = '<option value="">Select Grade</option><option value="Grade 1">Grade 1</option><option value="Grade 2">Grade 2</option><option value="Grade 3">Grade 3</option><option value="Grade 4">Grade 4</option><option value="Grade 5">Grade 5</option><option value="Grade 6">Grade 6</option>';
         } else if (level === 'High School') {
-            yearGradeField.classList.remove('hidden');
-            yearGradeLabel.textContent = 'Grade Level';
-            yearGradeInput.innerHTML = '<option value="">Select Grade Level</option><option value="Grade 7">Grade 7</option><option value="Grade 8">Grade 8</option><option value="Grade 9">Grade 9</option><option value="Grade 10">Grade 10</option>';
-            sectionField.classList.remove('hidden');
+            if (yearGradeField) yearGradeField.classList.remove('hidden');
+            if (sectionField) sectionField.classList.remove('hidden');
+            if (yearGradeInput) yearGradeInput.innerHTML = '<option value="">Select Grade</option><option value="Grade 7">Grade 7</option><option value="Grade 8">Grade 8</option><option value="Grade 9">Grade 9</option><option value="Grade 10">Grade 10</option>';
         } else if (level === 'Senior High School') {
-            yearGradeField.classList.remove('hidden');
-            yearGradeLabel.textContent = 'Grade Level';
-            yearGradeInput.innerHTML = '<option value="">Select Grade Level</option><option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option>';
-            strandField.classList.remove('hidden');
+            if (yearGradeField) yearGradeField.classList.remove('hidden');
+            if (strandField) strandField.classList.remove('hidden');
+            if (yearGradeInput) yearGradeInput.innerHTML = '<option value="">Select Grade</option><option value="Grade 11">Grade 11</option><option value="Grade 12">Grade 12</option>';
         } else if (level === 'College') {
-            yearGradeField.classList.remove('hidden');
-            yearGradeLabel.textContent = 'Year Level';
-            yearGradeInput.innerHTML = '<option value="">Select Year Level</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="4th Year">4th Year</option><option value="5th Year">5th Year</option>';
-            courseField.classList.remove('hidden');
-            blockField.classList.remove('hidden');
-        }
-
-        // Restore existing value if available
-        const existingValue = yearGradeInput.getAttribute('data-existing-value');
-        if (existingValue) {
-            yearGradeInput.value = existingValue;
+            if (yearGradeField) yearGradeField.classList.remove('hidden');
+            if (courseField) courseField.classList.remove('hidden');
+            if (blockField) blockField.classList.remove('hidden');
+            if (yearGradeInput) yearGradeInput.innerHTML = '<option value="">Select Year</option><option value="1st Year">1st Year</option><option value="2nd Year">2nd Year</option><option value="3rd Year">3rd Year</option><option value="4th Year">4th Year</option><option value="5th Year">5th Year</option>';
         }
     }
 
+    // Add event listener
     if (levelSelect) {
-        levelSelect.addEventListener('change', function() {
-            updateFieldsForLevel(this.value);
-        });
-
-        // Initialize fields if level is already selected
+        levelSelect.addEventListener('change', handleLevelChange);
+        
+        // Initialize on page load
         if (levelSelect.value) {
-            updateFieldsForLevel(levelSelect.value);
+            handleLevelChange();
         }
     }
 
@@ -1030,12 +1226,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Auto-trigger level change if prefill level is set
     <?php if ($prefillLevel && !$student): ?>
-    const levelSelectForAuto = document.getElementById('levelSelect');
-    if (levelSelectForAuto) {
-        // Set the value first, then trigger change event
-        levelSelectForAuto.value = '<?= htmlspecialchars($prefillLevel) ?>';
-        // Trigger change event to populate dependent fields
-        levelSelectForAuto.dispatchEvent(new Event('change'));
+    if (levelSelect) {
+        levelSelect.value = '<?= htmlspecialchars($prefillLevel) ?>';
+        handleLevelChange();
     }
     <?php endif; ?>
     
@@ -1118,9 +1311,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearAllBtnTop.addEventListener('click', function() {
             if (confirm('Are you sure you want to clear all fields? This action cannot be undone.')) {
                 // Clear all input fields
-                const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea');
+                const inputs = document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], input[type="time"], textarea, input[type="password"]');
                 inputs.forEach(input => {
-                    input.value = '';
+                    // Don't clear CSRF token
+                    if (input.name !== 'csrf_token') {
+                        input.value = '';
+                    }
                 });
                 
                 // Clear all select fields
@@ -1135,6 +1331,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     checkbox.checked = false;
                 });
                 
+                // Hide dynamic fields
+                if (yearGradeField) yearGradeField.classList.add('hidden');
+                if (courseField) courseField.classList.add('hidden');
+                if (blockField) blockField.classList.add('hidden');
+                if (sectionField) sectionField.classList.add('hidden');
+                if (strandField) strandField.classList.add('hidden');
+                
                 // Reset consent checkbox
                 const consentCheckbox = document.getElementById('consentedChk');
                 if (consentCheckbox) {
@@ -1146,13 +1349,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const submitBtn = document.getElementById('saveStudentBtn');
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.className = submitBtn.className.replace('bg-clinic-blue', 'bg-slate-400');
+                    submitBtn.classList.remove('bg-sky-600', 'hover:bg-sky-700', 'cursor-pointer', 'bg-clinic-blue');
+                    submitBtn.classList.add('bg-slate-400', 'cursor-not-allowed');
                 }
                 
                 // Reset form help text
                 const formHelpText = document.getElementById('formHelpText');
                 if (formHelpText) {
-                    formHelpText.textContent = 'Fill in all required fields (Name, Level, RFID) and read the complete Data Privacy Consent';
+                    formHelpText.textContent = 'Fill in all required fields (Name, Gender, Level, RFID, Date of Birth, and at least one contact)';
                 }
                 
                 // Reset continue text
@@ -1160,6 +1364,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (continueText) {
                     continueText.textContent = 'Complete all required fields and read the Data Privacy Consent';
                 }
+                
+                // Show success notification
+                showNotification('All fields have been cleared successfully', 'success', 2000);
             }
         });
     }
@@ -1319,20 +1526,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function validateBirthDate(dateString) {
-        const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-        const match = dateString.match(dateRegex);
-        
-        if (!match) {
-            return { valid: false, message: 'Please enter date in DD/MM/YYYY format' };
+        if (!dateString) {
+            return { valid: false, message: 'Please select a birth date' };
         }
         
-        const day = parseInt(match[1], 10);
-        const month = parseInt(match[2], 10);
-        const year = parseInt(match[3], 10);
+        const date = new Date(dateString);
         
         // Check if date is valid
-        const date = new Date(year, month - 1, day);
-        if (date.getDate() !== day || date.getMonth() !== month - 1 || date.getFullYear() !== year) {
+        if (isNaN(date.getTime())) {
             return { valid: false, message: 'Please enter a valid date' };
         }
         
@@ -1381,19 +1582,6 @@ document.addEventListener('DOMContentLoaded', function() {
     dobInput.addEventListener('input', updateAge);
     dobInput.addEventListener('blur', updateAge);
 
-    // Auto-format date input (add slashes automatically)
-    dobInput.addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
-        
-        if (value.length >= 2) {
-            value = value.substring(0, 2) + '/' + value.substring(2);
-        }
-        if (value.length >= 5) {
-            value = value.substring(0, 5) + '/' + value.substring(5, 9);
-        }
-        
-        e.target.value = value;
-    });
 
     // Calculate age on page load if dob is already filled
     if (dobInput.value) {
@@ -1469,30 +1657,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial validation
     validateForm();
 });
-
-// Smart back navigation function
-function goBack() {
-    const referrer = document.referrer;
-    const currentUrl = window.location.href;
-    
-    // If there's a referrer and it's not the same page
-    if (referrer && referrer !== currentUrl) {
-        // Check if coming from specific pages and navigate accordingly
-        if (referrer.includes('school_listing.php')) {
-            window.location.href = '../patients/school_listing.php';
-        } else if (referrer.includes('rfid_portal.php')) {
-            window.location.href = '../rfid/rfid_portal.php';
-        } else if (referrer.includes('dashboard.php')) {
-            window.location.href = '../admin/dashboard.php';
-        } else {
-            // Default to browser back
-            window.history.back();
-        }
-    } else {
-        // Default fallback - go to dashboard
-        window.location.href = '../admin/dashboard.php';
-    }
-}
 
 // Re-enrollment detection system
 let reenrollmentCheckTimeout;
@@ -1632,7 +1796,199 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    }
 });
-</script>
 
 <script src="../core/validation.js"></script>
+
+<!-- Custom Calendar Script -->
+<script>
+// Custom Calendar Functionality - Global Scope
+let currentCalendarDate = new Date();
+let selectedDate = null;
+let currentInputField = null;
+
+function toggleCustomCalendar(inputId) {
+    currentInputField = inputId;
+    const modal = document.getElementById('customCalendarModal');
+    const input = document.getElementById(inputId);
+    
+    if (!modal) {
+        console.error('Calendar modal not found!');
+        return;
+    }
+    
+    // Parse current date from input if it exists
+    if (input.value) {
+        const dateParts = input.value.split('/');
+        if (dateParts.length === 3) {
+            currentCalendarDate = new Date(dateParts[2], dateParts[0] - 1, dateParts[1]);
+            selectedDate = new Date(currentCalendarDate);
+        }
+    }
+    
+    updateCalendar();
+    modal.classList.remove('hidden');
+    console.log('Calendar modal opened for:', inputId);
+}
+
+function updateCalendar() {
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const calendarGrid = document.getElementById('calendarGrid');
+    
+    if (!monthSelect || !yearSelect || !calendarGrid) {
+        console.error('Calendar elements not found!');
+        return;
+    }
+    
+    // Update month and year selects
+    monthSelect.value = currentCalendarDate.getMonth();
+    
+    // Populate years (1900 to current year + 10)
+    if (yearSelect.children.length === 0) {
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear + 10; year >= 1900; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        }
+    }
+    yearSelect.value = currentCalendarDate.getFullYear();
+    
+    // Clear calendar grid
+    calendarGrid.innerHTML = '';
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1);
+    const lastDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'h-8 flex items-center justify-center text-clinic-dark/30';
+        calendarGrid.appendChild(emptyCell);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'h-8 flex items-center justify-center text-clinic-dark hover:bg-clinic-blue/10 rounded cursor-pointer transition-colors duration-200 text-sm';
+        dayCell.textContent = day;
+        
+        // Check if this is the selected date
+        if (selectedDate && 
+            selectedDate.getDate() === day && 
+            selectedDate.getMonth() === currentCalendarDate.getMonth() && 
+            selectedDate.getFullYear() === currentCalendarDate.getFullYear()) {
+            dayCell.className += ' bg-clinic-blue text-white hover:bg-clinic-blue/80';
+        }
+        
+        // Check if this is today
+        const today = new Date();
+        if (day === today.getDate() && 
+            currentCalendarDate.getMonth() === today.getMonth() && 
+            currentCalendarDate.getFullYear() === today.getFullYear()) {
+            dayCell.className += ' border-2 border-clinic-tea';
+        }
+        
+        dayCell.addEventListener('click', () => selectDate(day));
+        calendarGrid.appendChild(dayCell);
+    }
+}
+
+function selectDate(day) {
+    selectedDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), day);
+    const input = document.getElementById(currentInputField);
+    // Format as DD/MM/YYYY to match PHP backend expectation
+    const formattedDate = `${String(day).padStart(2, '0')}/${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}/${currentCalendarDate.getFullYear()}`;
+    input.value = formattedDate;
+    
+    // Close calendar
+    document.getElementById('customCalendarModal').classList.add('hidden');
+    
+    // Trigger age calculation
+    calculateAgeFromDate(selectedDate);
+}
+
+function calculateAgeFromDate(birthDate) {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    
+    const ageInput = document.getElementById('ageInput');
+    if (ageInput) {
+        ageInput.value = age >= 0 ? age : 0;
+    }
+}
+
+// Calendar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('customCalendarModal');
+    const prevMonth = document.getElementById('prevMonth');
+    const nextMonth = document.getElementById('nextMonth');
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const clearDate = document.getElementById('clearDate');
+    const todayDate = document.getElementById('todayDate');
+    
+    if (!modal || !prevMonth || !nextMonth || !monthSelect || !yearSelect || !clearDate || !todayDate) {
+        console.error('Calendar elements not found on page load');
+        return;
+    }
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+    
+    // Navigation buttons
+    prevMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        updateCalendar();
+    });
+    
+    nextMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        updateCalendar();
+    });
+    
+    // Month/year select changes
+    monthSelect.addEventListener('change', function() {
+        currentCalendarDate.setMonth(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    yearSelect.addEventListener('change', function() {
+        currentCalendarDate.setFullYear(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    // Clear date
+    clearDate.addEventListener('click', function() {
+        const input = document.getElementById(currentInputField);
+        if (input) {
+            input.value = '';
+        }
+        selectedDate = null;
+        modal.classList.add('hidden');
+    });
+    
+    // Today button
+    todayDate.addEventListener('click', function() {
+        const today = new Date();
+        currentCalendarDate = new Date(today);
+        selectedDate = new Date(today);
+        updateCalendar();
+    });
+});
+</script>

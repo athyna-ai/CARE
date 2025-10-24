@@ -18,9 +18,8 @@ if (!$enrollmentId) {
 try {
     // Get enrollment history record
     $stmt = $pdo->prepare('
-        SELECT eh.*, s.* 
+        SELECT eh.*
         FROM enrollment_history eh
-        LEFT JOIN students s ON eh.student_id = s.id
         WHERE eh.id = ?
     ');
     $stmt->execute([$enrollmentId]);
@@ -31,28 +30,40 @@ try {
         exit;
     }
     
-    // Return the data
+    // Construct address from separate address fields
+    $address = '';
+    $addressParts = array_filter([
+        $enrollment['previous_barangay'] ?? '',
+        $enrollment['previous_municipality'] ?? '',
+        $enrollment['previous_province'] ?? ''
+    ]);
+    if (!empty($addressParts)) {
+        $address = implode(', ', $addressParts);
+    }
+    
+    // Return the data - using previous_* fields from enrollment history
     echo json_encode([
         'success' => true,
         'enrollment' => [
-            'previous_level' => $enrollment['previous_level'],
-            'previous_year_grade' => $enrollment['previous_year_grade'],
-            'previous_section' => $enrollment['previous_section'],
-            'previous_strand' => $enrollment['previous_strand'],
-            'previous_course' => $enrollment['previous_course'],
-            'previous_block' => $enrollment['previous_block'],
-            'enrollment_date' => $enrollment['enrollment_date'],
-            'notes' => $enrollment['notes']
+            'previous_level' => $enrollment['previous_level'] ?? null,
+            'previous_year_grade' => $enrollment['previous_year_grade'] ?? null,
+            'previous_section' => $enrollment['previous_section'] ?? null,
+            'previous_strand' => $enrollment['previous_strand'] ?? null,
+            'previous_course' => $enrollment['previous_course'] ?? null,
+            'previous_block' => $enrollment['previous_block'] ?? null,
+            'enrollment_date' => $enrollment['enrollment_date'] ?? null,
+            'notes' => $enrollment['notes'] ?? null
         ],
         'student' => [
-            'name' => $enrollment['name'],
-            'gender' => $enrollment['gender'],
-            'age' => $enrollment['age'],
-            'dob' => $enrollment['dob'],
-            'religion' => $enrollment['religion'],
-            'guardian' => $enrollment['guardian'],
-            'address' => $enrollment['address'],
-            'allergies' => $enrollment['allergies']
+            'name' => $enrollment['previous_name'] ?? null,
+            'gender' => $enrollment['previous_gender'] ?? null,
+            'age' => $enrollment['previous_age'] ?? null,
+            'dob' => $enrollment['previous_dob'] ?? null,
+            'date_of_birth' => $enrollment['previous_dob'] ?? null,
+            'religion' => $enrollment['previous_religion'] ?? null,
+            'guardian' => $enrollment['previous_guardian_name'] ?? null,
+            'address' => $address,
+            'allergies' => $enrollment['previous_allergies'] ?? null
         ]
     ]);
     

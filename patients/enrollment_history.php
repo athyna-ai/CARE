@@ -17,12 +17,15 @@ if ($studentId) {
     $student = $stmt->fetch();
     
     if ($student) {
-        // Get enrollment history (excluding initial entries)
+        // Get enrollment history (excluding initial entries and simple status changes)
+        // Only show re-enrollments and level changes (not status changes to Graduated)
         $stmt = $pdo->prepare('
             SELECT eh.*, u.name as created_by_name
             FROM enrollment_history eh
             LEFT JOIN users u ON eh.created_by = u.id
-            WHERE eh.student_id = ? AND eh.enrollment_type != "initial"
+            WHERE eh.student_id = ? 
+            AND eh.enrollment_type != "initial"
+            AND eh.enrollment_type != "status_change"
             ORDER BY eh.enrollment_date DESC
         ');
         $stmt->execute([$studentId]);
@@ -330,15 +333,16 @@ if ($studentId) {
 <!-- Medical History Details Modal -->
 <div id="medicalHistoryDetailsModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeMedicalHistoryDetailsModal()"></div>
-    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
-        <div class="flex justify-end mb-4">
+    <div class="relative w-full max-w-5xl bg-white rounded-2xl border border-slate-200 shadow-2xl max-h-[calc(100vh-4rem)] flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
+            <h3 class="text-xl font-semibold text-slate-800">Medical Record Details</h3>
             <button onclick="closeMedicalHistoryDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <div id="medicalHistoryDetailsContent">
+        <div id="medicalHistoryDetailsContent" class="flex-1 overflow-y-auto p-6">
             <!-- Content will be loaded via JavaScript -->
         </div>
     </div>
@@ -347,15 +351,16 @@ if ($studentId) {
 <!-- Visitation Log Details Modal -->
 <div id="visitationLogDetailsModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4 md:p-8">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeVisitationLogDetailsModal()"></div>
-    <div class="relative w-full max-w-3xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-8 max-h-[calc(100vh-16rem)] overflow-y-auto">
-        <div class="flex justify-end mb-4">
+    <div class="relative w-full max-w-5xl bg-white rounded-2xl border border-slate-200 shadow-2xl max-h-[calc(100vh-4rem)] flex flex-col">
+        <div class="flex items-center justify-between p-6 border-b border-slate-200 flex-shrink-0">
+            <h3 class="text-xl font-semibold text-slate-800">Visitation Log Details</h3>
             <button onclick="closeVisitationLogDetailsModal()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                 <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <div id="visitationLogDetailsContent">
+        <div id="visitationLogDetailsContent" class="flex-1 overflow-y-auto p-6">
             <!-- Content will be loaded via JavaScript -->
         </div>
     </div>
@@ -437,7 +442,7 @@ function showOldPatientInfo(enrollmentId) {
                                 </div>
                                 <div>
                                     <span class="font-medium text-slate-700">Date of Birth:</span>
-                                    <span class="text-slate-900">${data.student.dob ? new Date(data.student.dob).toLocaleDateString() : 'N/A'}</span>
+                                    <span class="text-slate-900">${(data.student.dob || data.student.date_of_birth) ? new Date(data.student.dob || data.student.date_of_birth).toLocaleDateString() : 'N/A'}</span>
                                 </div>
                                 <div>
                                     <span class="font-medium text-slate-700">Religion:</span>
@@ -535,10 +540,20 @@ function showEnrollmentDetails(enrollmentId) {
                 
                 document.getElementById('enrollmentDetailsContent').innerHTML = `
                     <div class="space-y-4 flex flex-col h-full">
-                        <!-- Header with School Level and Notes -->
+                        <!-- Header with School Level, Period, and Notes -->
                         <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-4 py-3 rounded-xl">
-                            <div class="flex items-center justify-between">
-                                <h2 class="text-lg font-comfortaa font-bold text-white">${data.enrollment.previous_level || 'Enrollment Details'}</h2>
+                            <div class="flex items-center justify-between mb-2">
+                                <div>
+                                    <h2 class="text-lg font-comfortaa font-bold text-white">${data.enrollment.previous_level || 'Enrollment Details'}</h2>
+                                    ${data.enrollmentPeriod ? `
+                                        <p class="text-xs text-white/80 mt-1">
+                                            ${data.enrollmentPeriod.start_date ? 
+                                                `Period: ${new Date(data.enrollmentPeriod.start_date).toLocaleDateString()} - ${new Date(data.enrollmentPeriod.end_date).toLocaleDateString()}` :
+                                                `Period: Start - ${new Date(data.enrollmentPeriod.end_date).toLocaleDateString()}`
+                                            }
+                                        </p>
+                                    ` : ''}
+                                </div>
                                 ${(data.enrollment && data.enrollment.notes && data.enrollment.notes.trim() !== '') ? `
                                     <div class="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-1 border border-white/30">
                                         <p class="text-sm font-poppins text-slate-800 font-medium">${data.enrollment.notes}</p>
@@ -591,7 +606,7 @@ function showEnrollmentDetails(enrollmentId) {
                                         </div>
                                         <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
                                             <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Date of Birth</span>
-                                            <p class="text-sm font-poppins font-semibold text-clinic-dark">${data.student && data.student.date_of_birth ? new Date(data.student.date_of_birth).toLocaleDateString() : 'N/A'}</p>
+                                            <p class="text-sm font-poppins font-semibold text-clinic-dark">${data.student && (data.student.date_of_birth || data.student.dob) ? new Date(data.student.date_of_birth || data.student.dob).toLocaleDateString() : 'N/A'}</p>
                                         </div>
                                         <div class="bg-white/80 backdrop-blur-sm rounded-lg p-2 border border-clinic-tea/20 shadow-sm">
                                             <span class="text-xs font-poppins font-medium text-clinic-dark/60 block mb-1">Gender</span>
@@ -663,18 +678,27 @@ function showEnrollmentDetails(enrollmentId) {
                         <!-- Historical Medical History -->
                         <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col" style="height: 300px;">
                             <div class="bg-gradient-to-r from-clinic-tea to-clinic-vanilla px-3 py-2 flex-shrink-0">
-                                <h2 class="text-sm font-comfortaa font-bold text-clinic-dark">Previous Medical History</h2>
+                                <h2 class="text-sm font-comfortaa font-bold text-clinic-dark">Medical Records for ${data.enrollment.previous_level || 'This Period'}</h2>
+                                <p class="text-xs text-clinic-dark/60 mt-0.5">Records during this enrollment period</p>
                             </div>
                             <div class="p-2 flex-1 overflow-y-auto">
                                 ${data.medicalHistory && data.medicalHistory.length > 0 ? `
                                     ${data.medicalHistory.map(record => `
                                         <div class="bg-clinic-ivory/40 rounded-2xl p-3 border border-clinic-tea/20 mb-2">
                                             <div class="flex justify-between items-center mb-2">
-                                                <div>
-                                                    <p class="font-poppins font-semibold text-clinic-dark">${record.form_type || 'Medical Record'}</p>
-                                                    <p class="text-xs text-clinic-dark/60">${new Date(record.created_at).toLocaleDateString()}</p>
+                                                <div class="flex-1">
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <p class="font-poppins font-semibold text-clinic-dark">${record.form_type || 'Medical Record'}</p>
+                                                        ${record.record_status === 'archived' ? `
+                                                            <span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium">Archived</span>
+                                                        ` : ''}
+                                                        ${record.education_level ? `
+                                                            <span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">${record.education_level}</span>
+                                                        ` : ''}
+                                                    </div>
+                                                    <p class="text-xs text-clinic-dark/60">${new Date(record.created_at || record.archived_at).toLocaleDateString()}</p>
                                                 </div>
-                                                <button type="button" onclick="event.preventDefault(); event.stopPropagation(); viewMedicalRecordDetails(${record.id}); return false;" class="text-xs bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-blue px-2 py-1 rounded transition-colors">
+                                                <button type="button" onclick="event.preventDefault(); event.stopPropagation(); viewMedicalRecordDetails(${record.id || record.original_id}, ${record.record_status === 'archived' ? 'true' : 'false'}); return false;" class="text-xs bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-blue px-2 py-1 rounded transition-colors flex-shrink-0">
                                                     View Details
                                                 </button>
                                             </div>
@@ -685,7 +709,7 @@ function showEnrollmentDetails(enrollmentId) {
                                         <div class="w-8 h-8 rounded-lg bg-clinic-ivory/60 mx-auto mb-2 flex items-center justify-center">
                                             <div class="text-lg">📋</div>
                                         </div>
-                                        <p class="text-clinic-dark/60 font-poppins font-medium text-xs">No previous medical history</p>
+                                        <p class="text-clinic-dark/60 font-poppins font-medium text-xs">No medical records during ${data.enrollment.previous_level || 'this period'}</p>
                                     </div>
                                 `}
                             </div>
@@ -694,7 +718,8 @@ function showEnrollmentDetails(enrollmentId) {
                         <!-- Historical Visitation Logs -->
                         <div class="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-clinic-tea/20 overflow-hidden flex flex-col" style="height: 300px;">
                             <div class="bg-gradient-to-r from-clinic-blue to-clinic-tea px-3 py-2 flex-shrink-0">
-                                <h2 class="text-sm font-comfortaa font-bold text-white">Previous Visitation Logs</h2>
+                                <h2 class="text-sm font-comfortaa font-bold text-white">Clinic Visits for ${data.enrollment.previous_level || 'This Period'}</h2>
+                                <p class="text-xs text-white/80 mt-0.5">Visitation logs during this enrollment period</p>
                             </div>
                             <div class="p-2 flex-1 overflow-y-auto">
                                 ${data.visitationLogs && data.visitationLogs.length > 0 ? `
@@ -705,17 +730,28 @@ function showEnrollmentDetails(enrollmentId) {
                                                     <th class="text-left py-2 px-3 font-poppins font-semibold text-clinic-dark/60">ID</th>
                                                     <th class="text-left py-2 px-3 font-poppins font-semibold text-clinic-dark/60">Reason</th>
                                                     <th class="text-left py-2 px-3 font-poppins font-semibold text-clinic-dark/60">Date/Time</th>
+                                                    <th class="text-left py-2 px-3 font-poppins font-semibold text-clinic-dark/60">Status</th>
                                                     <th class="text-left py-2 px-3 font-poppins font-semibold text-clinic-dark/60">Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 ${data.visitationLogs.map(visit => `
                                                     <tr class="border-b border-clinic-tea/10">
-                                                        <td class="py-2 px-3 font-poppins font-medium text-clinic-dark">${visit.id}</td>
+                                                        <td class="py-2 px-3 font-poppins font-medium text-clinic-dark">${visit.id || visit.original_id}</td>
                                                         <td class="py-2 px-3 font-poppins text-clinic-dark">${visit.reason || 'N/A'}</td>
-                                                        <td class="py-2 px-3 font-poppins text-clinic-dark/60">${new Date(visit.created_at).toLocaleString()}</td>
+                                                        <td class="py-2 px-3 font-poppins text-clinic-dark/60">${new Date(visit.created_at || visit.archived_at).toLocaleString()}</td>
                                                         <td class="py-2 px-3">
-                                                            <button type="button" onclick="event.preventDefault(); event.stopPropagation(); viewVisitationDetails(${visit.id}); return false;" class="text-xs bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-blue px-2 py-1 rounded transition-colors">
+                                                            <div class="flex flex-wrap gap-1">
+                                                                ${visit.log_status === 'archived' ? `
+                                                                    <span class="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-xs rounded-full font-medium whitespace-nowrap">Archived</span>
+                                                                ` : ''}
+                                                                ${visit.education_level ? `
+                                                                    <span class="px-1.5 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium whitespace-nowrap">${visit.education_level}</span>
+                                                                ` : ''}
+                                                            </div>
+                                                        </td>
+                                                        <td class="py-2 px-3">
+                                                            <button type="button" onclick="event.preventDefault(); event.stopPropagation(); viewVisitationDetails(${visit.id || visit.original_id}, ${visit.log_status === 'archived' ? 'true' : 'false'}); return false;" class="text-xs bg-clinic-tea/20 hover:bg-clinic-tea/30 text-clinic-blue px-2 py-1 rounded transition-colors whitespace-nowrap">
                                                                 View Details
                                                             </button>
                                                         </td>
@@ -729,7 +765,7 @@ function showEnrollmentDetails(enrollmentId) {
                                         <div class="w-8 h-8 rounded-lg bg-clinic-ivory/60 mx-auto mb-2 flex items-center justify-center">
                                             <div class="text-lg">🏥</div>
                                         </div>
-                                        <p class="text-clinic-dark/60 font-poppins font-medium text-xs">No previous visits recorded</p>
+                                        <p class="text-clinic-dark/60 font-poppins font-medium text-xs">No clinic visits during ${data.enrollment.previous_level || 'this period'}</p>
                                     </div>
                                 `}
                             </div>
@@ -771,8 +807,8 @@ function closeVisitationLogDetailsModal() {
     document.getElementById('visitationLogDetailsModal').classList.remove('flex');
 }
 
-function viewVisitationDetails(visitationId) {
-    console.log('Opening visitation details for ID:', visitationId);
+function viewVisitationDetails(visitationId, isArchived = false) {
+    console.log('Opening visitation details for ID:', visitationId, 'Archived:', isArchived);
     
     // Show loading
     document.getElementById('visitationLogDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
@@ -783,8 +819,9 @@ function viewVisitationDetails(visitationId) {
     modal.classList.add('flex');
     console.log('Modal classes:', modal.className);
     
-    // Fetch visitation log details
-    fetch(`../logs/visitation_details_view.php?id=${visitationId}&ajax=1`)
+    // Fetch visitation log details (with archived parameter if needed)
+    const archivedParam = isArchived ? '&archived=1' : '';
+    fetch(`../logs/visitation_details_view.php?id=${visitationId}&ajax=1${archivedParam}`)
         .then(response => response.text())
         .then(html => {
             document.getElementById('visitationLogDetailsContent').innerHTML = html;
@@ -795,8 +832,8 @@ function viewVisitationDetails(visitationId) {
         });
 }
 
-function viewMedicalRecordDetails(recordId) {
-    console.log('Opening medical record details for ID:', recordId);
+function viewMedicalRecordDetails(recordId, isArchived = false) {
+    console.log('Opening medical record details for ID:', recordId, 'Archived:', isArchived);
     
     // Show loading
     document.getElementById('medicalHistoryDetailsContent').innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div><p class="mt-2 text-gray-600">Loading...</p></div>';
@@ -807,8 +844,9 @@ function viewMedicalRecordDetails(recordId) {
     modal.classList.add('flex');
     console.log('Modal classes:', modal.className);
     
-    // Fetch medical record details
-    fetch(`medical_record_view.php?id=${recordId}&ajax=1`)
+    // Fetch medical record details (with archived parameter if needed)
+    const archivedParam = isArchived ? '&archived=1' : '';
+    fetch(`medical_record_view.php?id=${recordId}&ajax=1${archivedParam}`)
         .then(response => response.text())
         .then(html => {
             document.getElementById('medicalHistoryDetailsContent').innerHTML = html;

@@ -8,11 +8,47 @@ $pdo = get_pdo();
 
 // Handle clear all notifications action
 if (isset($_POST['action']) && $_POST['action'] === 'clear_all') {
-    // Since notifications are generated dynamically, we'll mark them as "cleared" in session
-    $_SESSION['notifications_cleared'] = time();
+    // Option 1: Mark current timestamp as "cleared" - notifications before this won't show
+    $_SESSION['notifications_cleared'] = date('Y-m-d H:i:s');
+    
+    // Option 2: Clear old activity logs (older than 7 days) that generate notifications
+    try {
+        // Delete old security alerts that are not critical
+        $pdo->exec("
+            DELETE FROM activity_logs 
+            WHERE timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)
+            AND action NOT IN ('login', 'logout', 'user_created', 'user_deleted')
+        ");
+        
+        // Log the action
+        log_activity(
+            $pdo,
+            $_SESSION['user']['id'] ?? 0,
+            'admin',
+            'clear_notifications',
+            'Cleared all notifications older than 7 days',
+            true,
+            $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        );
+    } catch (Exception $e) {
+        error_log("Error clearing notifications: " . $e->getMessage());
+    }
+    
+    // Clear session notification data
+    unset($_SESSION['read_notifications']);
     
     // Redirect to prevent resubmission
     header('Location: notifications.php?cleared=1');
+    exit;
+}
+
+// Handle reset filter action
+if (isset($_POST['action']) && $_POST['action'] === 'reset_filter') {
+    // Remove the cleared timestamp to show all notifications again
+    unset($_SESSION['notifications_cleared']);
+    
+    // Redirect to prevent resubmission
+    header('Location: notifications.php?filter_reset=1');
     exit;
 }
 
@@ -45,8 +81,6 @@ try {
                     WHEN action LIKE '%XSS Attack%' THEN 'XSS Attack Attempt'
                     WHEN action LIKE '%Directory Traversal%' THEN 'Directory Traversal Attempt'
                     WHEN action LIKE '%Admin Directory%' THEN 'Admin Directory Breach'
-                    WHEN action LIKE '%Unauthorized%' THEN 'Unauthorized Access Attempt'
-                    WHEN action LIKE '%login_failed%' THEN 'Failed Login Attempt'
                     ELSE 'Security Breach Attempt'
                 END as title,
                 CONCAT(action, ' from IP ', ip_address, ' - ', description) as message,
@@ -54,9 +88,11 @@ try {
                 CASE WHEN timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR) THEN 0 ELSE 1 END as read_status,
                 CONCAT('logs/logs.php?filter=security&ip=', ip_address) as action_url
             FROM activity_logs 
-            WHERE (success = 0 AND user_type = 'system') 
-                OR action IN ('login_failed', 'SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach', 'Unauthorized Admin Access', 'Unauthorized Medical Access')
+            WHERE action IN ('SQL Injection Blocked', 'XSS Attack Blocked', 'Directory Traversal Blocked', 'Admin Directory Breach')
                 AND action NOT IN ('admin_creation_attempt', 'user_deletion_attempt')
+                AND action NOT LIKE '%unauthorized_access%'
+                AND action NOT LIKE '%Unauthorized%'
+                AND action NOT LIKE '%login_failed%'
                 AND timestamp > DATE_SUB(NOW(), INTERVAL 90 DAY)
             ORDER BY timestamp DESC
             LIMIT 20
@@ -378,6 +414,15 @@ try {
     $notifications = [];
 }
 
+// Filter out notifications if "clear all" was used
+if (isset($_SESSION['notifications_cleared'])) {
+    $clearedTimestamp = $_SESSION['notifications_cleared'];
+    $notifications = array_filter($notifications, function($notification) use ($clearedTimestamp) {
+        // Only show notifications that are newer than the cleared timestamp
+        return strtotime($notification['timestamp']) > strtotime($clearedTimestamp);
+    });
+}
+
 // Handle mark all as read action (after notifications are loaded)
 if (isset($_POST['action']) && $_POST['action'] === 'mark_all_read') {
     // Mark all notifications as read by storing their IDs in session
@@ -434,6 +479,17 @@ include __DIR__ . '/partials/header.php';
         </svg>
     </button>
     All notifications have been marked as read successfully.
+</div>
+<?php endif; ?>
+
+<?php if (isset($_GET['filter_reset']) && $_GET['filter_reset'] == '1'): ?>
+<div id="successAlert" class="fixed top-24 right-6 z-50 p-4 bg-purple-100 border border-purple-400 text-purple-700 rounded-lg max-w-md shadow-lg">
+    <button onclick="closeAlert()" class="absolute top-2 right-2 text-purple-600 hover:text-purple-800 transition-colors duration-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+    </button>
+    Showing all notifications. Filter has been reset.
 </div>
 <?php endif; ?>
 
@@ -574,6 +630,19 @@ include __DIR__ . '/partials/header.php';
                     </svg>
                     Refresh
                 </button>
+                
+                <?php if (isset($_SESSION['notifications_cleared'])): ?>
+                <form method="POST" class="inline">
+                    <input type="hidden" name="action" value="reset_filter">
+                    <button type="submit" class="px-6 py-3 bg-clinic-purple hover:bg-clinic-purple/80 text-white rounded-lg font-medium transition-colors duration-200 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        Show All Notifications
+                    </button>
+                </form>
+                <?php endif; ?>
             </div>
 
             <!-- Notifications List -->

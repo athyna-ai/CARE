@@ -193,36 +193,8 @@
                     return;
                 }
                 
-                // Filter out login_failed notifications and show them via global system
-                const loginFailedNotifications = notifications.filter(n => 
-                    n.title.includes('Failed Login Attempt') || 
-                    n.message.includes('login_failed') || 
-                    n.message.includes('Invalid credentials')
-                );
-                
-                // Show login_failed notifications via global system
-                loginFailedNotifications.forEach(notification => {
-                    console.log('Found login_failed notification:', notification.message);
-                    // Check if this notification was already closed
-                    const loginKey = 'login_failed_' + btoa(notification.message).substr(0, 20);
-                    const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
-                    
-                    if (!closedNotifications.includes(loginKey)) {
-                        console.log('Showing login_failed notification via global system');
-                        window.GlobalNotifications.show(notification.message, 'error', 8000);
-                    } else {
-                        console.log('Login_failed notification already closed, skipping');
-                    }
-                });
-                
-                // Remove login_failed notifications from the dropdown list
-                const filteredNotifications = notifications.filter(n => 
-                    !n.title.includes('Failed Login Attempt') && 
-                    !n.message.includes('login_failed') && 
-                    !n.message.includes('Invalid credentials')
-                );
-                
-                this.list.innerHTML = filteredNotifications.map(notification => {
+                // Render all notifications (login_failed are now excluded from backend)
+                this.list.innerHTML = notifications.map(notification => {
                     const timeAgo = this.getTimeAgo(notification.timestamp);
                     const iconClass = this.getIconClass(notification.type);
                     const bgClass = notification.read ? 'bg-white' : 'bg-clinic-ivory/50';
@@ -499,6 +471,12 @@
             show(message, type = 'info', duration = 4000, persistent = false) {
                 if (!this.container) this.init();
                 
+                // Filter out unauthorized_access messages completely
+                if (message.includes('unauthorized_access') || message.includes('Unauthorized access attempt to:')) {
+                    console.log('Unauthorized access notification filtered out');
+                    return null;
+                }
+                
                 // Create unique identifier for failed login attempts to prevent duplicates
                 let id = 'notification-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
                 
@@ -596,7 +574,10 @@
                     const closedNotifications = JSON.parse(localStorage.getItem('closedNotifications') || '[]');
                     if (!closedNotifications.includes(id)) {
                         closedNotifications.push(id);
-                        localStorage.setItem('closedNotifications', JSON.stringify(closedNotifications));
+                        
+                        // Keep only last 50 closed notifications to prevent localStorage bloat
+                        const trimmed = closedNotifications.slice(-50);
+                        localStorage.setItem('closedNotifications', JSON.stringify(trimmed));
                     }
                 }
                 
@@ -627,6 +608,13 @@
                         const now = Date.now();
                         
                         notifications.forEach(notificationData => {
+                            // Filter out unauthorized_access messages
+                            if (notificationData.message.includes('unauthorized_access') || 
+                                notificationData.message.includes('Unauthorized access attempt to:')) {
+                                console.log('Filtered out persisted unauthorized_access notification');
+                                return;
+                            }
+                            
                             // Only show notifications that are less than 24 hours old
                             if (now - notificationData.timestamp < 24 * 60 * 60 * 1000) {
                                 this.show(notificationData.message, notificationData.type, 0, true);
@@ -675,6 +663,13 @@
                     // Decode the message
                     const decodedMessage = decodeURIComponent(message);
                     
+                    // Filter out unauthorized_access messages
+                    if (decodedMessage.includes('unauthorized_access') || decodedMessage.includes('Unauthorized access attempt to:')) {
+                        console.log('Filtered out unauthorized_access notification from URL');
+                        this.cleanURLParameters();
+                        return;
+                    }
+                    
                     // Check if this is a login failure notification
                     if (decodedMessage.includes('login_failed') || decodedMessage.includes('Invalid credentials') || decodedMessage.includes('attempt')) {
                         // Use the global notification system which handles duplicates
@@ -709,6 +704,30 @@
         
         // Initialize on DOM ready
         document.addEventListener('DOMContentLoaded', () => {
+            // Clean up any existing unauthorized_access notifications from localStorage
+            try {
+                const stored = localStorage.getItem('globalNotifications');
+                if (stored) {
+                    const notifications = JSON.parse(stored);
+                    const filtered = notifications.filter(n => 
+                        !n.message.includes('unauthorized_access') && 
+                        !n.message.includes('Unauthorized access attempt to:')
+                    );
+                    
+                    if (filtered.length !== notifications.length) {
+                        console.log('Cleaned up unauthorized_access notifications from localStorage');
+                        if (filtered.length > 0) {
+                            localStorage.setItem('globalNotifications', JSON.stringify(filtered));
+                        } else {
+                            localStorage.removeItem('globalNotifications');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error cleaning localStorage:', error);
+                localStorage.removeItem('globalNotifications');
+            }
+            
             window.GlobalNotifications.init();
             
             // Handle URL parameters for notifications across ALL pages

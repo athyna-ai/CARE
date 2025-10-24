@@ -7,7 +7,7 @@ if (empty($_SESSION['user'])) { return; }
 
 // Determine correct base path based on current directory
 $currentDir = basename(dirname($_SERVER['PHP_SELF']));
-$basePath = ($currentDir === 'admin' || $currentDir === 'patients' || $currentDir === 'logs' || $currentDir === 'reports' || $currentDir === 'medical' || $currentDir === 'rfid' || $currentDir === 'auth') ? '../' : '';
+$basePath = ($currentDir === 'admin' || $currentDir === 'patients' || $currentDir === 'logs' || $currentDir === 'reports' || $currentDir === 'medical' || $currentDir === 'rfid' || $currentDir === 'auth' || $currentDir === 'pages') ? '../' : '';
 ?>
 <aside id="appSidebar" class="fixed top-20 left-0 z-30 h-[calc(100vh-4rem)] w-72 sm:w-80 bg-white/90 backdrop-blur-md border-r border-clinic-tea/20 shadow-xl transition-transform duration-300 ease-in-out -translate-x-full" data-sidebar-state="hidden">
 	<nav class="p-4 sm:p-6 space-y-2 sm:space-y-3">
@@ -120,7 +120,7 @@ $basePath = ($currentDir === 'admin' || $currentDir === 'patients' || $currentDi
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
 						</svg>
 					</div>
-					<span class="font-poppins font-medium text-sm sm:text-base">About Us</span>
+					<span class="font-poppins font-medium text-sm sm:text-base">About</span>
 				</a>
 			</div>
 		</div>

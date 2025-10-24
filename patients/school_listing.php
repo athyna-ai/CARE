@@ -25,9 +25,10 @@ $offset = ($page - 1) * $perPage;
 
 // Get filter parameters
 $statusFilter = sanitize_string($_GET['status_filter'] ?? '');
-$genderFilter = sanitize_string($_GET['gender_filter'] ?? '');
 $courseFilter = sanitize_string($_GET['course_filter'] ?? '');
 $strandFilter = sanitize_string($_GET['strand_filter'] ?? '');
+$sectionFilter = sanitize_string($_GET['section_filter'] ?? '');
+$yearGradeFilter = sanitize_string($_GET['year_grade_filter'] ?? '');
 $ageMin = (int)($_GET['age_min'] ?? 0);
 $ageMax = (int)($_GET['age_max'] ?? 0);
 
@@ -57,11 +58,6 @@ if ($statusFilter) {
     $params[] = $statusFilter;
 }
 
-if ($genderFilter) {
-    $whereConditions[] = "gender = ?";
-    $params[] = $genderFilter;
-}
-
 if ($courseFilter) {
     $whereConditions[] = "course = ?";
     $params[] = $courseFilter;
@@ -70,6 +66,16 @@ if ($courseFilter) {
 if ($strandFilter) {
     $whereConditions[] = "strand = ?";
     $params[] = $strandFilter;
+}
+
+if ($sectionFilter) {
+    $whereConditions[] = "section = ?";
+    $params[] = $sectionFilter;
+}
+
+if ($yearGradeFilter) {
+    $whereConditions[] = "year_grade = ?";
+    $params[] = $yearGradeFilter;
 }
 
 if ($ageMin > 0) {
@@ -217,7 +223,6 @@ include __DIR__ . '/../partials/header.php';
                             <option value="course" <?= $sortBy === 'course' ? 'selected' : '' ?>>Course</option>
                             <option value="section" <?= $sortBy === 'section' ? 'selected' : '' ?>>Section</option>
                             <option value="rfid" <?= $sortBy === 'rfid' ? 'selected' : '' ?>>RFID</option>
-                            <option value="age" <?= $sortBy === 'age' ? 'selected' : '' ?>>Age</option>
                             <option value="created_at" <?= $sortBy === 'created_at' ? 'selected' : '' ?>>Date Added</option>
                         </select>
                         <select name="order" class="px-2 py-1.5 border border-clinic-tea/30 rounded-md focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-xs min-w-[100px]">
@@ -236,13 +241,6 @@ include __DIR__ . '/../partials/header.php';
                         <option value="Inactive" <?= ($_GET['status_filter'] ?? '') === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
                         <option value="Graduated" <?= ($_GET['status_filter'] ?? '') === 'Graduated' ? 'selected' : '' ?>>Graduated</option>
                         <option value="Transferred" <?= ($_GET['status_filter'] ?? '') === 'Transferred' ? 'selected' : '' ?>>Transferred</option>
-                    </select>
-                    
-                    <!-- Gender Filter -->
-                    <select name="gender_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
-                        <option value="">All Gender</option>
-                        <option value="Male" <?= ($_GET['gender_filter'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                        <option value="Female" <?= ($_GET['gender_filter'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
                     </select>
                     
                     <!-- Course Filter (for College students) -->
@@ -264,6 +262,72 @@ include __DIR__ . '/../partials/header.php';
                         <option value="ABM" <?= ($_GET['strand_filter'] ?? '') === 'ABM' ? 'selected' : '' ?>>ABM</option>
                         <option value="HUMSS" <?= ($_GET['strand_filter'] ?? '') === 'HUMSS' ? 'selected' : '' ?>>HUMSS</option>
                         <option value="TVL" <?= ($_GET['strand_filter'] ?? '') === 'TVL' ? 'selected' : '' ?>>TVL</option>
+                    </select>
+                    <?php endif; ?>
+                    
+                    <!-- Section Filter (for Pre-school, Elementary, and High School) -->
+                    <?php if (!$level || $level === 'Pre-school' || $level === 'Elementary' || $level === 'High School'): ?>
+                    <select name="section_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
+                        <option value="">All Sections</option>
+                        <?php
+                        // Get unique sections for the current level
+                        $sectionsQuery = "SELECT DISTINCT section FROM students WHERE 1=1";
+                        $sectionsParams = [];
+                        if ($level) {
+                            $sectionsQuery .= " AND level = ?";
+                            $sectionsParams[] = $level;
+                        }
+                        $sectionsQuery .= " AND section IS NOT NULL AND section != '' ORDER BY section ASC";
+                        $sectionsStmt = $pdo->prepare($sectionsQuery);
+                        $sectionsStmt->execute($sectionsParams);
+                        $sections = $sectionsStmt->fetchAll(PDO::FETCH_COLUMN);
+                        
+                        foreach ($sections as $section):
+                        ?>
+                            <option value="<?= htmlspecialchars($section) ?>" <?= ($_GET['section_filter'] ?? '') === $section ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($section) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php endif; ?>
+                    
+                    <!-- Year/Grade Level Filter -->
+                    <?php if ($level === 'College'): ?>
+                    <!-- Year Filter for College -->
+                    <select name="year_grade_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
+                        <option value="">All Years</option>
+                        <option value="1st Year" <?= ($_GET['year_grade_filter'] ?? '') === '1st Year' ? 'selected' : '' ?>>1st Year</option>
+                        <option value="2nd Year" <?= ($_GET['year_grade_filter'] ?? '') === '2nd Year' ? 'selected' : '' ?>>2nd Year</option>
+                        <option value="3rd Year" <?= ($_GET['year_grade_filter'] ?? '') === '3rd Year' ? 'selected' : '' ?>>3rd Year</option>
+                        <option value="4th Year" <?= ($_GET['year_grade_filter'] ?? '') === '4th Year' ? 'selected' : '' ?>>4th Year</option>
+                        <option value="5th Year" <?= ($_GET['year_grade_filter'] ?? '') === '5th Year' ? 'selected' : '' ?>>5th Year</option>
+                    </select>
+                    <?php elseif ($level === 'Elementary'): ?>
+                    <!-- Grade Filter for Elementary -->
+                    <select name="year_grade_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
+                        <option value="">All Grades</option>
+                        <option value="Grade 1" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 1' ? 'selected' : '' ?>>Grade 1</option>
+                        <option value="Grade 2" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 2' ? 'selected' : '' ?>>Grade 2</option>
+                        <option value="Grade 3" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 3' ? 'selected' : '' ?>>Grade 3</option>
+                        <option value="Grade 4" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 4' ? 'selected' : '' ?>>Grade 4</option>
+                        <option value="Grade 5" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 5' ? 'selected' : '' ?>>Grade 5</option>
+                        <option value="Grade 6" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 6' ? 'selected' : '' ?>>Grade 6</option>
+                    </select>
+                    <?php elseif ($level === 'High School'): ?>
+                    <!-- Grade Filter for High School -->
+                    <select name="year_grade_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
+                        <option value="">All Grades</option>
+                        <option value="Grade 7" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 7' ? 'selected' : '' ?>>Grade 7</option>
+                        <option value="Grade 8" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 8' ? 'selected' : '' ?>>Grade 8</option>
+                        <option value="Grade 9" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 9' ? 'selected' : '' ?>>Grade 9</option>
+                        <option value="Grade 10" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 10' ? 'selected' : '' ?>>Grade 10</option>
+                    </select>
+                    <?php elseif ($level === 'Senior High School'): ?>
+                    <!-- Grade Filter for Senior High School -->
+                    <select name="year_grade_filter" class="px-3 py-2 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue bg-clinic-ivory/40 text-clinic-dark font-poppins text-sm flex-shrink-0">
+                        <option value="">All Grades</option>
+                        <option value="Grade 11" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 11' ? 'selected' : '' ?>>Grade 11</option>
+                        <option value="Grade 12" <?= ($_GET['year_grade_filter'] ?? '') === 'Grade 12' ? 'selected' : '' ?>>Grade 12</option>
                     </select>
                     <?php endif; ?>
                     
@@ -751,22 +815,47 @@ include __DIR__ . '/../partials/header.php';
                                 Showing <?= $offset + 1 ?> to <?= min($offset + $perPage, $totalRecords) ?> of <?= $totalRecords ?> results
                             </div>
                             <div class="flex items-center space-x-2">
+                                <?php 
+                                // Build query string with all filters
+                                $queryParams = [
+                                    'level' => $level,
+                                    'type' => $type,
+                                    'search' => $search,
+                                    'sort' => $sortBy,
+                                    'order' => $sortOrder,
+                                    'status_filter' => $statusFilter,
+                                    'course_filter' => $courseFilter,
+                                    'strand_filter' => $strandFilter,
+                                    'section_filter' => $sectionFilter,
+                                    'year_grade_filter' => $yearGradeFilter
+                                ];
+                                // Remove empty values
+                                $queryParams = array_filter($queryParams, function($value) {
+                                    return $value !== '' && $value !== null;
+                                });
+                                
+                                function buildPaginationUrl($queryParams, $page) {
+                                    $queryParams['page'] = $page;
+                                    return '?' . http_build_query($queryParams);
+                                }
+                                ?>
+                                
                                 <?php if ($page > 1): ?>
-                                    <a href="?level=<?= urlencode($level) ?>&type=<?= urlencode($type) ?>&search=<?= urlencode($search) ?>&sort=<?= urlencode($sortBy) ?>&order=<?= urlencode($sortOrder) ?>&page=<?= $page - 1 ?>" 
+                                    <a href="<?= buildPaginationUrl($queryParams, $page - 1) ?>" 
                                        class="px-3 py-1 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
                                         Previous
                                     </a>
                                 <?php endif; ?>
                                 
                                 <?php for ($i = max(1, $page - 2); $i <= min($totalPages, $page + 2); $i++): ?>
-                                    <a href="?level=<?= urlencode($level) ?>&type=<?= urlencode($type) ?>&search=<?= urlencode($search) ?>&sort=<?= urlencode($sortBy) ?>&order=<?= urlencode($sortOrder) ?>&page=<?= $i ?>" 
+                                    <a href="<?= buildPaginationUrl($queryParams, $i) ?>" 
                                        class="px-3 py-1 <?= $i === $page ? 'bg-sky-600 text-white' : 'bg-white border border-slate-300 hover:bg-slate-50' ?> rounded-lg transition-colors">
                                         <?= $i ?>
                                     </a>
                                 <?php endfor; ?>
                                 
                                 <?php if ($page < $totalPages): ?>
-                                    <a href="?level=<?= urlencode($level) ?>&type=<?= urlencode($type) ?>&search=<?= urlencode($search) ?>&sort=<?= urlencode($sortBy) ?>&order=<?= urlencode($sortOrder) ?>&page=<?= $page + 1 ?>" 
+                                    <a href="<?= buildPaginationUrl($queryParams, $page + 1) ?>" 
                                        class="px-3 py-1 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
                                         Next
                                     </a>
@@ -940,11 +1029,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Handle sorting form submission
-    const sortSelects = document.querySelectorAll('select[name="sort"], select[name="order"]');
+    // Handle sorting and filter form submission
+    const sortSelects = document.querySelectorAll('select[name="sort"], select[name="order"], select[name="status_filter"], select[name="course_filter"], select[name="strand_filter"], select[name="section_filter"], select[name="year_grade_filter"]');
     sortSelects.forEach(select => {
         select.addEventListener('change', function() {
-            // Submit the form when sorting options change
+            // Submit the form when sorting or filter options change
             const form = this.closest('form');
             if (form) {
                 form.submit();
@@ -953,9 +1042,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Clear all filters function
-    function clearAllFilters() {
+    window.clearAllFilters = function() {
         // Clear all filter inputs
-        document.querySelectorAll('select[name="status_filter"], select[name="gender_filter"], select[name="course_filter"], select[name="strand_filter"]').forEach(select => {
+        document.querySelectorAll('select[name="status_filter"], select[name="course_filter"], select[name="strand_filter"], select[name="section_filter"], select[name="year_grade_filter"]').forEach(select => {
             select.value = '';
         });
         

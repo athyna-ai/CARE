@@ -41,8 +41,9 @@ try {
         'last_name' => isset($enrollment['previous_name']) && $enrollment['previous_name'] ? substr($enrollment['previous_name'], strpos($enrollment['previous_name'], ' ') + 1) : null,
         'name' => isset($enrollment['previous_name']) ? $enrollment['previous_name'] : null,
         'gender' => isset($enrollment['previous_gender']) ? $enrollment['previous_gender'] : null,
-        'date_of_birth' => isset($enrollment['previous_dob']) ? $enrollment['previous_dob'] : null,
-        'dob' => isset($enrollment['previous_dob']) ? $enrollment['previous_dob'] : null,
+        'date_of_birth' => isset($enrollment['previous_dob']) && $enrollment['previous_dob'] ? $enrollment['previous_dob'] : null,
+        'dob' => isset($enrollment['previous_dob']) && $enrollment['previous_dob'] ? $enrollment['previous_dob'] : null,
+        'age' => isset($enrollment['previous_age']) && $enrollment['previous_age'] ? $enrollment['previous_age'] : null,
         'phone' => isset($enrollment['previous_phone']) ? $enrollment['previous_phone'] : null,
         'address' => null, // Will be constructed from separate address fields
         'guardian_name' => isset($enrollment['previous_guardian_name']) ? $enrollment['previous_guardian_name'] : null,
@@ -87,8 +88,9 @@ try {
                     'last_name' => $currentStudent['last_name'] ?? null,
                     'name' => $currentStudent['name'] ?? null,
                     'gender' => $currentStudent['gender'] ?? null,
-                    'date_of_birth' => $currentStudent['date_of_birth'] ?? $currentStudent['dob'] ?? null,
-                    'dob' => $currentStudent['dob'] ?? null,
+                    'date_of_birth' => $currentStudent['dob'] ?? $currentStudent['date_of_birth'] ?? null,
+                    'dob' => $currentStudent['dob'] ?? $currentStudent['date_of_birth'] ?? null,
+                    'age' => $currentStudent['age'] ?? null,
                     'phone' => $currentStudent['phone'] ?? null,
                     'address' => $currentStudent['address'] ?? null,
                     'guardian_name' => $currentStudent['guardian'] ?? null,
@@ -124,64 +126,103 @@ try {
         }
     }
     
-    // Fetch historical medical history (only from the most recent previous enrollment)
+    // Fetch historical medical history for this specific enrollment period
     $medicalHistory = [];
     try {
-        // First, find the most recent enrollment before this one
-        $previousEnrollmentStmt = $pdo->prepare('
+        $endDate = $enrollment['enrollment_date'];
+        
+        // Get the previous enrollment date (start of this period)
+        // If this is a re-enrollment, get the previous enrollment date
+        // Otherwise, show all records from the beginning
+        $startDate = null;
+        $prevEnrollmentStmt = $pdo->prepare('
             SELECT enrollment_date 
             FROM enrollment_history 
-            WHERE student_id = ? AND enrollment_date < ?
+            WHERE student_id = ? AND enrollment_date < ? 
             ORDER BY enrollment_date DESC 
             LIMIT 1
         ');
-        $previousEnrollmentStmt->execute([$enrollment['student_id'], $enrollment['enrollment_date']]);
-        $previousEnrollment = $previousEnrollmentStmt->fetch();
+        $prevEnrollmentStmt->execute([$enrollment['student_id'], $endDate]);
+        $prevEnrollment = $prevEnrollmentStmt->fetch(PDO::FETCH_ASSOC);
+        if ($prevEnrollment) {
+            $startDate = $prevEnrollment['enrollment_date'];
+        }
         
-        if ($previousEnrollment) {
-            // Only get medical records from the most recent previous enrollment period
-            $startDate = $previousEnrollment['enrollment_date'];
-            $endDate = $enrollment['enrollment_date'];
-            
-            // Check if medical_records table exists
-            $tableCheck = $pdo->query("SHOW TABLES LIKE 'medical_records'");
-            if ($tableCheck->rowCount() > 0) {
+        // Get current active medical records created during this enrollment period
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'medical_records'");
+        if ($tableCheck->rowCount() > 0) {
+            if ($startDate) {
+                // Show records between previous enrollment and this enrollment
                 $medicalHistoryStmt = $pdo->prepare('
-                    SELECT mr.*
+                    SELECT mr.*, "active" as record_status
                     FROM medical_records mr
                     WHERE mr.patient_id = ? AND mr.patient_type = "student" 
                     AND mr.created_at >= ? AND mr.created_at < ?
                     ORDER BY mr.created_at DESC
-                    LIMIT 10
                 ');
                 $medicalHistoryStmt->execute([$enrollment['student_id'], $startDate, $endDate]);
-                $medicalHistory = $medicalHistoryStmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                // First enrollment - show all records before this enrollment
+                $medicalHistoryStmt = $pdo->prepare('
+                    SELECT mr.*, "active" as record_status
+                    FROM medical_records mr
+                    WHERE mr.patient_id = ? AND mr.patient_type = "student" 
+                    AND mr.created_at < ?
+                    ORDER BY mr.created_at DESC
+                ');
+                $medicalHistoryStmt->execute([$enrollment['student_id'], $endDate]);
             }
+            $medicalHistory = $medicalHistoryStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        // Also fetch archived medical records for this enrollment period
+        // Prioritize filtering by education_level if available
+        $archiveTable = 'student_medical_archive';
+        $archiveCheck = $pdo->query("SHOW TABLES LIKE '{$archiveTable}'");
+        if ($archiveCheck->rowCount() > 0) {
+            // Check if education_level column exists
+            $columnCheck = $pdo->query("SHOW COLUMNS FROM `{$archiveTable}` LIKE 'education_level'");
+            $hasEducationLevel = $columnCheck->rowCount() > 0;
             
-            // Also fetch archived medical records from the same period
-            $archiveTable = 'student_medical_archive';
-            $archiveCheck = $pdo->query("SHOW TABLES LIKE '{$archiveTable}'");
-            if ($archiveCheck->rowCount() > 0) {
+            if ($hasEducationLevel && !empty($enrollment['previous_level'])) {
+                // Filter by education level (most accurate method)
                 $archiveStmt = $pdo->prepare("
-                    SELECT *, 'archived' as status 
+                    SELECT *, 'archived' as record_status
                     FROM `{$archiveTable}` 
-                    WHERE patient_id = ? AND archived_at >= ? AND archived_at < ?
+                    WHERE patient_id = ? AND education_level = ?
                     ORDER BY archived_at DESC
-                    LIMIT 10
+                ");
+                $archiveStmt->execute([$enrollment['student_id'], $enrollment['previous_level']]);
+            } elseif ($startDate) {
+                // Fallback: Show archived records between previous enrollment and this enrollment
+                $archiveStmt = $pdo->prepare("
+                    SELECT *, 'archived' as record_status
+                    FROM `{$archiveTable}` 
+                    WHERE patient_id = ? AND archived_at >= ? AND archived_at <= ?
+                    ORDER BY archived_at DESC
                 ");
                 $archiveStmt->execute([$enrollment['student_id'], $startDate, $endDate]);
-                $archivedMedical = $archiveStmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Merge with regular medical history
-                $medicalHistory = array_merge($medicalHistory, $archivedMedical);
-                
-                // Sort by date (most recent first)
-                usort($medicalHistory, function($a, $b) {
-                    $dateA = isset($a['created_at']) ? $a['created_at'] : $a['archived_at'];
-                    $dateB = isset($b['created_at']) ? $b['created_at'] : $b['archived_at'];
-                    return strtotime($dateB) - strtotime($dateA);
-                });
+            } else {
+                // First enrollment - show all archived records before this enrollment
+                $archiveStmt = $pdo->prepare("
+                    SELECT *, 'archived' as record_status
+                    FROM `{$archiveTable}` 
+                    WHERE patient_id = ? AND archived_at <= ?
+                    ORDER BY archived_at DESC
+                ");
+                $archiveStmt->execute([$enrollment['student_id'], $endDate]);
             }
+            $archivedMedical = $archiveStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Merge with regular medical history
+            $medicalHistory = array_merge($medicalHistory, $archivedMedical);
+            
+            // Sort by date (most recent first)
+            usort($medicalHistory, function($a, $b) {
+                $dateA = isset($a['created_at']) ? $a['created_at'] : $a['archived_at'];
+                $dateB = isset($b['created_at']) ? $b['created_at'] : $b['archived_at'];
+                return strtotime($dateB) - strtotime($dateA);
+            });
         }
     } catch (Exception $e) {
         // Table doesn't exist or query failed, medical history will be empty
@@ -189,28 +230,91 @@ try {
         $medicalHistory = [];
     }
     
-    // Fetch historical visitation logs (only from the most recent previous enrollment)
+    // Fetch historical visitation logs for this specific enrollment period
     $visitationLogs = [];
     try {
-        // Use the same previous enrollment date we found for medical records
-        if (isset($previousEnrollment) && $previousEnrollment) {
-            $startDate = $previousEnrollment['enrollment_date'];
-            $endDate = $enrollment['enrollment_date'];
-            
-            // Check if visitation_logs table exists
-            $tableCheck = $pdo->query("SHOW TABLES LIKE 'visitation_logs'");
-            if ($tableCheck->rowCount() > 0) {
+        $endDate = $enrollment['enrollment_date'];
+        
+        // Use the same start date logic as medical history
+        // (already computed above for medical records)
+        
+        // Check if visitation_logs table exists
+        $tableCheck = $pdo->query("SHOW TABLES LIKE 'visitation_logs'");
+        if ($tableCheck->rowCount() > 0) {
+            if ($startDate) {
+                // Show visits between previous enrollment and this enrollment
                 $visitationStmt = $pdo->prepare('
-                    SELECT vl.*
+                    SELECT vl.*, "active" as log_status
                     FROM visitation_logs vl
                     WHERE vl.patient_id = ? AND vl.patient_type = "student"
                     AND vl.created_at >= ? AND vl.created_at < ?
                     ORDER BY vl.created_at DESC
-                    LIMIT 10
                 ');
                 $visitationStmt->execute([$enrollment['student_id'], $startDate, $endDate]);
-                $visitationLogs = $visitationStmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                // First enrollment - show all visits before this enrollment
+                $visitationStmt = $pdo->prepare('
+                    SELECT vl.*, "active" as log_status
+                    FROM visitation_logs vl
+                    WHERE vl.patient_id = ? AND vl.patient_type = "student"
+                    AND vl.created_at < ?
+                    ORDER BY vl.created_at DESC
+                ');
+                $visitationStmt->execute([$enrollment['student_id'], $endDate]);
             }
+            $visitationLogs = $visitationStmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        
+        // Also check for archived visitation logs for this enrollment period
+        // Prioritize filtering by education_level if available
+        $archiveTable = 'visitation_logs_archive';
+        $archiveCheck = $pdo->query("SHOW TABLES LIKE '{$archiveTable}'");
+        if ($archiveCheck->rowCount() > 0) {
+            // Check if education_level column exists
+            $columnCheck = $pdo->query("SHOW COLUMNS FROM `{$archiveTable}` LIKE 'education_level'");
+            $hasEducationLevel = $columnCheck->rowCount() > 0;
+            
+            if ($hasEducationLevel && !empty($enrollment['previous_level'])) {
+                // Filter by education level (most accurate method)
+                $archiveVisitStmt = $pdo->prepare("
+                    SELECT *, 'archived' as log_status
+                    FROM `{$archiveTable}` 
+                    WHERE patient_id = ? AND patient_type = 'student' AND education_level = ?
+                    ORDER BY archived_at DESC
+                ");
+                $archiveVisitStmt->execute([$enrollment['student_id'], $enrollment['previous_level']]);
+            } elseif ($startDate) {
+                // Fallback: Show archived visits between previous enrollment and this enrollment
+                $archiveVisitStmt = $pdo->prepare("
+                    SELECT *, 'archived' as log_status
+                    FROM `{$archiveTable}` 
+                    WHERE patient_id = ? AND patient_type = 'student' 
+                    AND archived_at >= ? AND archived_at <= ?
+                    ORDER BY archived_at DESC
+                ");
+                $archiveVisitStmt->execute([$enrollment['student_id'], $startDate, $endDate]);
+            } else {
+                // First enrollment - show all archived visits before this enrollment
+                $archiveVisitStmt = $pdo->prepare("
+                    SELECT *, 'archived' as log_status
+                    FROM `{$archiveTable}` 
+                    WHERE patient_id = ? AND patient_type = 'student' 
+                    AND archived_at <= ?
+                    ORDER BY archived_at DESC
+                ");
+                $archiveVisitStmt->execute([$enrollment['student_id'], $endDate]);
+            }
+            $archivedVisits = $archiveVisitStmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Merge with regular visitation logs
+            $visitationLogs = array_merge($visitationLogs, $archivedVisits);
+            
+            // Sort by date (most recent first)
+            usort($visitationLogs, function($a, $b) {
+                $dateA = isset($a['created_at']) ? $a['created_at'] : $a['archived_at'];
+                $dateB = isset($b['created_at']) ? $b['created_at'] : $b['archived_at'];
+                return strtotime($dateB) - strtotime($dateA);
+            });
         }
     } catch (Exception $e) {
         // Table doesn't exist or query failed, visitation logs will be empty
@@ -223,7 +327,12 @@ try {
         'enrollment' => $enrollment,
         'student' => $student,
         'medicalHistory' => $medicalHistory,
-        'visitationLogs' => $visitationLogs
+        'visitationLogs' => $visitationLogs,
+        'enrollmentPeriod' => [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'education_level' => $enrollment['previous_level'] ?? 'N/A'
+        ]
     ]);
     
 } catch (Exception $e) {

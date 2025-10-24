@@ -343,119 +343,9 @@
 		});
 
 
-		// Student form: Dynamic fields based on level selection
-		const levelSelect = document.getElementById('levelSelect');
-		const courseField = document.getElementById('courseField');
-		const sectionField = document.getElementById('sectionField');
-		const strandField = document.getElementById('strandField');
-		const yearGradeField = document.getElementById('yearGradeField');
-		const yearGradeLabel = document.getElementById('yearGradeLabel');
-		const yearGradeInput = document.getElementById('yearGradeInput');
-		
-		if (levelSelect && courseField && sectionField && strandField && yearGradeField && yearGradeLabel && yearGradeInput) {
-			function updateFields() {
-				const level = levelSelect.value;
-				
-				// Hide all fields first
-				courseField.classList.add('hidden');
-				sectionField.classList.add('hidden');
-				strandField.classList.add('hidden');
-				yearGradeField.classList.add('hidden');
-				
-				// Clear and populate grade/year dropdown
-				yearGradeInput.innerHTML = '<option value="">Select Grade/Year</option>';
-				
-				// Reset label text
-				yearGradeLabel.textContent = 'Year/Grade';
-				
-				// Show appropriate fields based on level
-				if (level === 'Pre-school') {
-					// Pre-school: Section only
-					sectionField.classList.remove('hidden');
-				} else if (level === 'Elementary') {
-					// Elementary: Grade and Section
-					yearGradeField.classList.remove('hidden');
-					yearGradeLabel.textContent = 'Grade';
-					sectionField.classList.remove('hidden');
-					
-					// Add Elementary grade options (1-6)
-					for (let i = 1; i <= 6; i++) {
-						const option = document.createElement('option');
-						option.value = `Grade ${i}`;
-						option.textContent = `Grade ${i}`;
-						yearGradeInput.appendChild(option);
-					}
-				} else if (level === 'High School') {
-					// High School: Grade and Section
-					yearGradeField.classList.remove('hidden');
-					yearGradeLabel.textContent = 'Grade';
-					sectionField.classList.remove('hidden');
-					
-					// Add High School grade options (7-10)
-					for (let i = 7; i <= 10; i++) {
-						const option = document.createElement('option');
-						option.value = `Grade ${i}`;
-						option.textContent = `Grade ${i}`;
-						yearGradeInput.appendChild(option);
-					}
-				} else if (level === 'Senior High School') {
-					// Senior High School: Grade and Strand (no section)
-					yearGradeField.classList.remove('hidden');
-					yearGradeLabel.textContent = 'Grade';
-					strandField.classList.remove('hidden');
-					
-					// Add Senior High School grade options (11-12)
-					for (let i = 11; i <= 12; i++) {
-						const option = document.createElement('option');
-						option.value = `Grade ${i}`;
-						option.textContent = `Grade ${i}`;
-						yearGradeInput.appendChild(option);
-					}
-				} else if (level === 'College') {
-					// College: Year and Course
-					yearGradeField.classList.remove('hidden');
-					yearGradeLabel.textContent = 'Year';
-					courseField.classList.remove('hidden');
-					
-					// Add College year options (1-5 for special cases)
-					for (let i = 1; i <= 5; i++) {
-						const option = document.createElement('option');
-						let yearText;
-						if (i === 1) yearText = '1st Year';
-						else if (i === 2) yearText = '2nd Year';
-						else if (i === 3) yearText = '3rd Year';
-						else if (i === 4) yearText = '4th Year';
-						else if (i === 5) yearText = '5th Year (Irregular)';
-						
-						option.value = yearText;
-						option.textContent = yearText;
-						yearGradeInput.appendChild(option);
-					}
-				}
-			}
-			
-			levelSelect.addEventListener('change', () => {
-				updateFields();
-				// Trigger validation after fields are updated
-				if (typeof validateForm === 'function') {
-					validateForm();
-				}
-			});
-			
-			// Initialize on page load and set existing values
-			updateFields();
-			
-			// Set existing year/grade value if editing
-			const existingYearGrade = yearGradeInput.getAttribute('data-existing-value');
-			if (existingYearGrade) {
-				// Wait a bit for the options to be populated
-				setTimeout(() => {
-					yearGradeInput.value = existingYearGrade;
-				}, 100);
-			}
-		}
+	// Education level logic removed - will be handled by individual forms
 
-		// Faculty form: Senior tag for age 60+
+	// Faculty form: Senior tag for age 60+
 		const ageInput = document.getElementById('ageInput');
 		const srTag = document.getElementById('srTag');
 		
@@ -506,48 +396,9 @@
 document.addEventListener('DOMContentLoaded', () => {
 	console.log('Auto-formatting loaded');
 	
-	// Auto-format date of birth fields (DD/MM/YYYY)
-	const dobInputs = document.querySelectorAll('input[name="dob"]');
-	console.log('Found DOB inputs:', dobInputs.length);
-	dobInputs.forEach(input => {
-		let lastValue = '';
-		
-		input.addEventListener('input', (e) => {
-			let value = e.target.value;
-			const cursorPos = e.target.selectionStart;
-			
-			// Only format if user is typing at the end or the value is getting longer
-			if (value.length > lastValue.length && cursorPos >= value.length - 1) {
-				// Remove all non-digits
-				let digitsOnly = value.replace(/\D/g, '');
-				
-				// Add slashes at appropriate positions
-				if (digitsOnly.length >= 2) {
-					digitsOnly = digitsOnly.substring(0, 2) + '/' + digitsOnly.substring(2);
-				}
-				if (digitsOnly.length >= 5) {
-					digitsOnly = digitsOnly.substring(0, 5) + '/' + digitsOnly.substring(5, 9);
-				}
-				
-				// Only update if the formatted value is different
-				if (digitsOnly !== value) {
-					e.target.value = digitsOnly;
-					// Set cursor position after the last typed character
-					const newCursorPos = Math.min(cursorPos + (digitsOnly.length - value.length), digitsOnly.length);
-					e.target.setSelectionRange(newCursorPos, newCursorPos);
-				}
-			}
-			
-			lastValue = e.target.value;
-		});
-		
-		// Prevent typing more than 10 characters (DD/MM/YYYY)
-		input.addEventListener('keydown', (e) => {
-			if (e.target.value.length >= 10 && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'Tab' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
-				e.preventDefault();
-			}
-		});
-	});
+	// Note: Date of birth fields now use HTML5 date inputs (type="date")
+	// which handle formatting automatically and provide native calendar picker
+	// No custom formatting needed for date inputs
 
 	// Address field auto-layout enhancement
 	const addressInputs = document.querySelectorAll('input[name="address"]');
@@ -598,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 
 	// Auto-calculate age from date of birth
+	const dobInputs = document.querySelectorAll('input[name="dob"]');
 	const ageInputs = document.querySelectorAll('input[name="age"]');
 	
 	dobInputs.forEach((dobInput, index) => {

@@ -43,6 +43,14 @@ if ($id) {
 	$st = $pdo->prepare('SELECT * FROM faculty WHERE id = ?');
 	$st->execute([$id]);
 	$row = $st->fetch();
+	
+	// Parse existing address into separate fields
+	if ($row && !empty($row['address'])) {
+		$addressParts = explode(',', $row['address']);
+		$row['barangay'] = trim($addressParts[0] ?? '');
+		$row['municipality'] = trim($addressParts[1] ?? '');
+		$row['province'] = trim($addressParts[2] ?? '');
+	}
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -53,7 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 		$department = sanitize_string($_POST['department'] ?? '');
 		$gender = sanitize_string($_POST['gender'] ?? '');
 		$rfid = sanitize_string($_POST['rfid'] ?? '');
-		$address = sanitize_string($_POST['address'] ?? '');
+	$barangay = sanitize_string($_POST['barangay'] ?? '');
+	$municipality = sanitize_string($_POST['municipality'] ?? '');
+	$province = sanitize_string($_POST['province'] ?? '');
+	// Combine address fields
+	$address = trim($barangay . ', ' . $municipality . ', ' . $province, ', ');
 		$age = (int)($_POST['age'] ?? 0);
 		$dob = sanitize_string($_POST['dob'] ?? '');
 		$religion = sanitize_string($_POST['religion'] ?? '');
@@ -127,6 +139,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ?>
 <?php $pageTitle = $id ? 'Edit Faculty' : 'Register Faculty'; $showTopNav = true; $showSidebar = false; include __DIR__ . '/../partials/header.php'; ?>
+
+<style>
+/* Custom date picker styling to match clinic theme */
+input[type="date"] {
+    color-scheme: light;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    opacity: 1;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%233971b8'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    background-color: rgba(57, 113, 184, 0.1);
+    transform: scale(1.05);
+}
+
+input[type="date"]::-webkit-datetime-edit {
+    color: #334155;
+    font-weight: 500;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    background: transparent;
+}
+
+input[type="date"]::-webkit-datetime-edit-text {
+    color: #64748b;
+    padding: 0 2px;
+}
+
+input[type="date"]::-webkit-datetime-edit-month-field,
+input[type="date"]::-webkit-datetime-edit-day-field,
+input[type="date"]::-webkit-datetime-edit-year-field {
+    color: #334155;
+    background: transparent;
+}
+
+/* Firefox date picker styling */
+input[type="date"]::-moz-placeholder {
+    color: #94a3b8;
+}
+
+/* Custom calendar popup styling */
+input[type="date"]:focus {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1), 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+</style>
 	<div class="h-[calc(100vh-5rem)] flex items-start md:items-center justify-center p-4 md:p-8 overflow-hidden">
 		<div class="w-full max-w-4xl bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-xl p-6 md:p-10 max-h-full flex flex-col">
 			<!-- Back Button -->
@@ -212,13 +282,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Date of Birth <span class="text-red-500">*</span></label>
-					<input type="text" name="dob" id="dob" 
-						   value="<?= isset($row['dob']) && $row['dob'] ? date('d/m/Y', strtotime($row['dob'])) : '' ?>" 
-						   pattern="\d{2}/\d{2}/\d{4}" 
-						   placeholder="DD/MM/YYYY" 
-						   class="w-full rounded-xl bg-white border border-slate-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 px-4 py-3 text-slate-800" 
-						   maxlength="10" 
-						   data-next-field="religion" />
+					<div class="relative">
+						<input type="text" name="dob" id="dob" 
+							   value="<?= isset($row['dob']) && $row['dob'] && $row['dob'] !== '0000-00-00' ? date('d/m/Y', strtotime($row['dob'])) : '' ?>" 
+							   placeholder="DD/MM/YYYY"
+							   class="w-full rounded-xl bg-white border border-slate-300 focus:border-clinic-blue focus:ring-2 focus:ring-clinic-blue/20 px-4 py-3 text-slate-800 cursor-pointer hover:border-clinic-tea/40 transition-colors duration-200" 
+							   data-next-field="religion" 
+							   readonly
+							   required />
+						<div class="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer" onclick="toggleCustomCalendar('dob')">
+							<svg class="w-5 h-5 text-clinic-blue hover:text-clinic-tea transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+							</svg>
+						</div>
+					</div>
 				</div>
 				<div>
 					<label class="block text-slate-700 mb-1">Age</label>
@@ -279,6 +356,143 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			</form>
 		</div>
 	</div>
+
+<!-- Custom Calendar Modal -->
+<div id="customCalendarModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+	<div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-clinic-tea/20 w-80 max-w-[90vw] mx-4">
+		<!-- Calendar Header -->
+		<div class="flex items-center justify-between p-3 border-b border-clinic-tea/20">
+			<button id="prevMonth" class="p-1.5 rounded-lg bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 flex-shrink-0">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+				</svg>
+			</button>
+			<div class="flex items-center gap-1 flex-1 justify-center overflow-hidden">
+				<select id="monthSelect" class="bg-transparent text-clinic-dark font-semibold text-sm focus:outline-none cursor-pointer" size="1">
+					<option value="0">Jan</option>
+					<option value="1">Feb</option>
+					<option value="2">Mar</option>
+					<option value="3">Apr</option>
+					<option value="4">May</option>
+					<option value="5">Jun</option>
+					<option value="6">Jul</option>
+					<option value="7">Aug</option>
+					<option value="8">Sep</option>
+					<option value="9">Oct</option>
+					<option value="10">Nov</option>
+					<option value="11">Dec</option>
+				</select>
+				<select id="yearSelect" class="bg-transparent text-clinic-dark font-semibold text-sm focus:outline-none cursor-pointer" size="1">
+					<!-- Years will be populated by JavaScript -->
+				</select>
+			</div>
+			<button id="nextMonth" class="p-1.5 rounded-lg bg-clinic-blue/10 hover:bg-clinic-blue/20 text-clinic-blue transition-all duration-200 flex-shrink-0">
+				<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+				</svg>
+			</button>
+		</div>
+		
+		<!-- Calendar Body -->
+		<div class="p-3">
+			<!-- Days of week -->
+			<div class="grid grid-cols-7 gap-0.5 mb-1">
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">S</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">M</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">T</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">W</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">T</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">F</div>
+				<div class="text-center text-xs font-semibold text-clinic-dark/60 py-1">S</div>
+			</div>
+			
+			<!-- Calendar grid with fixed height -->
+			<div id="calendarGrid" class="grid grid-cols-7 gap-0.5 h-48">
+				<!-- Calendar days will be populated by JavaScript -->
+			</div>
+		</div>
+		
+		<!-- Calendar Footer -->
+		<div class="flex items-center justify-between p-3 border-t border-clinic-tea/20">
+			<button id="clearDate" class="px-3 py-1.5 text-clinic-red hover:bg-clinic-red/10 rounded-lg transition-colors duration-200 font-medium text-sm">
+				Clear
+			</button>
+			<button id="todayDate" class="px-3 py-1.5 bg-clinic-blue text-white hover:bg-clinic-blue/80 rounded-lg transition-colors duration-200 font-medium text-sm">
+				Today
+			</button>
+		</div>
+		</div>
+	</div>
+
+<!-- Back Button Script -->
+<script>
+// Simple back navigation function - defined early for onclick handlers
+function goBack() {
+    console.log('goBack called - history length:', window.history.length);
+    // Always use browser back - this goes to the actual previous page
+    window.history.back();
+}
+
+// Add ESC key support for back navigation
+document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' || event.key === 'Esc') {
+            console.log('ESC pressed - going back');
+            goBack();
+        }
+    });
+});
+</script>
+
+<!-- Calendar Dropdown Styling -->
+<style>
+	/* Calendar modal container */
+	#customCalendarModal {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		z-index: 9999;
+	}
+	
+	/* Limit dropdown select width */
+	#monthSelect, #yearSelect {
+		max-width: 75px;
+		min-width: 60px;
+		text-align: center;
+		padding: 2px 4px;
+		border: 1px solid rgba(200, 214, 155, 0.3);
+		border-radius: 4px;
+	}
+	
+	#monthSelect {
+		max-width: 65px;
+	}
+	
+	#yearSelect {
+		max-width: 70px;
+	}
+	
+	/* Style the dropdown options to prevent overflow */
+	#yearSelect option, #monthSelect option {
+		padding: 4px;
+		font-size: 13px;
+	}
+	
+	/* Fixed calendar grid height */
+	#calendarGrid {
+		min-height: 192px;
+		max-height: 192px;
+		height: 192px;
+	}
+	
+	/* Ensure calendar modal stays within viewport */
+	#customCalendarModal > div {
+		max-height: calc(100vh - 2rem);
+		max-width: calc(100vw - 2rem);
+	}
+</style>
 
 	<!-- Data Privacy Modal -->
 	<div id="privacyModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
@@ -666,29 +880,379 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Smart back navigation function
-function goBack() {
-    const referrer = document.referrer;
-    const currentUrl = window.location.href;
+// Custom Calendar Functionality
+let currentCalendarDate = new Date();
+let selectedDate = null;
+let currentInputField = null;
+
+function toggleCustomCalendar(inputId) {
+    currentInputField = inputId;
+    const modal = document.getElementById('customCalendarModal');
+    const input = document.getElementById(inputId);
     
-    // If there's a referrer and it's not the same page
-    if (referrer && referrer !== currentUrl) {
-        // Check if coming from specific pages and navigate accordingly
-        if (referrer.includes('faculty_listing.php')) {
-            window.location.href = '../patients/faculty_listing.php';
-        } else if (referrer.includes('rfid_portal.php')) {
-            window.location.href = '../rfid/rfid_portal.php';
-        } else if (referrer.includes('dashboard.php')) {
-            window.location.href = '../admin/dashboard.php';
-        } else {
-            // Default to browser back
-            window.history.back();
+    if (!modal) {
+        console.error('Calendar modal not found!');
+        return;
+    }
+    
+    // Parse current date from input if it exists
+    if (input.value) {
+        const dateParts = input.value.split('/');
+        if (dateParts.length === 3) {
+            currentCalendarDate = new Date(dateParts[2], dateParts[0] - 1, dateParts[1]);
+            selectedDate = new Date(currentCalendarDate);
         }
-    } else {
-        // Default fallback - go to dashboard
-        window.location.href = '../admin/dashboard.php';
+    }
+    
+    updateCalendar();
+    modal.classList.remove('hidden');
+    console.log('Calendar modal opened for:', inputId);
+}
+
+function updateCalendar() {
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const calendarGrid = document.getElementById('calendarGrid');
+    
+    if (!monthSelect || !yearSelect || !calendarGrid) {
+        console.error('Calendar elements not found!');
+        return;
+    }
+    
+    // Update month and year selects
+    monthSelect.value = currentCalendarDate.getMonth();
+    
+    // Populate years (1900 to current year + 10)
+    if (yearSelect.children.length === 0) {
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear + 10; year >= 1900; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        }
+    }
+    yearSelect.value = currentCalendarDate.getFullYear();
+    
+    // Clear calendar grid
+    calendarGrid.innerHTML = '';
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1);
+    const lastDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'h-8 flex items-center justify-center text-clinic-dark/30';
+        calendarGrid.appendChild(emptyCell);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'h-8 flex items-center justify-center text-clinic-dark hover:bg-clinic-blue/10 rounded cursor-pointer transition-colors duration-200 text-sm';
+        dayCell.textContent = day;
+        
+        // Check if this is the selected date
+        if (selectedDate && 
+            selectedDate.getDate() === day && 
+            selectedDate.getMonth() === currentCalendarDate.getMonth() && 
+            selectedDate.getFullYear() === currentCalendarDate.getFullYear()) {
+            dayCell.className += ' bg-clinic-blue text-white hover:bg-clinic-blue/80';
+        }
+        
+        // Check if this is today
+        const today = new Date();
+        if (day === today.getDate() && 
+            currentCalendarDate.getMonth() === today.getMonth() && 
+            currentCalendarDate.getFullYear() === today.getFullYear()) {
+            dayCell.className += ' border-2 border-clinic-tea';
+        }
+        
+        dayCell.addEventListener('click', () => selectDate(day));
+        calendarGrid.appendChild(dayCell);
     }
 }
+
+function selectDate(day) {
+    selectedDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), day);
+    const input = document.getElementById(currentInputField);
+    // Format as DD/MM/YYYY to match PHP backend expectation
+    const formattedDate = `${String(day).padStart(2, '0')}/${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}/${currentCalendarDate.getFullYear()}`;
+    input.value = formattedDate;
+    
+    // Close calendar
+    document.getElementById('customCalendarModal').classList.add('hidden');
+    
+    // Trigger age calculation
+    calculateAgeFromDate(selectedDate);
+}
+
+function calculateAgeFromDate(birthDate) {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    
+    const ageInput = document.getElementById('ageInput');
+    if (ageInput) {
+        ageInput.value = age >= 0 ? age : 0;
+    }
+}
+
+// Calendar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('customCalendarModal');
+    const prevMonth = document.getElementById('prevMonth');
+    const nextMonth = document.getElementById('nextMonth');
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const clearDate = document.getElementById('clearDate');
+    const todayDate = document.getElementById('todayDate');
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+    
+    // Navigation buttons
+    prevMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        updateCalendar();
+    });
+    
+    nextMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        updateCalendar();
+    });
+    
+    // Month/year select changes
+    monthSelect.addEventListener('change', function() {
+        currentCalendarDate.setMonth(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    yearSelect.addEventListener('change', function() {
+        currentCalendarDate.setFullYear(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    // Clear date
+    clearDate.addEventListener('click', function() {
+        const input = document.getElementById(currentInputField);
+        input.value = '';
+        selectedDate = null;
+        modal.classList.add('hidden');
+    });
+    
+    // Today button
+    todayDate.addEventListener('click', function() {
+        const today = new Date();
+        currentCalendarDate = new Date(today);
+        selectedDate = new Date(today);
+        updateCalendar();
+    });
+});
 </script>
 
 <script src="../core/validation.js"></script>
+
+<!-- Custom Calendar Script -->
+<script>
+// Custom Calendar Functionality - Global Scope
+let currentCalendarDate = new Date();
+let selectedDate = null;
+let currentInputField = null;
+
+function toggleCustomCalendar(inputId) {
+    currentInputField = inputId;
+    const modal = document.getElementById('customCalendarModal');
+    const input = document.getElementById(inputId);
+    
+    if (!modal) {
+        console.error('Calendar modal not found!');
+        return;
+    }
+    
+    // Parse current date from input if it exists
+    if (input.value) {
+        const dateParts = input.value.split('/');
+        if (dateParts.length === 3) {
+            currentCalendarDate = new Date(dateParts[2], dateParts[0] - 1, dateParts[1]);
+            selectedDate = new Date(currentCalendarDate);
+        }
+    }
+    
+    updateCalendar();
+    modal.classList.remove('hidden');
+    console.log('Calendar modal opened for:', inputId);
+}
+
+function updateCalendar() {
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const calendarGrid = document.getElementById('calendarGrid');
+    
+    if (!monthSelect || !yearSelect || !calendarGrid) {
+        console.error('Calendar elements not found!');
+        return;
+    }
+    
+    // Update month and year selects
+    monthSelect.value = currentCalendarDate.getMonth();
+    
+    // Populate years (1900 to current year + 10)
+    if (yearSelect.children.length === 0) {
+        const currentYear = new Date().getFullYear();
+        for (let year = currentYear + 10; year >= 1900; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year;
+            yearSelect.appendChild(option);
+        }
+    }
+    yearSelect.value = currentCalendarDate.getFullYear();
+    
+    // Clear calendar grid
+    calendarGrid.innerHTML = '';
+    
+    // Get first day of month and number of days
+    const firstDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), 1);
+    const lastDay = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'h-8 flex items-center justify-center text-clinic-dark/30';
+        calendarGrid.appendChild(emptyCell);
+    }
+    
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'h-8 flex items-center justify-center text-clinic-dark hover:bg-clinic-blue/10 rounded cursor-pointer transition-colors duration-200 text-sm';
+        dayCell.textContent = day;
+        
+        // Check if this is the selected date
+        if (selectedDate && 
+            selectedDate.getDate() === day && 
+            selectedDate.getMonth() === currentCalendarDate.getMonth() && 
+            selectedDate.getFullYear() === currentCalendarDate.getFullYear()) {
+            dayCell.className += ' bg-clinic-blue text-white hover:bg-clinic-blue/80';
+        }
+        
+        // Check if this is today
+        const today = new Date();
+        if (day === today.getDate() && 
+            currentCalendarDate.getMonth() === today.getMonth() && 
+            currentCalendarDate.getFullYear() === today.getFullYear()) {
+            dayCell.className += ' border-2 border-clinic-tea';
+        }
+        
+        dayCell.addEventListener('click', () => selectDate(day));
+        calendarGrid.appendChild(dayCell);
+    }
+}
+
+function selectDate(day) {
+    selectedDate = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth(), day);
+    const input = document.getElementById(currentInputField);
+    // Format as DD/MM/YYYY to match PHP backend expectation
+    const formattedDate = `${String(day).padStart(2, '0')}/${String(currentCalendarDate.getMonth() + 1).padStart(2, '0')}/${currentCalendarDate.getFullYear()}`;
+    input.value = formattedDate;
+    
+    // Close calendar
+    document.getElementById('customCalendarModal').classList.add('hidden');
+    
+    // Trigger age calculation
+    calculateAgeFromDate(selectedDate);
+}
+
+function calculateAgeFromDate(birthDate) {
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    
+    const ageInput = document.getElementById('ageInput');
+    if (ageInput) {
+        ageInput.value = age >= 0 ? age : 0;
+    }
+}
+
+// Calendar event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('customCalendarModal');
+    const prevMonth = document.getElementById('prevMonth');
+    const nextMonth = document.getElementById('nextMonth');
+    const monthSelect = document.getElementById('monthSelect');
+    const yearSelect = document.getElementById('yearSelect');
+    const clearDate = document.getElementById('clearDate');
+    const todayDate = document.getElementById('todayDate');
+    
+    if (!modal || !prevMonth || !nextMonth || !monthSelect || !yearSelect || !clearDate || !todayDate) {
+        console.error('Calendar elements not found on page load');
+        return;
+    }
+    
+    // Close modal when clicking outside
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+    
+    // Navigation buttons
+    prevMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        updateCalendar();
+    });
+    
+    nextMonth.addEventListener('click', function() {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        updateCalendar();
+    });
+    
+    // Month/year select changes
+    monthSelect.addEventListener('change', function() {
+        currentCalendarDate.setMonth(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    yearSelect.addEventListener('change', function() {
+        currentCalendarDate.setFullYear(parseInt(this.value));
+        updateCalendar();
+    });
+    
+    // Clear date
+    clearDate.addEventListener('click', function() {
+        const input = document.getElementById(currentInputField);
+        if (input) {
+            input.value = '';
+        }
+        selectedDate = null;
+        modal.classList.add('hidden');
+    });
+    
+    // Today button
+    todayDate.addEventListener('click', function() {
+        const today = new Date();
+        currentCalendarDate = new Date(today);
+        selectedDate = new Date(today);
+        updateCalendar();
+    });
+});
+</script>

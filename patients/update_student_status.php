@@ -55,51 +55,55 @@ try {
     $updateStmt->execute([$newStatus, $studentId]);
     
     // Record status change in enrollment history
-    $historyStmt = $pdo->prepare('
-        INSERT INTO enrollment_history (
-            student_id, 
-            enrollment_type, 
-            previous_status, 
-            new_status, 
-            previous_level, 
-            new_level, 
-            previous_year_grade, 
-            new_year_grade, 
-            previous_section, 
-            new_section, 
-            previous_strand, 
-            new_strand, 
-            previous_course, 
-            new_course, 
-            previous_block, 
-            new_block, 
-            enrollment_year, 
-            notes, 
-            created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ');
-    
-    $historyStmt->execute([
-        $studentId,
-        'status_change',
-        $currentStatus,
-        $newStatus,
-        $student['level'],
-        $student['level'],
-        $student['year_grade'],
-        $student['year_grade'],
-        $student['section'],
-        $student['section'],
-        $student['strand'],
-        $student['strand'],
-        $student['course'],
-        $student['course'],
-        $student['block'],
-        $student['block'],
-        date('Y'),
-        $statusNotes ?: "Status changed from {$currentStatus} to {$newStatus}",
-        $_SESSION['user_id'] ?? 1
-    ]);
+    // Only create enrollment history for significant status changes (not for Active <-> Inactive)
+    // Skip creating duplicate records if student is being graduated (re-enrollment will handle it)
+    if (!($currentStatus === 'Active' && $newStatus === 'Graduated')) {
+        $historyStmt = $pdo->prepare('
+            INSERT INTO enrollment_history (
+                student_id, 
+                enrollment_type, 
+                previous_status, 
+                new_status, 
+                previous_level, 
+                new_level, 
+                previous_year_grade, 
+                new_year_grade, 
+                previous_section, 
+                new_section, 
+                previous_strand, 
+                new_strand, 
+                previous_course, 
+                new_course, 
+                previous_block, 
+                new_block, 
+                enrollment_year, 
+                notes, 
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ');
+        
+        $historyStmt->execute([
+            $studentId,
+            'status_change',
+            $currentStatus,
+            $newStatus,
+            $student['level'],
+            $student['level'],
+            $student['year_grade'],
+            $student['year_grade'],
+            $student['section'],
+            $student['section'],
+            $student['strand'],
+            $student['strand'],
+            $student['course'],
+            $student['course'],
+            $student['block'],
+            $student['block'],
+            date('Y'),
+            $statusNotes ?: "Status changed from {$currentStatus} to {$newStatus}",
+            $_SESSION['user_id'] ?? 1
+        ]);
+    }
     
     $_SESSION['success'] = "Student status updated from {$currentStatus} to {$newStatus}";
     
