@@ -1,0 +1,95 @@
+name: Deploy CARE System to Hostinger
+
+on:
+  push:
+    branches: [ main, master, production, yan-na-yon- ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.1'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, curl, json, openssl
+        
+    - name: Create deployment package
+      run: |
+        # Create a clean deployment package
+        mkdir -p deploy_package
+        
+        # Copy files excluding development files
+        rsync -av --exclude='.git' \
+                  --exclude='node_modules' \
+                  --exclude='backups' \
+                  --exclude='logs' \
+                  --exclude='*.log' \
+                  --exclude='.env' \
+                  --exclude='deploy_*' \
+                  --exclude='README.md' \
+                  --exclude='.DS_Store' \
+                  --exclude='Thumbs.db' \
+                  --exclude='.github' \
+                  --exclude='test_*' \
+                  --exclude='src/' \
+                  --exclude='assets/node_modules/' \
+                  ./ deploy_package/
+        
+        echo "Deployment package created successfully"
+                  
+    - name: Deploy to Hostinger via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ${{ secrets.HOSTINGER_FTP_SERVER }}
+        username: ${{ secrets.HOSTINGER_FTP_USERNAME }}
+        password: ${{ secrets.HOSTINGER_FTP_PASSWORD }}
+        local-dir: ./deploy_package/
+        server-dir: /public_html/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/backups/**
+          **/logs/**
+          **/*.log
+          **/.env*
+          **/deploy_*
+          **/README.md
+          **/.DS_Store
+          **/Thumbs.db
+          **/test_*
+          **/src/**
+          **/assets/node_modules/**
+          
+    - name: Run database migrations
+      run: |
+        # Add database migration commands here
+        echo "Database migrations would be run here"
+        
+    - name: Clear cache
+      run: |
+        # Add cache clearing commands here
+        echo "Cache clearing would be done here"
+        
+    - name: Verify deployment
+      run: |
+        # Verify the deployment by checking if the site is accessible
+        curl -f https://${{ secrets.HOSTINGER_DOMAIN }} || exit 1
+        
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "Deployment completed successfully!"
+        # Add notification logic here (Slack, Discord, Email, etc.)
+        
+    - name: Notify deployment failure
+      if: failure()
+      run: |
+        echo "Deployment failed!"
+        # Add failure notification logic here

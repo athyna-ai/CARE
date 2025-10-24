@@ -1,0 +1,46 @@
+# Security Framework - Includes Directory Protection
+# Prevent direct access to PHP files in includes directory
+
+# Deny access to all PHP files in this directory
+<FilesMatch "\.php$">
+    Deny from all
+</FilesMatch>
+
+# Allow access to specific configuration files if needed
+<FilesMatch "^(security-config\.php|allowed-config\.php)$">
+    Allow from all
+</FilesMatch>
+
+# Prevent access to any other files
+<FilesMatch "\.">
+    Deny from all
+</FilesMatch>
+
+# Security headers
+Header always set X-Content-Type-Options nosniff
+Header always set X-Frame-Options DENY
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# Disable server signature
+ServerSignature Off
+
+# Prevent directory browsing
+Options -Indexes
+
+# Custom error pages
+ErrorDocument 403 "Access Denied - Security Framework Protected"
+ErrorDocument 404 "File Not Found"
+
+# Expire headers for static files (if any are allowed)
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 month"
+</IfModule>
+
+# Additional security measures
+<IfModule mod_security.c>
+    SecRuleEngine On
+    SecRule REQUEST_METHOD "@streq POST" \
+        "id:1001,phase:1,block,msg:'POST requests to includes directory'"
+</IfModule>

@@ -1,0 +1,1517 @@
+/* CSS Variables removed to prevent conflicts with Tailwind CSS */
+* { box-sizing: border-box; }
+.container { max-width: 540px; margin: 48px auto; padding: 24px; background: #111827; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+h1 { margin-top:0; font-size: 24px; }
+.field { margin-bottom: 16px; }
+label { display:block; margin-bottom: 6px; color: #9ca3af; }
+/* Input styles removed to prevent conflicts with Tailwind CSS */
+
+/* Force proper styling for ALL form inputs - Maximum specificity */
+input[type="text"], 
+input[type="email"], 
+input[type="password"], 
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select, 
+textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* ULTRA SPECIFIC - Override any possible conflicting styles */
+body input[type="text"],
+body input[type="email"],
+body input[type="password"],
+body input[type="tel"],
+body input[type="number"],
+body input[type="date"],
+body input[type="time"],
+body select,
+body textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Even more specific - target all possible selectors */
+html body input[type="text"],
+html body input[type="email"],
+html body input[type="password"],
+html body input[type="tel"],
+html body input[type="number"],
+html body input[type="date"],
+html body input[type="time"],
+html body select,
+html body textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* =====================================================
+   PRINT-FRIENDLY STYLES FOR PATIENT RECORDS
+   ===================================================== */
+
+@media print {
+    /* Reset page for printing */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Hide navigation and interactive elements */
+    header,
+    nav,
+    aside,
+    .fixed,
+    .sticky,
+    button,
+    .btn,
+    .button,
+    #sidebarToggle,
+    #notificationContainer,
+    .notification,
+    .modal,
+    .popup,
+    .dropdown,
+    .tooltip,
+    .no-print {
+        display: none !important;
+    }
+    
+    /* Page setup */
+    @page {
+        margin: 0.5in;
+        size: A4;
+    }
+    
+    body {
+        font-family: 'Times New Roman', serif !important;
+        font-size: 12pt !important;
+        line-height: 1.4 !important;
+        color: #000 !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Main content area */
+    main {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* Patient record container */
+    .patient-record,
+    .medical-record,
+    .patient-view,
+    .medical-view {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 0 !important;
+        padding: 20px !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Print-specific content targeting */
+    .print-medical-form {
+        /* Hide everything except the medical form content */
+    }
+    
+    .print-medical-form > *:not(.medical-form-content):not(.form-data):not(.record-information) {
+        display: none !important;
+    }
+    
+    .print-visitation-log {
+        /* Hide everything except the visitation log content */
+    }
+    
+    .print-visitation-log > *:not(.visitation-log-content):not(.log-details) {
+        display: none !important;
+    }
+    
+    .print-patient-info {
+        /* Hide everything except the patient information content */
+    }
+    
+    .print-patient-info > *:not(.patient-details):not(.personal-info):not(.patient-information) {
+        display: none !important;
+    }
+    
+    /* Specific targeting for medical forms */
+    .print-medical-form .bg-white.rounded-xl.shadow-lg {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+    }
+    
+    .print-medical-form .bg-slate-50 {
+        background: #f9f9f9 !important;
+        border: 1px solid #000 !important;
+    }
+    
+    /* Specific targeting for visitation logs */
+    .print-visitation-log .bg-white.rounded-xl.shadow-lg {
+        box-shadow: none !important;
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+    }
+    
+    .print-visitation-log .space-y-6 > * {
+        margin: 15px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Specific targeting for patient info */
+    .print-patient-info .grid.grid-cols-1.lg\\:grid-cols-3 {
+        display: block !important;
+    }
+    
+    .print-patient-info .lg\\:col-span-2,
+    .print-patient-info .lg\\:col-span-1 {
+        width: 100% !important;
+        margin: 10px 0 !important;
+    }
+    
+    /* Patient Information Print Layout */
+    .print-patient-info {
+        text-align: center !important;
+        padding: 20px !important;
+        font-family: 'Times New Roman', serif !important;
+        font-size: 12pt !important;
+        line-height: 1.4 !important;
+        color: #000 !important;
+        background: white !important;
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    .print-patient-info .print-header {
+        margin-bottom: 30px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-logo {
+        font-size: 32pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 10px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-institution {
+        font-size: 16pt !important;
+        color: #000 !important;
+        margin-bottom: 20px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-subtitle {
+        font-size: 18pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 30px !important;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 10px !important;
+        text-align: center !important;
+    }
+    
+    .print-patient-info .print-content {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 30px !important;
+        text-align: left !important;
+        margin-top: 20px !important;
+        width: 100% !important;
+    }
+    
+    .print-patient-info .print-section {
+        border: 1px solid #000 !important;
+        padding: 15px !important;
+        background: #f9f9f9 !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 15px !important;
+    }
+    
+    .print-patient-info .print-section h3 {
+        font-size: 14pt !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        margin-bottom: 10px !important;
+        border-bottom: 1px solid #000 !important;
+        padding-bottom: 5px !important;
+        text-align: left !important;
+    }
+    
+    .print-patient-info .print-field {
+        margin: 8px 0 !important;
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+    }
+    
+    .print-patient-info .print-label {
+        font-weight: bold !important;
+        color: #000 !important;
+        font-size: 11pt !important;
+        flex: 0 0 auto !important;
+    }
+    
+    .print-patient-info .print-value {
+        color: #000 !important;
+        font-size: 11pt !important;
+        text-align: right !important;
+        flex: 1 !important;
+        margin-left: 10px !important;
+    }
+    
+    /* Headers and titles */
+    h1, h2, h3, h4, h5, h6 {
+        color: #000 !important;
+        font-weight: bold !important;
+        margin: 10px 0 5px 0 !important;
+        page-break-after: avoid;
+    }
+    
+    h1 {
+        font-size: 18pt !important;
+        border-bottom: 2px solid #000 !important;
+        padding-bottom: 5px !important;
+    }
+    
+    h2 {
+        font-size: 16pt !important;
+        border-bottom: 1px solid #000 !important;
+        padding-bottom: 3px !important;
+    }
+    
+    h3 {
+        font-size: 14pt !important;
+    }
+    
+    /* Patient information section */
+    .patient-info,
+    .patient-details,
+    .personal-info {
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+        padding: 15px !important;
+        background: #f9f9f9 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Medical records section */
+    .medical-records,
+    .medical-history,
+    .visitation-logs {
+        margin: 15px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Tables */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 10px 0 !important;
+        font-size: 11pt !important;
+        page-break-inside: avoid;
+    }
+    
+    th, td {
+        border: 1px solid #000 !important;
+        padding: 8px !important;
+        text-align: left !important;
+        vertical-align: top !important;
+    }
+    
+    th {
+        background: #e0e0e0 !important;
+        font-weight: bold !important;
+        color: #000 !important;
+    }
+    
+    /* Cards and containers */
+    .card,
+    .container,
+    .section,
+    .panel {
+        border: 1px solid #000 !important;
+        margin: 10px 0 !important;
+        padding: 15px !important;
+        background: white !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+    
+    /* Form elements - show as text */
+    .form-group,
+    .field-group {
+        margin: 8px 0 !important;
+        page-break-inside: avoid;
+    }
+    
+    label {
+        font-weight: bold !important;
+        color: #000 !important;
+        display: inline !important;
+        margin-right: 10px !important;
+    }
+    
+    /* Hide form inputs and show their values */
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    input[type="time"],
+    select,
+    textarea {
+        border: none !important;
+        background: transparent !important;
+        color: #000 !important;
+        font-weight: normal !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Show checkbox and radio values */
+    input[type="checkbox"]:checked::after {
+        content: " ✓" !important;
+        color: #000 !important;
+    }
+    
+    input[type="checkbox"]:not(:checked)::after {
+        content: " ☐" !important;
+        color: #000 !important;
+    }
+    
+    input[type="radio"]:checked::after {
+        content: " ●" !important;
+        color: #000 !important;
+    }
+    
+    input[type="radio"]:not(:checked)::after {
+        content: " ○" !important;
+        color: #000 !important;
+    }
+    
+    /* Status indicators */
+    .status,
+    .badge,
+    .tag {
+        border: 1px solid #000 !important;
+        background: white !important;
+        color: #000 !important;
+        padding: 2px 6px !important;
+        font-size: 10pt !important;
+        display: inline-block !important;
+    }
+    
+    /* Medical form sections */
+    .medical-form,
+    .form-section {
+        border: 1px solid #000 !important;
+        margin: 15px 0 !important;
+        padding: 15px !important;
+        page-break-inside: avoid;
+    }
+    
+    .form-section h4 {
+        background: #e0e0e0 !important;
+        margin: -15px -15px 10px -15px !important;
+        padding: 8px 15px !important;
+        border-bottom: 1px solid #000 !important;
+    }
+    
+    /* Grid layouts - convert to vertical */
+    .grid,
+    .flex,
+    .row {
+        display: block !important;
+    }
+    
+    .col,
+    .column {
+        width: 100% !important;
+        margin: 5px 0 !important;
+        display: block !important;
+    }
+    
+    /* Spacing adjustments */
+    .mb-4, .mb-6, .mb-8 { margin-bottom: 10px !important; }
+    .mt-4, .mt-6, .mt-8 { margin-top: 10px !important; }
+    .p-4, .p-6, .p-8 { padding: 10px !important; }
+    
+    /* Colors - convert to grayscale */
+    .text-blue-600,
+    .text-clinic-blue,
+    .text-primary { color: #000 !important; }
+    
+    .bg-blue-100,
+    .bg-clinic-blue,
+    .bg-primary { background: #e0e0e0 !important; }
+    
+    .border-blue-200,
+    .border-clinic-blue { border-color: #000 !important; }
+    
+    /* Print-specific classes */
+    .print-only {
+        display: block !important;
+    }
+    
+    .no-print {
+        display: none !important;
+    }
+    
+    /* Page breaks */
+    .page-break-before {
+        page-break-before: always !important;
+    }
+    
+    .page-break-after {
+        page-break-after: always !important;
+    }
+    
+    .page-break-inside-avoid {
+        page-break-inside: avoid !important;
+    }
+    
+    /* Footer for printed pages */
+    .print-footer {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        text-align: center !important;
+        font-size: 10pt !important;
+        border-top: 1px solid #000 !important;
+        padding: 5px !important;
+        background: white !important;
+    }
+    
+    /* Date and time stamps */
+    .timestamp,
+    .date-time {
+        font-style: italic !important;
+        color: #666 !important;
+        font-size: 10pt !important;
+    }
+    
+    /* Signature lines */
+    .signature-line {
+        border-bottom: 1px solid #000 !important;
+        margin: 20px 0 !important;
+        padding: 10px 0 !important;
+    }
+    
+    .signature-label {
+        font-size: 10pt !important;
+        color: #666 !important;
+        margin-top: 5px !important;
+    }
+}
+
+/* Override any Tailwind classes that might be causing issues */
+input.bg-white,
+select.bg-white,
+textarea.bg-white {
+    background-color: white !important;
+    background: white !important;
+}
+
+input.text-slate-800,
+select.text-slate-800,
+textarea.text-slate-800 {
+    color: #1e293b !important;
+}
+
+/* Override any form containers that might have dark backgrounds */
+form,
+.form,
+.form-container,
+.modal,
+.modal-content,
+#editPatientModal,
+#editPatientModal .modal-content {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Ensure all form elements in modals have proper styling */
+.modal input[type="text"],
+.modal input[type="email"],
+.modal input[type="password"],
+.modal select,
+.modal textarea,
+#editPatientModal input[type="text"],
+#editPatientModal input[type="email"],
+#editPatientModal input[type="password"],
+#editPatientModal select,
+#editPatientModal textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* Override any potential dark styling on form elements */
+input[type="text"]:not([class*="bg-clinic-ivory"]),
+input[type="email"]:not([class*="bg-clinic-ivory"]),
+input[type="password"]:not([class*="bg-clinic-ivory"]),
+select:not([class*="bg-clinic-ivory"]),
+textarea:not([class*="bg-clinic-ivory"]) {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Force white background on all form elements regardless of any other CSS */
+*[class*="bg-white"] {
+    background-color: white !important;
+    background: white !important;
+}
+
+/* Target specific form elements by their classes */
+input[class*="rounded-xl"],
+select[class*="rounded-xl"],
+textarea[class*="rounded-xl"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target elements with specific Tailwind classes */
+input[class*="border-slate-300"],
+select[class*="border-slate-300"],
+textarea[class*="border-slate-300"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target elements with text-slate-800 class */
+input[class*="text-slate-800"],
+select[class*="text-slate-800"],
+textarea[class*="text-slate-800"] {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target form elements in specific containers */
+.max-w-4xl input[type="text"],
+.max-w-4xl input[type="email"],
+.max-w-4xl input[type="password"],
+.max-w-4xl select,
+.max-w-4xl textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Target form elements in grid layouts */
+.grid input[type="text"],
+.grid input[type="email"],
+.grid input[type="password"],
+.grid select,
+.grid textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Nuclear option - target ALL input and select elements */
+input, select, textarea {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+}
+
+/* Placeholder styling */
+input[type="text"]::placeholder, 
+input[type="email"]::placeholder, 
+input[type="password"]::placeholder, 
+input[type="tel"]::placeholder,
+input[type="number"]::placeholder,
+input[type="date"]::placeholder,
+input[type="time"]::placeholder,
+textarea::placeholder {
+    color: #64748b !important;
+    opacity: 1 !important;
+}
+
+/* Focus states */
+input[type="text"]:focus, 
+input[type="email"]:focus, 
+input[type="password"]:focus, 
+input[type="tel"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="time"]:focus,
+select:focus, 
+textarea:focus {
+    background-color: white !important;
+    background: white !important;
+    color: #1e293b !important;
+    border-color: #0ea5e9 !important;
+    outline: none !important;
+}
+
+/* Specific styling for clinic-themed inputs */
+input[type="text"][class*="bg-clinic-ivory"], 
+input[type="text"][class*="bg-clinic-ivory/40"] {
+    background-color: #fbfcee !important;
+    background: #fbfcee !important;
+    color: #343b1b !important;
+}
+
+input[type="text"][class*="bg-clinic-ivory"]::placeholder, 
+input[type="text"][class*="bg-clinic-ivory/40"]::placeholder {
+    color: rgba(52, 59, 27, 0.5) !important;
+    opacity: 1 !important;
+}
+/* Apply green background to most buttons */
+button { 
+    background: #22c55e; 
+    color:#052e16; 
+    font-weight:600; 
+    padding: 10px 14px; 
+    border:none; 
+    border-radius:8px; 
+    cursor:pointer; 
+}
+
+/* Override green background for main logs panel buttons */
+button[onclick*="viewFullLogs"],
+button[onclick*="showLogTab"],
+button.text-gray-600,
+button.text-gray-500,
+button.text-gray-700,
+button.text-gray-800 {
+    background: transparent !important;
+    color: inherit !important;
+    font-weight: inherit !important;
+    padding: inherit !important;
+    border: inherit !important;
+    border-radius: inherit !important;
+}
+button[disabled] { opacity:.5; cursor:not-allowed; }
+.checkbox { display:flex; align-items:center; gap:8px; color: #e5e7eb; }
+.hint { color: #9ca3af; }
+.notice { margin: 12px 0; padding: 10px 12px; border-radius: 8px; }
+.notice.error { background: rgba(239,68,68,.15); color: #fecaca; border:1px solid rgba(239,68,68,.4); }
+.notice.success { background: rgba(34,197,94,.15); color: #bbf7d0; border:1px solid rgba(34,197,94,.4); }
+.hidden { display:none; }
+.table { width:100%; border-collapse: collapse; margin-top: 12px; }
+.table th, .table td { text-align:left; padding: 8px 10px; border-bottom: 1px solid #1f2937; }
+.linklike { background:none; border:none; color:#93c5fd; cursor:pointer; padding:0; text-decoration: underline; }
+
+/* Responsive sidebar behavior */
+#mainContent {
+    transition: padding-left 0.3s ease-in-out;
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+}
+
+/* Sidebar base styles - work with Tailwind classes */
+#appSidebar {
+    /* Let Tailwind handle positioning and styling */
+    /* Only override transform behavior */
+    transition: transform 0.3s ease-in-out !important;
+    background: rgba(251, 252, 238, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border-right: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 25px 50px -12px rgba(52, 59, 27, 0.15) !important;
+}
+
+/* Ensure sidebar is hidden by default */
+#appSidebar[data-sidebar-state="hidden"] {
+    transform: translateX(-100%) !important;
+}
+
+/* Show sidebar when visible */
+#appSidebar[data-sidebar-state="visible"] {
+    transform: translateX(0) !important;
+}
+
+/* Mobile sidebar overlay */
+@media (max-width: 767px) {
+    #appSidebar {
+        width: 100vw;
+        max-width: 320px;
+        z-index: 40;
+    }
+    #mainContent {
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* Ensure content doesn't get cut off on mobile */
+    .page-container {
+        padding: 1rem;
+        min-height: calc(100vh - 5rem);
+    }
+}
+
+/* Tablet responsive */
+@media (min-width: 768px) and (max-width: 1023px) {
+    #appSidebar {
+        width: 280px;
+    }
+    #mainContent {
+        padding-left: 0;
+        width: 100%;
+    }
+}
+
+/* Desktop responsive */
+@media (min-width: 1024px) {
+    #appSidebar {
+        width: 320px;
+    }
+    #mainContent {
+        padding-left: 0;
+        width: 100%;
+    }
+    
+    /* When sidebar is visible on desktop, add padding */
+    #mainContent.lg\:pl-80 {
+        padding-left: 320px;
+    }
+    
+    /* Ensure grid cards fill the full width properly */
+    .grid.grid-cols-6 {
+        width: 100% !important;
+        max-width: none !important;
+        display: grid !important;
+        grid-template-columns: repeat(6, 1fr) !important;
+    }
+    
+    /* Make sure cards are evenly distributed and fill full width */
+    .grid.grid-cols-6 > * {
+        width: 100% !important;
+        min-width: 0;
+        flex: 1;
+    }
+    
+    /* Ensure the container takes full width */
+    .w-full.max-w-none {
+        max-width: none !important;
+        width: 100% !important;
+    }
+}
+
+/* Additional responsive fixes for better card distribution */
+@media (min-width: 1280px) {
+    .grid.grid-cols-6 {
+        gap: 2rem;
+    }
+}
+
+/* Ensure proper spacing and layout on all screen sizes */
+@media (min-width: 1024px) {
+    .min-h-\[calc\(100vh-5rem\)\] {
+        min-height: calc(100vh - 5rem);
+    }
+    
+    /* Make sure the content container fills available space - but not forms */
+    .min-h-\[calc\(100vh-5rem\)\] .w-full:not(.max-w-4xl):not(.max-w-3xl) {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* When sidebar is closed, ensure content takes full width - but not forms */
+    #mainContent:not(.lg\:pl-80) .w-full:not(.max-w-4xl):not(.max-w-3xl) {
+        width: 100% !important;
+        max-width: none !important;
+    }
+    
+    /* Force full width for the main content area */
+    #mainContent {
+        width: 100% !important;
+    }
+}
+
+/* Fix for pages with fixed heights */
+@media (max-width: 767px) {
+    .h-\[calc\(100vh-5rem\)\] {
+        height: calc(100vh - 5rem);
+        min-height: calc(100vh - 5rem);
+    }
+    
+    .min-h-\[calc\(100vh-5rem\)\] {
+        min-height: calc(100vh - 5rem);
+    }
+}
+
+/* Mobile Responsiveness Improvements */
+@media (max-width: 640px) {
+    /* Form improvements */
+    .form-input-mobile {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 12px 16px !important;
+    }
+    
+    /* Better spacing for mobile forms */
+    .mobile-form-spacing {
+        gap: 1rem !important;
+        padding: 1rem !important;
+    }
+    
+    /* Mobile-friendly buttons */
+    .mobile-button {
+        min-height: 44px !important; /* iOS recommended touch target */
+        padding: 12px 20px !important;
+        font-size: 16px !important;
+    }
+    
+    /* Improve modal responsiveness */
+    .mobile-modal {
+        margin: 1rem !important;
+        max-height: calc(100vh - 2rem) !important;
+    }
+    
+    /* Better table responsiveness */
+    .mobile-table {
+        font-size: 14px !important;
+    }
+    
+    .mobile-table th,
+    .mobile-table td {
+        padding: 8px 4px !important;
+    }
+    
+    /* Stack form elements on mobile */
+    .mobile-stack {
+        grid-template-columns: 1fr !important;
+    }
+    
+    /* Improve notification positioning */
+    .mobile-notification {
+        top: 1rem !important;
+        right: 1rem !important;
+        left: 1rem !important;
+        transform: none !important;
+    }
+}
+
+/* Tablet improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+    .tablet-form-spacing {
+        gap: 1.5rem !important;
+        padding: 1.5rem !important;
+    }
+    
+    .tablet-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Form validation improvements */
+.form-field {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.form-field.error input,
+.form-field.error select,
+.form-field.error textarea {
+    border-color: #dc2626 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.form-field.success input,
+.form-field.success select,
+.form-field.success textarea {
+    border-color: #059669 !important;
+    background-color: #f0fdf4 !important;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+}
+
+.form-field .field-error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.form-field .field-error::before {
+    content: "⚠";
+    font-size: 0.75rem;
+}
+
+.form-field .field-success {
+    color: #059669;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-weight: 500;
+}
+
+.form-field .field-success::before {
+    content: "✓";
+    font-size: 0.75rem;
+}
+
+.form-field .field-help {
+    color: #6b7280;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    font-style: italic;
+}
+
+/* Improved notification styling */
+.notification.error {
+    background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+    border-left: 4px solid #991b1b !important;
+}
+
+.notification.success {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    border-left: 4px solid #065f46 !important;
+}
+
+.notification.info {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    border-left: 4px solid #1e40af !important;
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, #d97706, #b45309) !important;
+    border-left: 4px solid #92400e !important;
+}
+
+/* Real-time validation feedback */
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    transition: all 0.3s ease;
+}
+
+.form-field input:invalid:not(:focus):not(:placeholder-shown),
+.form-field select:invalid:not(:focus),
+.form-field textarea:invalid:not(:focus):not(:placeholder-shown) {
+    border-color: #dc2626;
+    background-color: #fef2f2;
+}
+
+.form-field input:valid:not(:focus):not(:placeholder-shown),
+.form-field select:valid:not(:focus),
+.form-field textarea:valid:not(:focus):not(:placeholder-shown) {
+    border-color: #059669;
+    background-color: #f0fdf4;
+}
+
+/* Improved focus states for accessibility */
+.form-input:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Better mobile touch targets */
+@media (max-width: 640px) {
+    button, 
+    .btn, 
+    input[type="submit"], 
+    input[type="button"],
+    a.button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* =====================================================
+   TABLE RESPONSIVENESS - HORIZONTAL SCROLL ON MOBILE
+   ===================================================== */
+
+/* Base table responsiveness wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Ensure tables don't break on mobile */
+.table-responsive table {
+    width: 100%;
+    min-width: 600px; /* Minimum width to prevent cramping */
+    border-collapse: collapse;
+    margin: 0;
+}
+
+/* Grid-based table responsiveness */
+.grid-table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* Grid table container */
+.grid-table-responsive .grid-table-container {
+    min-width: 600px; /* Minimum width for grid tables */
+    width: 100%;
+}
+
+/* =====================================================
+   COMPREHENSIVE SCROLLBAR STYLING FOR ENTIRE SYSTEM
+   ===================================================== */
+
+/* Global scrollbar styles for all elements */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+/* Webkit scrollbar styles for all scrollable elements */
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+    box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+*::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #2563eb, #0891b2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: scale(1.05);
+}
+
+*::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(135deg, #1d4ed8, #0e7490);
+}
+
+*::-webkit-scrollbar-corner {
+    background: #f1f5f9;
+}
+
+/* Specific styles for different scrollable elements */
+.table-responsive,
+.grid-table-responsive,
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+/* Enhanced scrollbar for tables */
+.table-responsive::-webkit-scrollbar,
+.grid-table-responsive::-webkit-scrollbar {
+    height: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track,
+.grid-table-responsive::-webkit-scrollbar-track {
+    background: linear-gradient(90deg, #f8fafc, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: inset 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.table-responsive::-webkit-scrollbar-thumb,
+.grid-table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Scrollbar for panels and modals */
+.panel,
+.modal,
+.popup,
+.card,
+.bg-white,
+.bg-gray-50 {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f8fafc;
+}
+
+.panel::-webkit-scrollbar,
+.modal::-webkit-scrollbar,
+.popup::-webkit-scrollbar,
+.card::-webkit-scrollbar,
+.bg-white::-webkit-scrollbar,
+.bg-gray-50::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.panel::-webkit-scrollbar-track,
+.modal::-webkit-scrollbar-track,
+.popup::-webkit-scrollbar-track,
+.card::-webkit-scrollbar-track,
+.bg-white::-webkit-scrollbar-track,
+.bg-gray-50::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+}
+
+.panel::-webkit-scrollbar-thumb,
+.modal::-webkit-scrollbar-thumb,
+.popup::-webkit-scrollbar-thumb,
+.card::-webkit-scrollbar-thumb,
+.bg-white::-webkit-scrollbar-thumb,
+.bg-gray-50::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollbar for forms and textareas */
+textarea,
+.form-control,
+.input,
+.select,
+select {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #ffffff;
+}
+
+textarea::-webkit-scrollbar,
+.form-control::-webkit-scrollbar,
+.input::-webkit-scrollbar,
+.select::-webkit-scrollbar,
+select::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+textarea::-webkit-scrollbar-track,
+.form-control::-webkit-scrollbar-track,
+.input::-webkit-scrollbar-track,
+.select::-webkit-scrollbar-track,
+select::-webkit-scrollbar-track {
+    background: #ffffff;
+    border-radius: 3px;
+    border: 1px solid #e2e8f0;
+}
+
+textarea::-webkit-scrollbar-thumb,
+.form-control::-webkit-scrollbar-thumb,
+.input::-webkit-scrollbar-thumb,
+.select::-webkit-scrollbar-thumb,
+select::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* Scrollbar for lists and dropdowns */
+.list,
+.dropdown,
+.menu,
+.nav,
+ul,
+ol {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f8fafc;
+}
+
+.list::-webkit-scrollbar,
+.dropdown::-webkit-scrollbar,
+.menu::-webkit-scrollbar,
+.nav::-webkit-scrollbar,
+ul::-webkit-scrollbar,
+ol::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+
+.list::-webkit-scrollbar-track,
+.dropdown::-webkit-scrollbar-track,
+.menu::-webkit-scrollbar-track,
+.nav::-webkit-scrollbar-track,
+ul::-webkit-scrollbar-track,
+ol::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 3px;
+}
+
+.list::-webkit-scrollbar-thumb,
+.dropdown::-webkit-scrollbar-thumb,
+.menu::-webkit-scrollbar-thumb,
+.nav::-webkit-scrollbar-thumb,
+ul::-webkit-scrollbar-thumb,
+ol::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 3px;
+}
+
+/* Scrollbar for main content areas */
+.main-content,
+.content,
+.page-content,
+.dashboard-content,
+body,
+html {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 #f1f5f9;
+}
+
+.main-content::-webkit-scrollbar,
+.content::-webkit-scrollbar,
+.page-content::-webkit-scrollbar,
+.dashboard-content::-webkit-scrollbar,
+body::-webkit-scrollbar,
+html::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.main-content::-webkit-scrollbar-track,
+.content::-webkit-scrollbar-track,
+.page-content::-webkit-scrollbar-track,
+.dashboard-content::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track,
+html::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 6px;
+}
+
+.main-content::-webkit-scrollbar-thumb,
+.content::-webkit-scrollbar-thumb,
+.page-content::-webkit-scrollbar-thumb,
+.dashboard-content::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+html::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile responsive scrollbars */
+@media (max-width: 768px) {
+    *::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+        border-radius: 2px;
+    }
+    
+    *::-webkit-scrollbar-track {
+        border-radius: 2px;
+    }
+}
+
+/* Dark mode scrollbars */
+@media (prefers-color-scheme: dark) {
+    * {
+        scrollbar-color: #60a5fa #374151;
+    }
+    
+    *::-webkit-scrollbar-track {
+        background: #374151;
+    }
+    
+    *::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #60a5fa, #22d3ee);
+    }
+    
+    *::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    }
+}
+
+/* Mobile-specific table improvements */
+@media (max-width: 768px) {
+    
+    /* Ensure grid tables have proper minimum width */
+    .grid.grid-cols-12 {
+        min-width: 600px !important;
+        width: max-content !important;
+    }
+    
+    /* Improve table cell spacing on mobile */
+    .table-responsive table th,
+    .table-responsive table td,
+    .grid-table-responsive .grid th,
+    .grid-table-responsive .grid td {
+        padding: 8px 6px !important;
+        font-size: 14px !important;
+        white-space: nowrap;
+    }
+    
+    /* Make action buttons more touch-friendly */
+    .table-responsive .action-buttons,
+    .grid-table-responsive .action-buttons {
+        display: flex;
+        gap: 4px;
+        flex-wrap: nowrap;
+    }
+    
+    .table-responsive .action-buttons a,
+    .table-responsive .action-buttons button,
+    .grid-table-responsive .action-buttons a,
+    .grid-table-responsive .action-buttons button {
+        min-width: 32px;
+        min-height: 32px;
+        padding: 6px !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Improve grid table row spacing */
+    .grid-table-responsive .grid > div {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Specific fixes for faculty and student listing tables */
+    .faculty-table-responsive,
+    .student-table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .faculty-table-responsive .grid.grid-cols-12,
+    .student-table-responsive .grid.grid-cols-12 {
+        min-width: 700px !important;
+        width: max-content !important;
+    }
+    
+    /* Visitation logs table improvements */
+    .visitation-logs-table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .visitation-logs-table table {
+        min-width: 500px !important;
+    }
+}
+
+/* Tablet improvements for tables */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .table-responsive,
+    .grid-table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .grid.grid-cols-12 {
+        min-width: 800px;
+    }
+}
+
+/* Desktop - ensure tables are fully responsive */
+@media (min-width: 1025px) {
+    .table-responsive,
+    .grid-table-responsive {
+        overflow-x: visible;
+    }
+    
+    .grid.grid-cols-12 {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* Specific fixes for existing table implementations */
+/* Faculty listing table */
+#facultyTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Student listing table */
+#studentsTable {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Visitation logs in patient view */
+.overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Ensure all table containers have proper scrolling */
+div[class*="overflow-x-auto"],
+div[class*="table-responsive"],
+div[class*="grid-table-responsive"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Tooltip Styles */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+
+/* Solid professional design for dashboard cards */
+.group {
+    background: white !important;
+    border: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 4px 6px -1px rgba(52, 59, 27, 0.1), 0 2px 4px -1px rgba(200, 214, 155, 0.1) !important;
+    transition: all 0.3s ease !important;
+}
+
+.group:hover {
+    background: white !important;
+    box-shadow: 0 10px 15px -3px rgba(52, 59, 27, 0.1), 0 4px 6px -2px rgba(200, 214, 155, 0.1) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Enhanced glassy effect for the main content area */
+#mainContent {
+    background: linear-gradient(135deg, rgba(251, 252, 238, 0.8) 0%, rgba(255, 255, 255, 0.9) 50%, rgba(246, 230, 165, 0.6) 100%) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+/* Professional glassy header */
+header {
+    background: rgba(255, 255, 255, 0.9) !important;
+    backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid rgba(200, 214, 155, 0.3) !important;
+    box-shadow: 0 8px 32px -8px rgba(52, 59, 27, 0.1) !important;
+}
+
+

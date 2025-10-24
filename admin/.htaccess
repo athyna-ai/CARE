@@ -1,0 +1,39 @@
+# Admin Directory - Enhanced Security Protection
+# Multi-layer security for admin files
+
+# Disable directory browsing
+Options -Indexes
+
+# Block dangerous file extensions
+<FilesMatch "\.(sql|bak|backup|config|ini|log|txt|md|json)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Block direct access to sensitive admin files
+<FilesMatch "(run_database_update|create_new_admin|clear_failed_attempts|export_security_report)\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Block access to any file with "test" or "debug" in the name
+<FilesMatch ".*(test|debug|temp|tmp).*\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Security headers for admin files
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Block suspicious user agents
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP_USER_AGENT} ^$ [OR]
+    RewriteCond %{HTTP_USER_AGENT} (bot|crawler|spider|scraper) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+</IfModule>

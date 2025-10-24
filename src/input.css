@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for CARE application */
+@layer base {
+  html {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  body {
+    @apply min-h-screen bg-gradient-to-br from-clinic-ivory via-white to-clinic-vanilla text-clinic-dark;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-clinic-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-clinic-blue/90 transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-clinic-tea text-clinic-dark px-6 py-3 rounded-lg font-medium hover:bg-clinic-tea/80 transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white/95 backdrop-blur-md shadow-xl border border-clinic-tea/20 rounded-xl;
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue/20 focus:border-clinic-blue transition-colors duration-200;
+  }
+}

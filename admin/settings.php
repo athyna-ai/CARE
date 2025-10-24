@@ -1,0 +1,2330 @@
+<?php
+declare(strict_types=1);
+require_once __DIR__ . '/../core/config.php';
+require_once __DIR__ . '/../core/helpers.php';
+require_once __DIR__ . '/../core/security_logging.php';
+
+// Enhanced security checks BEFORE authentication
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// 1. Check if user is logged in
+if (!isset($_SESSION['user']) || empty($_SESSION['user'])) {
+    logSecurityBreach('UNAUTHORIZED_SETTINGS_ACCESS', 'Unauthorized access attempt to settings page', [
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown',
+        'referer' => $_SERVER['HTTP_REFERER'] ?? 'Direct access'
+    ]);
+    header('Location: ../auth/login.php?redirect=' . urlencode($_SERVER['REQUEST_URI']));
+    exit;
+}
+
+// 2. Verify admin status
+if (!isset($_SESSION['user']['is_admin']) || $_SESSION['user']['is_admin'] != 1) {
+    logSecurityBreach('NON_ADMIN_SETTINGS_ACCESS', 'Non-admin user attempted to access settings', [
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    header('Location: ../index.php?error=access_denied');
+    exit;
+}
+
+// 3. Verify session integrity
+if (!isset($_SESSION['last_activity']) || (time() - $_SESSION['last_activity']) > 3600) {
+    logSecurityBreach('EXPIRED_SESSION_SETTINGS', 'Expired session attempted to access settings', [
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ]);
+    session_destroy();
+    header('Location: ../auth/login.php?error=session_expired');
+    exit;
+}
+
+// 4. Check referrer for additional security (more lenient for authenticated users)
+$allowedReferrers = [
+    'http://localhost/Care/admin/dashboard.php',
+    'http://localhost/Care/admin/settings.php',
+    'https://localhost/Care/admin/dashboard.php',
+    'https://localhost/Care/admin/settings.php',
+    'https://olshacare.com/admin/dashboard.php',
+    'https://olshacare.com/admin/settings.php',
+    'http://olshacare.com/admin/dashboard.php',
+    'http://olshacare.com/admin/settings.php'
+];
+
+$referer = $_SERVER['HTTP_REFERER'] ?? '';
+$isValidReferer = false;
+
+// Check if referer is from allowed domains
+foreach ($allowedReferrers as $allowed) {
+    if (strpos($referer, $allowed) === 0) {
+        $isValidReferer = true;
+        break;
+    }
+}
+
+// Also allow referers from the same domain (for production)
+$currentDomain = $_SERVER['HTTP_HOST'] ?? '';
+if (strpos($referer, $currentDomain) !== false) {
+    $isValidReferer = true;
+}
+
+// Only log suspicious referers for unauthenticated users or very suspicious patterns
+if (!empty($referer) && !$isValidReferer && !strpos($referer, 'login.php')) {
+    // Check if it's a very suspicious referer (external domains, etc.)
+    $suspiciousPatterns = ['http://', 'https://'];
+    $isExternalReferer = false;
+    foreach ($suspiciousPatterns as $pattern) {
+        if (strpos($referer, $pattern) === 0 && strpos($referer, $currentDomain) === false) {
+            $isExternalReferer = true;
+            break;
+        }
+    }
+    
+    // Only log if it's an external referer or very suspicious
+    if ($isExternalReferer) {
+        logSecurityBreach('SUSPICIOUS_REFERER_SETTINGS', 'External referer accessing settings', [
+            'referer' => $referer,
+            'user_id' => $_SESSION['user']['id'] ?? 'Unknown',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+    }
+}
+
+require_admin_auth();
+$pdo = get_pdo();
+$user = $_SESSION['user'];
+
+// Include security breach detection AFTER authentication
+require_once __DIR__ . '/../security_breach_detector.php';
+$errors = [];
+$info = [];
+
+// Enhanced section parameter validation
+$allowedSections = ['main_logs', 'account_settings', 'create_admin', 'register_admin', 'account_management', 'keyboard_toggles', 'security_management'];
+$currentSection = $_GET['section'] ?? 'main_logs';
+
+// Additional validation for section parameter
+if (!is_string($currentSection) || strlen($currentSection) > 50) {
+    logSecurityBreach('INVALID_SETTINGS_SECTION_FORMAT', 'Invalid section parameter format', [
+        'section' => $currentSection,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
+    ]);
+    $currentSection = 'main_logs';
+} elseif (!in_array($currentSection, $allowedSections)) {
+    logSecurityBreach('INVALID_SETTINGS_SECTION', 'Invalid settings section attempted', [
+        'invalid_section' => $currentSection,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+        'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
+    ]);
+    $currentSection = 'main_logs'; // Default to safe section
+}
+
+// 5. Additional CSRF protection for sensitive sections
+if (in_array($currentSection, ['create_admin', 'register_admin', 'account_management', 'security_management'])) {
+    if (!isset($_GET['csrf_token']) || !verify_csrf($_GET['csrf_token'])) {
+        logSecurityBreach('CSRF_TOKEN_MISSING_SETTINGS', 'CSRF token missing for sensitive settings section', [
+            'section' => $currentSection,
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown',
+            'user_id' => $_SESSION['user']['id'] ?? 'Unknown'
+        ]);
+        $currentSection = 'main_logs'; // Redirect to safe section
+    }
+}
+
+// Rate limiting for settings page access
+$ip = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+$rateLimitKey = 'settings_access_' . $ip;
+$rateLimitFile = __DIR__ . '/../logs/rate_limits.json';
+
+// Check rate limit (max 10 requests per minute)
+$rateLimits = [];
+if (file_exists($rateLimitFile)) {
+    $rateLimits = json_decode(file_get_contents($rateLimitFile), true) ?? [];
+}
+
+$currentTime = time();
+$minuteAgo = $currentTime - 60;
+
+// Clean old entries
+$rateLimits = array_filter($rateLimits, function($timestamp) use ($minuteAgo) {
+    return $timestamp > $minuteAgo;
+});
+
+// Check if IP is rate limited
+$ipRequests = array_filter($rateLimits, function($timestamp, $key) use ($ip) {
+    return strpos($key, $ip) === 0;
+}, ARRAY_FILTER_USE_BOTH);
+
+if (count($ipRequests) >= 10) {
+    logSecurityBreach('SETTINGS_RATE_LIMIT_EXCEEDED', 'Settings page rate limit exceeded', [
+        'ip' => $ip,
+        'requests_count' => count($ipRequests),
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
+    ]);
+    http_response_code(429);
+    die('Rate limit exceeded. Please try again later.');
+}
+
+// Add current request to rate limit
+$rateLimits[$rateLimitKey . '_' . $currentTime] = $currentTime;
+file_put_contents($rateLimitFile, json_encode($rateLimits));
+
+
+        // Auto-clear logs functionality (runs automatically at end of day)
+try {
+    // Check if we need to auto-clear logs (only run at end of day - after 11 PM)
+    $today = date('Y-m-d');
+    $currentHour = (int)date('H');
+    
+    // Only archive if it's after 11 PM (23:00) to avoid archiving current day logs too early
+    if ($currentHour >= 23) {
+        // Check if today's logs have already been archived
+        $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+        $checkArchived->execute([$today]);
+        
+        if (!$checkArchived->fetch()) {
+        // Get all activity logs for today with user names
+        $activityLogs = $pdo->prepare("
+            SELECT al.*, u.name as user_name, u.email as user_email, u.rfid as user_rfid
+            FROM activity_logs al
+            LEFT JOIN users u ON al.user_id = u.id
+            WHERE DATE(al.timestamp) = ?
+            ORDER BY al.timestamp
+        ");
+        $activityLogs->execute([$today]);
+        $activityData = $activityLogs->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Get all visitation logs for today
+        $visitationLogs = $pdo->prepare("
+            SELECT vl.*, 
+                CASE 
+                    WHEN vl.patient_type = 'student' THEN s.name
+                    WHEN vl.patient_type = 'faculty' THEN f.name
+                END as patient_name
+            FROM visitation_logs vl 
+            LEFT JOIN students s ON vl.patient_id = s.id AND vl.patient_type = 'student'
+            LEFT JOIN faculty f ON vl.patient_id = f.id AND vl.patient_type = 'faculty'
+            WHERE DATE(vl.created_at) = ? 
+            ORDER BY vl.created_at
+        ");
+        $visitationLogs->execute([$today]);
+        $visitationData = $visitationLogs->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Only archive if there are logs to archive
+        if (!empty($activityData) || !empty($visitationData)) {
+            // Insert into daily_logs table
+            $insertDaily = $pdo->prepare("
+                INSERT INTO daily_logs (log_date, activity_data, visitation_data, total_activities, total_visitations, created_at) 
+                VALUES (?, ?, ?, ?, ?, NOW())
+            ");
+            $insertDaily->execute([
+                $today,
+                json_encode($activityData),
+                json_encode($visitationData),
+                count($activityData),
+                count($visitationData)
+            ]);
+            
+             // Mark today's logs as archived instead of deleting them
+             $pdo->prepare("UPDATE activity_logs SET archived = 1 WHERE DATE(timestamp) = ?")->execute([$today]);
+             $pdo->prepare("UPDATE visitation_logs SET archived = 1 WHERE DATE(visit_date) = ?")->execute([$today]);
+            
+            // Log this action
+            log_activity($pdo, (int)$user['id'], 'logs_auto_archived', "Auto-archived logs for {$today}", 'settings');
+        }
+        }
+    }
+    
+    // Check for weekly and monthly archiving
+    $currentWeek = date('Y-W'); // Year-Week format
+    $currentMonth = date('Y-m'); // Year-Month format
+    
+    // Check if weekly logs need to be archived (every Sunday)
+    if (date('w') == 0) { // Sunday
+        $weekStart = date('Y-m-d', strtotime('monday this week -7 days'));
+        $weekEnd = date('Y-m-d', strtotime('sunday this week -7 days'));
+        
+        $checkWeeklyArchived = $pdo->prepare("SELECT id FROM weekly_logs WHERE week_start = ?");
+        $checkWeeklyArchived->execute([$weekStart]);
+        
+        if (!$checkWeeklyArchived->fetch()) {
+            // Get all daily logs for the week
+            $weeklyLogs = $pdo->prepare("SELECT * FROM daily_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date");
+            $weeklyLogs->execute([$weekStart, $weekEnd]);
+            $weeklyData = $weeklyLogs->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (!empty($weeklyData)) {
+                // Create weekly_logs table if it doesn't exist
+                $pdo->exec('CREATE TABLE IF NOT EXISTS weekly_logs (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    week_start DATE NOT NULL,
+                    week_end DATE NOT NULL,
+                    daily_logs_data JSON NOT NULL,
+                    total_activities INT NOT NULL DEFAULT 0,
+                    total_visitations INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_week_start (week_start),
+                    INDEX idx_week_end (week_end)
+                ) ENGINE=InnoDB');
+                
+                // Calculate totals
+                $totalActivities = array_sum(array_column($weeklyData, 'total_activities'));
+                $totalVisitations = array_sum(array_column($weeklyData, 'total_visitations'));
+                
+                // Insert weekly archive
+                $insertWeekly = $pdo->prepare("
+                    INSERT INTO weekly_logs (week_start, week_end, daily_logs_data, total_activities, total_visitations, created_at) 
+                    VALUES (?, ?, ?, ?, ?, NOW())
+                ");
+                $insertWeekly->execute([
+                    $weekStart,
+                    $weekEnd,
+                    json_encode($weeklyData),
+                    $totalActivities,
+                    $totalVisitations
+                ]);
+                
+                // Delete the daily logs that were archived
+                $pdo->prepare("DELETE FROM daily_logs WHERE log_date BETWEEN ? AND ?")->execute([$weekStart, $weekEnd]);
+                
+                log_activity($pdo, (int)$user['id'], 'logs_weekly_archived', "Weekly archive created for week {$weekStart} to {$weekEnd}", 'settings');
+            }
+        }
+    }
+    
+    // Check if monthly logs need to be archived (first day of month)
+    if (date('j') == 1) { // First day of month
+        $lastMonth = date('Y-m', strtotime('first day of last month'));
+        $monthStart = date('Y-m-01', strtotime('first day of last month'));
+        $monthEnd = date('Y-m-t', strtotime('last day of last month'));
+        
+        $checkMonthlyArchived = $pdo->prepare("SELECT id FROM monthly_logs WHERE month_year = ?");
+        $checkMonthlyArchived->execute([$lastMonth]);
+        
+        if (!$checkMonthlyArchived->fetch()) {
+            // Get all daily logs for the month
+            $monthlyLogs = $pdo->prepare("SELECT * FROM daily_logs WHERE log_date BETWEEN ? AND ? ORDER BY log_date");
+            $monthlyLogs->execute([$monthStart, $monthEnd]);
+            $monthlyData = $monthlyLogs->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (!empty($monthlyData)) {
+                // Create monthly_logs table if it doesn't exist
+                $pdo->exec('CREATE TABLE IF NOT EXISTS monthly_logs (
+                    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                    month_year VARCHAR(7) NOT NULL,
+                    month_start DATE NOT NULL,
+                    month_end DATE NOT NULL,
+                    daily_logs_data JSON NOT NULL,
+                    total_activities INT NOT NULL DEFAULT 0,
+                    total_visitations INT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_month_year (month_year),
+                    INDEX idx_month_start (month_start)
+                ) ENGINE=InnoDB');
+                
+                // Calculate totals
+                $totalActivities = array_sum(array_column($monthlyData, 'total_activities'));
+                $totalVisitations = array_sum(array_column($monthlyData, 'total_visitations'));
+                
+                // Insert monthly archive
+                $insertMonthly = $pdo->prepare("
+                    INSERT INTO monthly_logs (month_year, month_start, month_end, daily_logs_data, total_activities, total_visitations, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, NOW())
+                ");
+                $insertMonthly->execute([
+                    $lastMonth,
+                    $monthStart,
+                    $monthEnd,
+                    json_encode($monthlyData),
+                    $totalActivities,
+                    $totalVisitations
+                ]);
+                
+                // Delete the daily logs that were archived
+                $pdo->prepare("DELETE FROM daily_logs WHERE log_date BETWEEN ? AND ?")->execute([$monthStart, $monthEnd]);
+                
+                log_activity($pdo, (int)$user['id'], 'logs_monthly_archived', "Monthly archive created for {$lastMonth}", 'settings');
+            }
+        }
+    }
+    
+} catch (Throwable $e) {
+    // Silently handle auto-clear errors to not disrupt user experience
+    error_log("Auto-clear logs error: " . $e->getMessage());
+}
+
+
+// Handle form submissions with enhanced security
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Log legitimate POST request to settings
+    logSecurityEvent('Settings Form Submission', 'POST request to settings page', $_SESSION['user']['id'] ?? null, true);
+    
+    if (!verify_csrf($_POST['csrf_token'] ?? null)) {
+        logSecurityBreach('CSRF_TOKEN_INVALID', 'Invalid CSRF token in settings', [
+            'provided_token' => $_POST['csrf_token'] ?? 'none',
+            'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+        ]);
+        $errors[] = 'Invalid security token. Please try again.';
+    } else {
+        $action = $_POST['action'] ?? '';
+        
+        // Validate action parameter
+        $allowedActions = ['archive_all_logs', 'update_account', 'create_admin', 'delete_user', 'activate_user', 'deactivate_user'];
+        if (!in_array($action, $allowedActions)) {
+            logSecurityBreach('INVALID_SETTINGS_ACTION', 'Invalid action attempted in settings', [
+                'invalid_action' => $action,
+                'ip' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+            ]);
+            $errors[] = 'Invalid action specified.';
+            $action = ''; // Reset to prevent processing
+        }
+        
+        switch ($action) {
+            case 'archive_all_logs':
+                try {
+                    // Get all activity logs grouped by date (including already archived ones for today)
+                    $today = date('Y-m-d');
+                    $activityLogsByDate = $pdo->query("
+                        SELECT DATE(timestamp) as log_date, 
+                               COUNT(*) as total_activities
+                        FROM activity_logs 
+                        WHERE DATE(timestamp) = '$today'
+                        GROUP BY DATE(timestamp)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Also get unarchived logs from other dates
+                    $otherDatesLogs = $pdo->query("
+                        SELECT DATE(timestamp) as log_date, 
+                               COUNT(*) as total_activities
+                        FROM activity_logs 
+                        WHERE archived = 0 AND DATE(timestamp) != '$today'
+                        GROUP BY DATE(timestamp)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Merge the results
+                    $activityLogsByDate = array_merge($activityLogsByDate, $otherDatesLogs);
+                    
+                    // Get all unarchived visitation logs grouped by date
+                    $visitationLogsByDate = $pdo->query("
+                        SELECT DATE(visit_date) as log_date,
+                               COUNT(*) as total_visitations
+                        FROM visitation_logs 
+                        WHERE archived = 0
+                        GROUP BY DATE(visit_date)
+                        ORDER BY log_date DESC
+                    ")->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    // Create daily_logs table if it doesn't exist
+                    $pdo->exec('CREATE TABLE IF NOT EXISTS daily_logs (
+                        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        log_date DATE NOT NULL,
+                        activity_logs_data JSON NOT NULL,
+                        visitation_logs_data JSON NOT NULL,
+                        total_activities INT NOT NULL DEFAULT 0,
+                        total_visitations INT NOT NULL DEFAULT 0,
+                        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        INDEX idx_log_date (log_date)
+                    ) ENGINE=InnoDB');
+                    
+                    $archivedDates = [];
+                    $totalActivities = 0;
+                    $totalVisitations = 0;
+                    
+                    // Process each date
+                    foreach ($activityLogsByDate as $activityLog) {
+                        $logDate = $activityLog['log_date'];
+                        $archivedDates[] = $logDate;
+                        $totalActivities += $activityLog['total_activities'];
+                        
+                        // Get detailed activity logs for this date (ALL logs, not just unarchived)
+                        $activityDetails = $pdo->prepare("
+                            SELECT al.*, u.name as user_name, u.email as user_email, u.rfid as user_rfid
+                            FROM activity_logs al
+                            LEFT JOIN users u ON al.user_id = u.id
+                            WHERE DATE(al.timestamp) = ?
+                            ORDER BY al.timestamp
+                        ");
+                        $activityDetails->execute([$logDate]);
+                        $activityData = $activityDetails->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        // Get detailed visitation logs for this date
+                        $visitationDetails = $pdo->prepare("
+                            SELECT vl.*, 
+                            CASE 
+                                WHEN vl.patient_type = 'student' THEN s.name
+                                WHEN vl.patient_type = 'faculty' THEN f.name
+                            END as patient_name,
+                            CASE 
+                                WHEN vl.patient_type = 'student' THEN s.rfid
+                                WHEN vl.patient_type = 'faculty' THEN f.rfid
+                            END as patient_rfid,
+                            CASE 
+                                WHEN vl.patient_type = 'student' THEN 
+                                    CASE 
+                                        WHEN s.level IN ('Elementary', 'High School', 'Senior High School') THEN s.year_grade
+                                        WHEN s.level = 'College' THEN s.year_grade
+                                        ELSE s.level
+                                    END
+                                WHEN vl.patient_type = 'faculty' THEN f.department
+                            END as grade_level_department,
+                            CASE 
+                                WHEN vl.patient_type = 'student' THEN 
+                                    CASE 
+                                        WHEN s.level IN ('Elementary', 'High School') THEN s.section
+                                        WHEN s.level = 'Senior High School' THEN s.strand
+                                        WHEN s.level = 'College' THEN s.course
+                                        ELSE s.section
+                                    END
+                                WHEN vl.patient_type = 'faculty' THEN f.position
+                            END as course_section_strand
+                            FROM visitation_logs vl
+                            LEFT JOIN students s ON vl.patient_id = s.id AND vl.patient_type = 'student'
+                            LEFT JOIN faculty f ON vl.patient_id = f.id AND vl.patient_type = 'faculty'
+                            WHERE DATE(vl.visit_date) = ? AND vl.archived = 0
+                            ORDER BY vl.visit_date
+                        ");
+                        $visitationDetails->execute([$logDate]);
+                        $visitationData = $visitationDetails->fetchAll(PDO::FETCH_ASSOC);
+                        
+                        $totalVisitations += count($visitationData);
+                        
+                        // Use INSERT ... ON DUPLICATE KEY UPDATE to prevent duplicates
+                        $insertDaily = $pdo->prepare("
+                            INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
+                            VALUES (?, ?, ?, ?, ?, NOW())
+                            ON DUPLICATE KEY UPDATE
+                                activity_logs_data = VALUES(activity_logs_data),
+                                visitation_logs_data = VALUES(visitation_logs_data),
+                                total_activities = VALUES(total_activities),
+                                total_visitations = VALUES(total_visitations),
+                                created_at = VALUES(created_at)
+                        ");
+                        $insertDaily->execute([
+                            $logDate,
+                            json_encode($activityData),
+                            json_encode($visitationData),
+                            count($activityData),
+                            count($visitationData)
+                        ]);
+                    }
+                    
+                    // Process remaining visitation dates that don't have activity logs
+                    foreach ($visitationLogsByDate as $visitationLog) {
+                        $logDate = $visitationLog['log_date'];
+                        if (!in_array($logDate, $archivedDates)) {
+                            $archivedDates[] = $logDate;
+                            
+                            // Get detailed visitation logs for this date
+                            $visitationDetails = $pdo->prepare("
+                                SELECT vl.*, 
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN s.name
+                                    WHEN vl.patient_type = 'faculty' THEN f.name
+                                END as patient_name,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN s.rfid
+                                    WHEN vl.patient_type = 'faculty' THEN f.rfid
+                                END as patient_rfid,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN 
+                                        CASE 
+                                            WHEN s.level IN ('Elementary', 'High School', 'Senior High School') THEN s.year_grade
+                                            WHEN s.level = 'College' THEN s.year_grade
+                                            ELSE s.level
+                                        END
+                                    WHEN vl.patient_type = 'faculty' THEN f.department
+                                END as grade_level_department,
+                                CASE 
+                                    WHEN vl.patient_type = 'student' THEN 
+                                        CASE 
+                                            WHEN s.level IN ('Elementary', 'High School') THEN s.section
+                                            WHEN s.level = 'Senior High School' THEN s.strand
+                                            WHEN s.level = 'College' THEN s.course
+                                            ELSE s.section
+                                        END
+                                    WHEN vl.patient_type = 'faculty' THEN f.position
+                                END as course_section_strand
+                                FROM visitation_logs vl
+                                LEFT JOIN students s ON vl.patient_id = s.id AND vl.patient_type = 'student'
+                                LEFT JOIN faculty f ON vl.patient_id = f.id AND vl.patient_type = 'faculty'
+                                WHERE DATE(vl.visit_date) = ? AND vl.archived = 0
+                                ORDER BY vl.visit_date
+                            ");
+                            $visitationDetails->execute([$logDate]);
+                            $visitationData = $visitationDetails->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            $totalVisitations += count($visitationData);
+                            
+                            // Check if already archived
+                            $checkArchived = $pdo->prepare("SELECT id FROM daily_logs WHERE log_date = ?");
+                            $checkArchived->execute([$logDate]);
+                            
+                            if (!$checkArchived->fetch()) {
+                                // Insert new archive with empty activity data
+                                $insertDaily = $pdo->prepare("
+                                    INSERT INTO daily_logs (log_date, activity_logs_data, visitation_logs_data, total_activities, total_visitations, created_at) 
+                                    VALUES (?, ?, ?, ?, ?, NOW())
+                                ");
+                                $insertDaily->execute([
+                                    $logDate,
+                                    json_encode([]),
+                                    json_encode($visitationData),
+                                    0,
+                                    count($visitationData)
+                                ]);
+                            }
+                        }
+                    }
+                    
+                    // Also archive file-based security alerts
+                    $alertsFile = __DIR__ . '/../logs/alerts.log';
+                    if (file_exists($alertsFile)) {
+                        $alertLines = file($alertsFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                        $fileAlertsCount = 0;
+                        
+                        foreach ($alertLines as $line) {
+                            $parts = explode(' - ', $line, 3);
+                            if (count($parts) >= 3) {
+                                // Insert file-based alerts into activity_logs as archived
+                                $insertAlert = $pdo->prepare("
+                                    INSERT INTO activity_logs (user_id, user_type, action, description, action_description, location, ip_address, user_agent, success, error_message, timestamp, archived) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                ");
+                                $insertAlert->execute([
+                                    null, // user_id
+                                    'system', // user_type
+                                    $parts[1], // action
+                                    $parts[2], // description
+                                    $parts[2], // action_description
+                                    'Security Framework', // location
+                                    'System', // ip_address
+                                    'File-based Alert', // user_agent
+                                    0, // success (false for security alerts)
+                                    'File-based security alert', // error_message
+                                    $parts[0], // timestamp
+                                    1 // archived (mark as already archived)
+                                ]);
+                                $fileAlertsCount++;
+                            }
+                        }
+                        
+                        if ($fileAlertsCount > 0) {
+                            // Clear the alerts file after archiving
+                            file_put_contents($alertsFile, '');
+                        }
+                    }
+                    
+                    // Mark all unarchived logs as archived
+                    $pdo->prepare("UPDATE activity_logs SET archived = 1 WHERE archived = 0")->execute();
+                    $pdo->prepare("UPDATE visitation_logs SET archived = 1 WHERE archived = 0")->execute();
+                    
+                    // Log this action
+                    $fileAlertsCount = isset($fileAlertsCount) ? $fileAlertsCount : 0;
+                    log_activity($pdo, (int)$user['id'], 'logs_all_archived', "Archived all unarchived logs (" . count($archivedDates) . " dates, {$totalActivities} activities, {$totalVisitations} visitations, {$fileAlertsCount} file alerts)", 'settings');
+                    
+                    $success = "All unarchived logs have been archived successfully! (" . count($archivedDates) . " dates processed, {$fileAlertsCount} file alerts archived)";
+                } catch (Throwable $e) {
+                    $errors[] = "An error occurred while archiving logs. Please try again.";
+                }
+                break;
+                
+            case 'update_account':
+                $name = sanitize_string($_POST['name'] ?? $user['name']);
+                $email = sanitize_string($_POST['email'] ?? $user['email']);
+                $newPassword = (string)($_POST['new_password'] ?? '');
+                $rfid = sanitize_string($_POST['rfid'] ?? '');
+                $deactivate = isset($_POST['deactivate_account']);
+                
+                try {
+                    if ($deactivate) {
+                        // Deactivate account
+                        $pdo->prepare('UPDATE users SET is_active = 0 WHERE id = ?')->execute([(int)$user['id']]);
+                        $info[] = 'Account deactivated successfully.';
+                        log_activity($pdo, (int)$user['id'], 'account_deactivated', "Account deactivated", 'settings');
+                    } else {
+                        // Update profile
+                        $pdo->prepare('UPDATE users SET name = ?, email = ? WHERE id = ?')->execute([$name, $email, (int)$user['id']]);
+                        $info[] = 'Profile updated successfully.';
+                        
+                        // Update password if provided
+                        if ($newPassword !== '') {
+                            if (!is_strong_password($newPassword)) {
+                                $errors[] = 'New password must be strong.';
+                            } else {
+                                $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+                                $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$hash, (int)$user['id']]);
+                                $info[] = 'Password updated successfully.';
+                            }
+                        }
+                        
+                        // Update RFID if provided
+                        if ($rfid !== '') {
+                            $rfidHash = password_hash($rfid, PASSWORD_DEFAULT);
+                            $pdo->prepare('UPDATE users SET rfid = ? WHERE id = ?')->execute([$rfidHash, (int)$user['id']]);
+                            $info[] = 'RFID updated successfully.';
+                        }
+                        
+                        // Refresh session
+                        $_SESSION['user']['name'] = $name;
+                        $_SESSION['user']['email'] = $email;
+                        
+                        log_activity($pdo, (int)$user['id'], 'profile_updated', "Profile updated", 'settings');
+                    }
+                } catch (Throwable $e) {
+                    $errors[] = 'An error occurred while updating account. Please try again.';
+                }
+                break;
+                
+            case 'create_admin':
+                // Log admin creation as normal admin activity (not security breach)
+                log_activity($pdo, (int)$user['id'], 'admin_creation_attempt', 'Admin creation attempt in settings', 'settings');
+                
+                $newName = sanitize_string($_POST['new_name'] ?? '');
+                $newEmail = sanitize_string($_POST['new_email'] ?? '');
+                $newPassword = (string)($_POST['new_password'] ?? '');
+                $newRfid = sanitize_string($_POST['new_rfid'] ?? '');
+                
+                if ($newName === '' || $newEmail === '' || $newPassword === '') {
+                    $errors[] = 'Please fill in all required fields.';
+                } else if (!is_strong_password($newPassword)) {
+                    $errors[] = 'Password must be strong.';
+                } else {
+                    try {
+                        // Check if email already exists
+                        $check = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+                        $check->execute([$newEmail]);
+                        if ($check->fetch()) {
+                            $errors[] = 'Email already in use.';
+                        } else if ($newRfid !== '') {
+                            // Check if RFID already exists (compare with hashed values)
+                            $rfidCheck = $pdo->prepare('SELECT id, rfid FROM users WHERE rfid IS NOT NULL');
+                            $rfidCheck->execute();
+                            $existingUsers = $rfidCheck->fetchAll();
+                            
+                            $rfidExists = false;
+                            foreach ($existingUsers as $existingUser) {
+                                if (strpos($existingUser['rfid'], '$2y$') === 0) {
+                                    // It's hashed, verify using password_verify
+                                    if (password_verify($newRfid, $existingUser['rfid'])) {
+                                        $rfidExists = true;
+                                        break;
+                                    }
+                                } else {
+                                    // It's plain text, do direct comparison
+                                    if ($existingUser['rfid'] === $newRfid) {
+                                        $rfidExists = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if ($rfidExists) {
+                                $errors[] = 'RFID already in use.';
+                            }
+                        }
+                        
+                        if (empty($errors)) {
+                            $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+                            $rfidHash = $newRfid ? password_hash($newRfid, PASSWORD_DEFAULT) : null;
+                            $ins = $pdo->prepare('INSERT INTO users (name, email, password_hash, rfid, is_admin, is_active) VALUES (?, ?, ?, ?, 1, 1)');
+                            $ins->execute([$newName, $newEmail, $hash, $rfidHash]);
+                            $info[] = 'New admin account created successfully.';
+                            
+                            log_activity($pdo, (int)$user['id'], 'admin_created', "Created new admin: {$newName}", 'settings');
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'An error occurred while creating admin account. Please try again.';
+                    }
+                }
+                break;
+                
+            case 'delete_user':
+                $userId = (int)($_POST['user_id'] ?? 0);
+                
+                // Log user deletion as normal admin activity (not security breach)
+                log_activity($pdo, (int)$user['id'], 'user_deletion_attempt', 'User deletion attempt in settings', 'settings');
+                
+                if ($userId <= 0) {
+                    $errors[] = 'Invalid user ID.';
+                } else if ($userId === (int)$user['id']) {
+                    $errors[] = 'You cannot delete your own account.';
+                } else {
+                    try {
+                        // Check if user exists
+                        $checkUser = $pdo->prepare("SELECT id, name, email, is_admin FROM users WHERE id = ?");
+                        $checkUser->execute([$userId]);
+                        $targetUser = $checkUser->fetch();
+                        
+                        if (!$targetUser) {
+                            $errors[] = 'User not found.';
+                        } else {
+                            // Delete the user
+                            $deleteUser = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                            $deleteUser->execute([$userId]);
+                            
+                            if ($deleteUser->rowCount() > 0) {
+                                $info[] = "User '{$targetUser['name']}' has been deleted successfully.";
+                                log_activity($pdo, (int)$user['id'], 'user_deleted', "Deleted user: {$targetUser['name']} ({$targetUser['email']})", 'settings');
+                            } else {
+                                $errors[] = 'Failed to delete user.';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'An error occurred while deleting user. Please try again.';
+                    }
+                }
+                break;
+                
+            case 'toggle_user_status':
+                $userId = (int)($_POST['user_id'] ?? 0);
+                
+                if ($userId <= 0) {
+                    $errors[] = 'Invalid user ID.';
+                } else if ($userId === (int)$user['id']) {
+                    $errors[] = 'You cannot deactivate your own account.';
+                } else {
+                    try {
+                        // Check if user exists and get current status
+                        $checkUser = $pdo->prepare("SELECT id, name, email, is_active FROM users WHERE id = ?");
+                        $checkUser->execute([$userId]);
+                        $targetUser = $checkUser->fetch();
+                        
+                        if (!$targetUser) {
+                            $errors[] = 'User not found.';
+                        } else {
+                            $newStatus = $targetUser['is_active'] ? 0 : 1;
+                            $statusText = $newStatus ? 'activated' : 'deactivated';
+                            
+                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = ? WHERE id = ?");
+                            $updateStatus->execute([$newStatus, $userId]);
+                            
+                            if ($updateStatus->rowCount() > 0) {
+                                $info[] = "User '{$targetUser['name']}' has been {$statusText}.";
+                                log_activity($pdo, (int)$user['id'], 'user_status_updated', "User {$statusText}: {$targetUser['name']}", 'settings');
+                            } else {
+                                $errors[] = 'Failed to update user status.';
+                            }
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = 'An error occurred while updating user status. Please try again.';
+                    }
+                }
+                break;
+                
+            case 'bulk_action':
+                $action = $_POST['bulk_action'] ?? '';
+                $userIds = $_POST['user_ids'] ?? [];
+                
+                if (empty($userIds) || !is_array($userIds)) {
+                    $errors[] = 'No users selected for bulk action.';
+                } else {
+                    // Remove current user from bulk actions for safety
+                    $userIds = array_filter($userIds, function($id) use ($user) {
+                        return (int)$id !== (int)$user['id'];
+                    });
+                    
+                    if (empty($userIds)) {
+                        $errors[] = 'No valid users selected for bulk action.';
+                    } else {
+                        try {
+                            $successCount = 0;
+                            $userNames = [];
+                            
+                            foreach ($userIds as $userId) {
+                                $userId = (int)$userId;
+                                
+                                // Get user info for logging
+                                $checkUser = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ?");
+                                $checkUser->execute([$userId]);
+                                $targetUser = $checkUser->fetch();
+                                
+                                if ($targetUser) {
+                                    $userNames[] = $targetUser['name'];
+                                    
+                                    switch ($action) {
+                                        case 'delete':
+                                            $deleteUser = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                                            $deleteUser->execute([$userId]);
+                                            if ($deleteUser->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'activate':
+                                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = 1 WHERE id = ?");
+                                            $updateStatus->execute([$userId]);
+                                            if ($updateStatus->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'deactivate':
+                                            $updateStatus = $pdo->prepare("UPDATE users SET is_active = 0 WHERE id = ?");
+                                            $updateStatus->execute([$userId]);
+                                            if ($updateStatus->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'make_admin':
+                                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = 1 WHERE id = ?");
+                                            $updateRole->execute([$userId]);
+                                            if ($updateRole->rowCount() > 0) $successCount++;
+                                            break;
+                                            
+                                        case 'make_regular':
+                                            $updateRole = $pdo->prepare("UPDATE users SET is_admin = 0 WHERE id = ?");
+                                            $updateRole->execute([$userId]);
+                                            if ($updateRole->rowCount() > 0) $successCount++;
+                                            break;
+                                    }
+                                }
+                            }
+                            
+                            if ($successCount > 0) {
+                                $actionText = ucfirst(str_replace('_', ' ', $action));
+                                $info[] = "Bulk action '{$actionText}' completed successfully on {$successCount} user(s).";
+                                log_activity($pdo, (int)$user['id'], 'bulk_action', "Bulk {$action} on {$successCount} users: " . implode(', ', $userNames), 'settings');
+                            } else {
+                                $errors[] = 'No users were affected by the bulk action.';
+                            }
+                        } catch (Throwable $e) {
+                            $errors[] = 'An error occurred while performing bulk action. Please try again.';
+                        }
+                    }
+                }
+                break;
+        }
+    }
+}
+
+// Note: Only showing current logs now, no archived logs
+
+// Get all users for account management
+$allUsers = [];
+try {
+    // Check if is_active column exists first
+    $checkColumn = $pdo->prepare("SHOW COLUMNS FROM users LIKE 'is_active'");
+    $checkColumn->execute();
+    $hasIsActive = $checkColumn->fetch();
+    
+    if ($hasIsActive) {
+        $stmt = $pdo->prepare("SELECT id, name, email, is_admin, is_active, created_at FROM users ORDER BY created_at DESC");
+    } else {
+        $stmt = $pdo->prepare("SELECT id, name, email, is_admin, 1 as is_active, created_at FROM users ORDER BY created_at DESC");
+    }
+    $stmt->execute();
+    $allUsers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) {
+    $errors[] = 'An error occurred while loading users. Please try again.';
+}
+
+?>
+<?php $pageTitle = 'Settings'; $showTopNav = true; $showSidebar = true; include __DIR__ . '/../partials/header.php'; ?>
+
+<!-- Notification Container -->
+<div id="notificationContainer" class="fixed top-20 right-4 z-50"></div>
+
+<div class="h-[calc(100vh-5rem)] flex items-start justify-center p-4 md:p-6 overflow-hidden">
+    <div class="w-full max-w-7xl flex flex-col" style="max-height: 85vh;">
+        <!-- Header -->
+        <div class="mb-4">
+            <h1 class="text-3xl font-bold text-clinic-dark">Settings</h1>
+        </div>
+
+        <!-- Settings Navigation - Single Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+            <!-- Main Logs -->
+            <a href="?section=main_logs" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'main_logs' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-clinic-blue/10 flex items-center justify-center group-hover:bg-clinic-blue/20 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Main Logs</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">View archived logs</p>
+            </a>
+
+            <!-- Account Settings -->
+            <a href="?section=account_settings" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_settings' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-clinic-tea/20 flex items-center justify-center group-hover:bg-clinic-tea/30 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Account</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Manage profile</p>
+            </a>
+
+            <!-- Register Admin -->
+            <a href="?section=register_admin&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'register_admin' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Register</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">New admin user</p>
+            </a>
+
+            <!-- Account Management -->
+            <a href="?section=account_management&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'account_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Account Mgmt</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Manage users</p>
+            </a>
+
+            <!-- Keyboard Shortcuts -->
+            <a href="?section=keyboard_toggles" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'keyboard_toggles' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Shortcuts</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">Keyboard guide</p>
+            </a>
+
+            <!-- Security Management -->
+            <a href="?section=security_management&csrf_token=<?= csrf_token() ?>" class="group flex flex-col items-center p-4 rounded-2xl bg-white shadow-lg border border-clinic-tea/20 hover:shadow-xl hover:border-clinic-blue/30 transition-all duration-300 min-h-[120px] <?= $currentSection === 'security_management' ? 'ring-2 ring-clinic-blue bg-clinic-blue/5' : '' ?>">
+                <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center group-hover:bg-red-200 transition-colors duration-200 mb-3">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-sm sm:text-base font-semibold text-clinic-dark group-hover:text-clinic-blue transition-colors text-center">Security</h3>
+                <p class="text-xs sm:text-sm text-clinic-dark/60 text-center mt-1">IP & Security</p>
+            </a>
+
+        </div>
+
+        <!-- Notifications -->
+        <?php if ($errors): ?>
+            <div class="mb-6 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-4">
+                <ul class="list-disc pl-5"><?php foreach ($errors as $e): ?><li><?= htmlspecialchars($e) ?></li><?php endforeach; ?></ul>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($info): ?>
+            <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm p-4">
+                <ul class="list-disc pl-5"><?php foreach ($info as $m): ?><li><?= htmlspecialchars($m) ?></li><?php endforeach; ?></ul>
+            </div>
+        <?php endif; ?>
+
+
+        <!-- Main Logs Section -->
+        <?php if ($currentSection === 'main_logs'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
+                <div class="mb-4">
+                    <h2 class="text-2xl font-bold text-clinic-dark">Main Logs</h2>
+                    
+                </div>
+
+                <!-- Search and Filter -->
+                <div class="mb-4">
+                    <!-- Single Row Layout -->
+                    <div class="flex flex-col sm:flex-row gap-3 items-center">
+                        <div class="flex gap-2">
+                            <select id="logTypeFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:border-gray-400 transition-colors">
+                                <option value="">All Types</option>
+                                <option value="activity">Activity Logs</option>
+                                <option value="visitation">Visitation Logs</option>
+                            </select>
+                            <select id="logDateFilter" class="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm hover:border-gray-400 transition-colors">
+                                <option value="">All Dates</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="clearFilters()" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium shadow-sm hover:shadow-md">
+                                Clear Filters
+                            </button>
+                            <button id="archiveAllLogsBtn" onclick="archiveAllLogs()" class="px-4 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm flex items-center gap-2 font-medium shadow-sm hover:shadow-md">
+                                <span id="archiveAllLogsText">Archive All Logs</span>
+                                <div id="archiveAllLogsSpinner" class="hidden">
+                                    <svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logs Display with Tabs -->
+                <div class="mb-4">
+                    <div class="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+                        <button onclick="showLogTab('daily')" id="dailyTab" class="flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors bg-white text-gray-700 shadow-sm">
+                            All Logs (Consolidated)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Daily Logs Table -->
+                <div id="dailyLogsTable" class="flex flex-col border border-gray-200 rounded-lg overflow-hidden flex-1 min-h-0">
+                    <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+                        <div class="grid grid-cols-5 gap-4 text-sm font-semibold text-gray-800">
+                            <div>No.</div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('date')">
+                                Date
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('type')">
+                                Type
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
+                            <div class="flex items-center gap-2 cursor-pointer hover:text-gray-600" onclick="sortLogs('records')">
+                                Total Records
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"></path>
+                                </svg>
+                            </div>
+                            <div>Actions</div>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto flex-1">
+                        <div id="dailyLogsTableBody" class="min-w-full">
+                            <?php 
+                            // Create consolidated view by date - only current logs
+                            $consolidatedLogs = [];
+                            
+                            // Only show archived logs (not current day logs)
+                            $today = date('Y-m-d');
+                            
+                            // Debug: Check total counts first
+                            $totalActivityLogs = $pdo->query("SELECT COUNT(*) as count FROM activity_logs")->fetch()['count'];
+                            $totalVisitationLogs = $pdo->query("SELECT COUNT(*) as count FROM visitation_logs")->fetch()['count'];
+                            $totalDailyLogs = $pdo->query("SELECT COUNT(*) as count FROM daily_logs")->fetch()['count'];
+                            echo "<!-- Debug: Total activity logs: $totalActivityLogs, Total visitation logs: $totalVisitationLogs, Total daily logs: $totalDailyLogs -->";
+                            
+                            // Get archived logs from daily_logs table (including today's archived logs)
+                            $archivedLogs = $pdo->query("SELECT log_date, total_activities, total_visitations FROM daily_logs ORDER BY log_date DESC LIMIT 20")->fetchAll(PDO::FETCH_ASSOC);
+                            
+                            // Debug: Show archived logs info
+                            echo "<!-- Debug: Archived logs count: " . count($archivedLogs) . " -->";
+                            if (!empty($archivedLogs)) {
+                                echo "<!-- Debug: First archived log: " . json_encode($archivedLogs[0]) . " -->";
+                            }
+                            
+                            // Process archived logs and merge by date and type
+                            $mergedLogs = [];
+                            
+                            // First, group by date to handle duplicates
+                            $groupedLogs = [];
+                            foreach ($archivedLogs as $log) {
+                                $date = $log['log_date'];
+                                if (!isset($groupedLogs[$date])) {
+                                    $groupedLogs[$date] = [
+                                        'total_activities' => 0,
+                                        'total_visitations' => 0
+                                    ];
+                                }
+                                $groupedLogs[$date]['total_activities'] += $log['total_activities'];
+                                $groupedLogs[$date]['total_visitations'] += $log['total_visitations'];
+                            }
+                            
+                            // Now create merged logs from grouped data
+                            foreach ($groupedLogs as $date => $totals) {
+                                // Add activity logs if any
+                                if ($totals['total_activities'] > 0) {
+                                    $mergedLogs[$date . '_activity'] = [
+                                        'date' => $date,
+                                        'type' => 'Activity Logs',
+                                        'total_records' => $totals['total_activities'],
+                                        'log_type' => 'archived'
+                                    ];
+                                }
+                                
+                                // Add visitation logs if any
+                                if ($totals['total_visitations'] > 0) {
+                                    $mergedLogs[$date . '_visitation'] = [
+                                        'date' => $date,
+                                        'type' => 'Visitation Logs',
+                                        'total_records' => $totals['total_visitations'],
+                                        'log_type' => 'archived'
+                                    ];
+                                }
+                            }
+                            
+                            // Add merged logs to consolidated logs
+                            foreach ($mergedLogs as $key => $log) {
+                                $consolidatedLogs[$key] = $log;
+                            }
+                            
+                            // Only archived logs are shown (previous days, not current day)
+                            
+                            // Sort by date descending
+                            krsort($consolidatedLogs);
+                            ?>
+                            
+                            <?php if (empty($consolidatedLogs)): ?>
+                                <div class="px-4 py-8 text-center text-gray-600">No logs found</div>
+                            <?php else: ?>
+                                <?php 
+                                $rowNumber = 1;
+                                foreach ($consolidatedLogs as $log): ?>
+                                    <div class="grid grid-cols-5 gap-4 px-4 py-3 border-b border-gray-200 hover:bg-gray-100">
+                                        <div class="number-cell font-mono text-xs text-gray-500 font-semibold">
+                                            <?= $rowNumber ?>
+                                        </div>
+                                        <div class="date-cell font-medium text-gray-800">
+                                            <?= date('M d, Y', strtotime($log['date'])) ?>
+                                        </div>
+                                        <div class="type-cell">
+                                            <span class="inline-flex items-center gap-2">
+                                                <span class="w-2 h-2 <?= 
+                                                    isset($log['log_type']) && $log['log_type'] === 'current' ? 'bg-gray-500' : 
+                                                    (isset($log['log_type']) && $log['log_type'] === 'weekly' ? 'bg-gray-400' : 
+                                                    (isset($log['log_type']) && $log['log_type'] === 'monthly' ? 'bg-gray-300' : 'bg-gray-600')) 
+                                                ?> rounded-full"></span>
+                                                <?= htmlspecialchars($log['type']) ?>
+                                            </span>
+                                        </div>
+                                        <div class="records-cell">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                                <?= htmlspecialchars((string)$log['total_records']) ?> records
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <div class="flex gap-2">
+                                                <button onclick="viewFullLogs('<?= $log['date'] ?>', '<?= strtolower(str_replace(' Logs', '', $log['type'])) ?>', '<?= $log['log_type'] ?>')" class="text-gray-600 hover:text-gray-800 font-medium text-sm bg-transparent hover:bg-gray-100 px-2 py-1 rounded">
+                                                    View Full
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php 
+                                $rowNumber++; // Increment row number for next iteration
+                                endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+        <?php endif; ?>
+
+        <!-- Account Settings Section -->
+        <?php if ($currentSection === 'account_settings'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+                <h2 class="text-2xl font-bold text-clinic-dark mb-6">Account Settings</h2>
+                
+                <form method="post" class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                    <input type="hidden" name="action" value="update_account" />
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">Name</label>
+                            <input type="text" name="name" value="<?= htmlspecialchars($user['name']) ?>" class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">Email</label>
+                            <input type="email" name="email" value="<?= htmlspecialchars($user['email']) ?>" class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">New Password</label>
+                            <input type="password" name="new_password" class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <small class="text-clinic-dark/60">Leave blank to keep current password</small>
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">RFID</label>
+                            <input type="text" name="rfid" class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <small class="text-clinic-dark/60">Leave blank to keep current RFID</small>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4">
+                        <button type="submit" class="bg-clinic-blue hover:bg-clinic-tea text-white px-6 py-3 rounded-lg font-medium transition">
+                            Update Account
+                        </button>
+                        <button type="submit" name="deactivate_account" value="1" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition" onclick="return confirm('Are you sure you want to deactivate your account?')">
+                            Deactivate Account
+                        </button>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <!-- Register Admin Section -->
+        <?php if ($currentSection === 'register_admin'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+                <h2 class="text-2xl font-bold text-clinic-dark mb-6">Register New Admin User</h2>
+                
+                <form method="post" class="space-y-6">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                    <input type="hidden" name="action" value="create_admin" />
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">Name *</label>
+                            <input type="text" name="new_name" required class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">Email *</label>
+                            <input type="email" name="new_email" required class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">Password *</label>
+                            <input type="password" name="new_password" required class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <small class="text-clinic-dark/60">Must be strong password (8+ chars, upper, lower, number, special)</small>
+                        </div>
+                        <div>
+                            <label class="block text-clinic-dark font-medium mb-2">RFID</label>
+                            <input type="text" name="new_rfid" class="w-full px-4 py-3 border border-clinic-tea/30 rounded-lg focus:ring-2 focus:ring-clinic-blue focus:border-clinic-blue">
+                            <small class="text-clinic-dark/60">Optional - for RFID login</small>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-medium transition">
+                        Create Admin Account
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
+
+        <!-- Keyboard Shortcuts Section -->
+        <?php if ($currentSection === 'keyboard_toggles'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6">
+                <h2 class="text-2xl font-bold text-clinic-dark mb-6">Keyboard Shortcuts</h2>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-lg font-semibold text-clinic-dark mb-4">Navigation</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Toggle Sidebar</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Tab</kbd>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Go to Dashboard</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Ctrl + D</kbd>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Search Patients</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Ctrl + K</kbd>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold text-clinic-dark mb-4">Forms & Actions</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Save Form</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Ctrl + S</kbd>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Cancel/Close</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Esc</kbd>
+                            </div>
+                            <div class="flex justify-between items-center py-2 border-b border-clinic-tea/20">
+                                <span class="text-clinic-dark">Refresh Page</span>
+                                <kbd class="px-2 py-1 bg-clinic-ivory text-clinic-dark rounded text-sm">Ctrl + R</kbd>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-8 p-4 bg-clinic-ivory/30 rounded-lg">
+                    <p class="text-clinic-dark/80 text-sm">
+                        <strong>Note:</strong> These shortcuts are available throughout the application. 
+                        Use them to navigate more efficiently and improve your workflow.
+                    </p>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Account Management Section -->
+        <?php if ($currentSection === 'account_management'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-clinic-dark">Account Management</h2>
+                    <p class="text-clinic-dark/60 mt-2">Manage all registered users in the system</p>
+                </div>
+
+
+
+                <!-- Users Table -->
+                <div class="flex-1 border border-clinic-tea/20 rounded-lg overflow-hidden">
+                    <div class="bg-clinic-ivory/50 px-4 py-3 border-b border-clinic-tea/20">
+                        <div class="grid grid-cols-6 gap-4 text-sm font-semibold text-clinic-dark">
+                            <div>Name</div>
+                            <div>Email</div>
+                            <div>Type</div>
+                            <div>Status</div>
+                            <div>Created</div>
+                            <div>Actions</div>
+                        </div>
+                    </div>
+                    <div class="overflow-y-auto max-h-96">
+                        <div id="usersTableBody">
+                            <?php if (!empty($allUsers)): ?>
+                                <?php foreach ($allUsers as $userData): ?>
+                                    <div class="user-row grid grid-cols-6 gap-4 px-4 py-3 border-b border-clinic-tea/10 hover:bg-clinic-ivory/30 transition-colors">
+                                        <div class="flex items-center">
+                                            <div class="w-8 h-8 rounded-full bg-clinic-blue/10 flex items-center justify-center mr-3">
+                                                <svg class="w-4 h-4 text-clinic-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                                </svg>
+                                            </div>
+                                            <span class="font-medium text-clinic-dark"><?= htmlspecialchars($userData['name']) ?></span>
+                                        </div>
+                                        <div class="flex items-center text-clinic-dark/80">
+                                            <?= htmlspecialchars($userData['email']) ?>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <?php if ($userData['is_admin']): ?>
+                                                <span class="px-2 py-1 bg-clinic-blue/10 text-clinic-blue text-xs font-medium rounded-full">Admin</span>
+                                            <?php else: ?>
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">User</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center">
+                                            <?php if ($userData['is_active']): ?>
+                                                <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">Active</span>
+                                            <?php else: ?>
+                                                <span class="px-2 py-1 bg-red-100 text-red-600 text-xs font-medium rounded-full">Inactive</span>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="flex items-center text-clinic-dark/60 text-sm">
+                                            <?= date('M j, Y', strtotime($userData['created_at'])) ?>
+                                        </div>
+                                        <div class="flex items-center gap-1 flex-wrap">
+                                            <?php if ($userData['id'] != $user['id']): ?>
+                                                <!-- Status Toggle -->
+                                                <form method="post" class="inline">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                                    <input type="hidden" name="action" value="toggle_user_status" />
+                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
+                                                    <button type="submit" class="px-2 py-1 <?= $userData['is_active'] ? 'bg-yellow-100 hover:bg-yellow-200 text-yellow-600' : 'bg-gray-100 hover:bg-gray-200 text-gray-600' ?> text-xs font-medium rounded transition-colors"
+                                                            onclick="return confirm('Are you sure you want to <?= $userData['is_active'] ? 'deactivate' : 'activate' ?> this user?')">
+                                                        <?= $userData['is_active'] ? 'Deactivate' : 'Activate' ?>
+                                                    </button>
+                                                </form>
+                                                
+                                                <!-- Delete -->
+                                                <form method="post" class="inline" onsubmit="return confirm('Are you sure you want to delete this user? This action cannot be undone.')">
+                                                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(csrf_token()) ?>" />
+                                                    <input type="hidden" name="action" value="delete_user" />
+                                                    <input type="hidden" name="user_id" value="<?= $userData['id'] ?>" />
+                                                    <button type="submit" class="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-xs font-medium rounded transition-colors">
+                                                        Delete
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <span class="px-3 py-1 bg-gray-100 text-gray-400 text-xs font-medium rounded">Current User</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="text-center py-8 text-clinic-dark/60">
+                                    <svg class="w-12 h-12 mx-auto mb-4 text-clinic-dark/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                                    </svg>
+                                    <p>No users found</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="mt-6 p-4 bg-clinic-ivory/30 rounded-lg">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-clinic-dark/80">
+                            Total Users: <strong><?= count($allUsers) ?></strong>
+                        </span>
+                        <span class="text-clinic-dark/80">
+                            Admin Users: <strong><?= count(array_filter($allUsers, fn($u) => $u['is_admin'])) ?></strong>
+                        </span>
+                        <span class="text-clinic-dark/80">
+                            Active Users: <strong><?= count(array_filter($allUsers, fn($u) => $u['is_active'])) ?></strong>
+                        </span>
+                    </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Security Management Section -->
+        <?php if ($currentSection === 'security_management'): ?>
+            <div class="bg-white rounded-2xl shadow-lg border border-clinic-tea/20 p-6 flex flex-col flex-1 min-h-0">
+                <div class="mb-6">
+                    <h2 class="text-2xl font-bold text-clinic-dark">Security Management</h2>
+                    <p class="text-clinic-dark/60 mt-2">Manage IP blocks, failed login attempts, and security settings</p>
+                </div>
+
+                <!-- Security Status Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <?php
+                    try {
+                        // Get current user's security status
+                        $userId = $_SESSION['user']['id'];
+                        $user = $pdo->prepare('SELECT failed_attempts, locked_until, last_login FROM users WHERE id = ?');
+                        $user->execute([$userId]);
+                        $userData = $user->fetch();
+                        
+                        // Failed Attempts Card
+                        $failedAttempts = $userData['failed_attempts'] ?? 0;
+                        $attemptsColor = $failedAttempts >= 3 ? 'text-red-600' : ($failedAttempts >= 1 ? 'text-orange-600' : 'text-green-600');
+                        $attemptsBg = $failedAttempts >= 3 ? 'bg-red-50 border-red-200' : ($failedAttempts >= 1 ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200');
+                        
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4 ' . $attemptsBg . '">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Failed Attempts</h4>';
+                                echo '</div>';
+                        echo '<p class="text-2xl font-bold ' . $attemptsColor . '">' . $failedAttempts . '</p>';
+                        echo '<p class="text-xs text-slate-500">Recent failed logins</p>';
+                        echo '</div>';
+                        echo '<button onclick="clearFailedAttempts()" class="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs rounded-lg transition-colors">Clear</button>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                        // Account Status Card
+                        $isLocked = $userData['locked_until'] && strtotime($userData['locked_until']) > time();
+                        $statusColor = $isLocked ? 'text-red-600' : 'text-green-600';
+                        $statusBg = $isLocked ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200';
+                        $statusText = $isLocked ? 'Locked' : 'Active';
+                        $statusIcon = $isLocked ? '🔒' : '✅';
+                        
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4 ' . $statusBg . '">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Account Status</h4>';
+                                echo '</div>';
+                        echo '<p class="text-2xl font-bold ' . $statusColor . '">' . $statusText . '</p>';
+                        echo '<p class="text-xs text-slate-500">Current state</p>';
+                        echo '</div>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                        // Last Login Card
+                        $lastLogin = $userData['last_login'] ? date('M j, g:i A', strtotime($userData['last_login'])) : 'Never';
+                        echo '<div class="bg-white/80 backdrop-blur rounded-2xl border border-slate-200 shadow-lg p-4">';
+                        echo '<div class="flex items-center justify-between">';
+                        echo '<div>';
+                                echo '<div class="flex items-center gap-2 mb-2">';
+                                echo '<h4 class="text-sm font-semibold text-clinic-dark">Last Login</h4>';
+                                echo '</div>';
+                        echo '<p class="text-lg font-semibold text-clinic-dark">' . $lastLogin . '</p>';
+                        echo '<p class="text-xs text-slate-500">Most recent login</p>';
+                        echo '</div>';
+                        echo '</div>';
+                        echo '</div>';
+                        
+                    } catch (Exception $e) {
+                        echo '<p class="text-red-500 text-sm">Error loading security status</p>';
+                    }
+                    ?>
+                </div>
+
+                <!-- Security Management Buttons -->
+                <div class="p-6 bg-gray-50 border border-gray-200 rounded-lg mb-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">IP & Login Security</h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="getBlockedIPs()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            View Blocked IPs
+                        </button>
+                        <button onclick="clearIPBlocks()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Clear All IP Blocks
+                        </button>
+                        <button onclick="clearFailedAttempts()" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Clear Failed Attempts
+                        </button>
+                        <a href="../logs/logs.php?filter=security" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            View Security Logs
+                        </a>
+                    </div>
+                    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <strong>Note:</strong> IPs are automatically unblocked after 24 hours. Use these buttons for immediate unblocking when needed.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Security Monitoring Dashboard -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="text-sm font-semibold text-clinic-dark mb-3">
+                            Recent Activity
+                        </h4>
+                        <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Get only unique recent activities (grouped by description to avoid repetition)
+                                $recentLogins = $pdo->query('
+                                    SELECT description, COUNT(*) as count, MAX(timestamp) as latest_time, MAX(success) as success
+                                    FROM activity_logs 
+                                    WHERE action IN ("login_success", "login_failed", "account_locked", "rfid_verification_failed")
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+                                    GROUP BY description
+                                    ORDER BY latest_time DESC 
+                                    LIMIT 5
+                                ')->fetchAll();
+                                
+                                if ($recentLogins) {
+                                    foreach ($recentLogins as $log) {
+                                        $timeAgo = time() - strtotime($log['latest_time']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        $bgColor = $log['success'] ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                                        $textColor = $log['success'] ? 'text-green-800' : 'text-red-800';
+                                        
+                                        echo '<div class="flex items-center gap-3 p-2 rounded-lg border ' . $bgColor . '">';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-xs font-medium ' . $textColor . '">' . htmlspecialchars($log['description']) . '</p>';
+                                        echo '<p class="text-xs text-slate-500">' . $log['count'] . ' times • ' . $timeText . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-2 bg-slate-50 rounded-lg border border-slate-200">';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-xs font-medium text-slate-600">No recent activity</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading activity: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="text-sm font-semibold text-clinic-dark mb-3">
+                            Security Alerts
+                        </h4>
+                        <div class="space-y-2 max-h-[200px] overflow-y-auto pr-2">
+                            <?php
+                            try {
+                                // Check for suspicious IPs (only show if there are any)
+                                $suspiciousIPs = $pdo->query('
+                                    SELECT ip_address, COUNT(*) as failed_count, MAX(timestamp) as last_attempt
+                                    FROM activity_logs 
+                                    WHERE action = "login_failed" 
+                                    AND timestamp > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+                                    GROUP BY ip_address 
+                                    HAVING failed_count >= 5
+                                    ORDER BY failed_count DESC
+                                    LIMIT 3
+                                ')->fetchAll();
+                                
+                                if ($suspiciousIPs) {
+                                    foreach ($suspiciousIPs as $suspicious) {
+                                        $timeAgo = time() - strtotime($suspicious['last_attempt']);
+                                        $timeText = $timeAgo < 60 ? 'Just now' : 
+                                                   ($timeAgo < 3600 ? floor($timeAgo/60) . 'm ago' : 
+                                                   floor($timeAgo/3600) . 'h ago');
+                                        
+                                        $severity = $suspicious['failed_count'] >= 10 ? 'bg-red-100 border-red-300' : 'bg-orange-100 border-orange-300';
+                                        $severityText = $suspicious['failed_count'] >= 10 ? 'text-red-800' : 'text-orange-800';
+                                        
+                                        echo '<div class="flex items-center gap-3 p-2 rounded-lg border ' . $severity . '">';
+                                        echo '<div class="flex-1">';
+                                        echo '<p class="text-xs font-medium ' . $severityText . '">' . $suspicious['failed_count'] . ' failed attempts</p>';
+                                        echo '<p class="text-xs text-slate-500">' . htmlspecialchars($suspicious['ip_address']) . ' • ' . $timeText . '</p>';
+                                        echo '</div>';
+                                        echo '</div>';
+                                    }
+                                } else {
+                                    echo '<div class="flex items-center gap-3 p-2 bg-green-50 rounded-lg border border-green-200">';
+                                    echo '<div class="flex-1">';
+                                    echo '<p class="text-xs font-medium text-green-800">No security alerts</p>';
+                                    echo '<p class="text-xs text-slate-500">All systems secure</p>';
+                                    echo '</div>';
+                                    echo '</div>';
+                                }
+                                
+                            } catch (Exception $e) {
+                                echo '<p class="text-red-500 text-sm">Error loading alerts: ' . htmlspecialchars($e->getMessage()) . '</p>';
+                            }
+                            ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Security Events -->
+                <div class="flex-1 min-h-0 overflow-hidden">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 h-full flex flex-col">
+                        <h4 class="text-lg font-semibold text-gray-800 mb-3">Recent Security Events</h4>
+                        <div id="securityLogsPreview" class="text-sm text-gray-600 flex-1 overflow-y-auto">
+                            <p>Loading recent security events...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
+
+    </div>
+</div>
+
+<!-- Log Details Modal -->
+<div id="logDetailsModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4">
+    <div id="logModalContent" class="bg-white rounded-2xl shadow-xl max-w-7xl w-full max-h-[90vh] overflow-hidden transition-all duration-300">
+        <div class="p-6 border-b border-clinic-tea/20">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xl font-bold text-clinic-dark">Log Details</h3>
+                <div class="flex items-center gap-3">
+                    <button id="fullscreenToggle" onclick="toggleFullscreen()" class="text-clinic-dark/60 hover:text-clinic-dark transition-colors" title="Toggle Fullscreen">
+                        <svg id="fullscreenIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                        </svg>
+                    </button>
+                    <button onclick="closeLogDetails()" class="text-clinic-dark/60 hover:text-clinic-dark">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="p-6 overflow-y-auto max-h-[75vh]" id="logDetailsContent">
+            <!-- Content will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<script>
+// Notification system - now uses global system from header.php
+// The showNotification function is now globally available
+
+// Log search and filtering
+document.getElementById('logTypeFilter').addEventListener('change', filterLogs);
+document.getElementById('logDateFilter').addEventListener('change', filterLogs);
+
+// Auto-focus removed since search field is removed
+
+function filterLogs() {
+    const typeFilter = document.getElementById('logTypeFilter').value;
+    const dateFilter = document.getElementById('logDateFilter').value;
+    console.log('Filtering by:', { typeFilter, dateFilter }); // Debug log
+    
+    // Filter daily logs (div-based layout)
+    const dailyLogsContainer = document.getElementById('dailyLogsTableBody');
+    if (dailyLogsContainer) {
+        const dailyLogItems = dailyLogsContainer.querySelectorAll('.grid.grid-cols-5');
+        dailyLogItems.forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const typeMatch = !typeFilter || text.includes(typeFilter.toLowerCase());
+            
+            // Date filtering logic
+            let dateMatch = true;
+            if (dateFilter) {
+                const dateCell = item.querySelector('.date-cell');
+                if (dateCell) {
+                    const dateText = dateCell.textContent.trim();
+                    const today = new Date();
+                    const itemDate = new Date(dateText);
+                    
+                    switch (dateFilter) {
+                        case 'today':
+                            dateMatch = itemDate.toDateString() === today.toDateString();
+                            break;
+                        case 'week':
+                            // Get start of current week (Monday)
+                            const startOfWeek = new Date(today);
+                            const dayOfWeek = today.getDay();
+                            const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+                            startOfWeek.setDate(today.getDate() - daysToMonday);
+                            startOfWeek.setHours(0, 0, 0, 0);
+                            dateMatch = itemDate >= startOfWeek;
+                            break;
+                        case 'month':
+                            // Get first day of current month
+                            const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                            dateMatch = itemDate >= firstDayOfMonth;
+                            break;
+                        case 'year':
+                            const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+                            dateMatch = itemDate >= yearAgo;
+                            break;
+                    }
+                } else {
+                    dateMatch = false; // If no date cell found, don't match
+                }
+            }
+            
+            if (typeMatch && dateMatch) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+    
+    // Filter weekly and monthly logs (table-based layout)
+    const tableBodies = ['weeklyLogsTableBody', 'monthlyLogsTableBody'];
+    tableBodies.forEach(tableBodyId => {
+        const tbody = document.getElementById(tableBodyId);
+        if (tbody) {
+            const rows = tbody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const typeMatch = !typeFilter || text.includes(typeFilter.toLowerCase());
+                
+                // Date filtering logic for table rows
+                let dateMatch = true;
+                if (dateFilter) {
+                    const dateCell = row.querySelector('td:nth-child(2)'); // Second column should be date
+                    if (dateCell) {
+                        const dateText = dateCell.textContent.trim();
+                        const today = new Date();
+                        const itemDate = new Date(dateText);
+                        
+                        switch (dateFilter) {
+                            case 'today':
+                                dateMatch = itemDate.toDateString() === today.toDateString();
+                                break;
+                            case 'week':
+                                // Get start of current week (Monday)
+                                const startOfWeek = new Date(today);
+                                const dayOfWeek = today.getDay();
+                                const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+                                startOfWeek.setDate(today.getDate() - daysToMonday);
+                                startOfWeek.setHours(0, 0, 0, 0);
+                                dateMatch = itemDate >= startOfWeek;
+                                break;
+                            case 'month':
+                                // Get first day of current month
+                                const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                                dateMatch = itemDate >= firstDayOfMonth;
+                                break;
+                            case 'year':
+                                const yearAgo = new Date(today.getTime() - 365 * 24 * 60 * 60 * 1000);
+                                dateMatch = itemDate >= yearAgo;
+                                break;
+                        }
+                    } else {
+                        dateMatch = false; // If no date cell found, don't match
+                    }
+                }
+                
+                if (typeMatch && dateMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+    });
+}
+
+function showLogTab(tabType) {
+    // Since we only have one tab now, just ensure it's visible
+    document.getElementById('dailyLogsTable').classList.remove('hidden');
+    document.getElementById('dailyTab').classList.remove('bg-gray-100', 'text-gray-700');
+    document.getElementById('dailyTab').classList.add('bg-white', 'text-gray-700', 'shadow-sm');
+}
+
+function viewLogDetails(logId, logType) {
+    // This would fetch and display log details
+    // For now, just show a placeholder with the log type
+    document.getElementById('logDetailsContent').innerHTML = `
+        <div class="text-center py-8">
+            <p class="text-clinic-dark/60">Loading ${logType} log details for ID: ${logId}</p>
+            <p class="text-sm text-clinic-dark/40 mt-2">This feature will show detailed logs for the selected ${logType} period.</p>
+            <div class="mt-4 p-4 bg-clinic-ivory/30 rounded-lg">
+                <p class="text-sm text-clinic-dark/80">
+                    <strong>Log Type:</strong> ${logType.charAt(0).toUpperCase() + logType.slice(1)} Archive<br>
+                    <strong>Log ID:</strong> ${logId}<br>
+                    <strong>Features:</strong> View detailed activity and visitation logs for this period
+                </p>
+            </div>
+        </div>
+    `;
+    document.getElementById('logDetailsModal').classList.remove('hidden');
+    document.getElementById('logDetailsModal').classList.add('flex');
+}
+
+function showLogDetails(date, logType, logStatus = 'current') {
+    // Show loading state
+    document.getElementById('logDetailsContent').innerHTML = `
+        <div class="text-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-clinic-blue mx-auto mb-4"></div>
+            <p class="text-clinic-dark/60">Loading logs for ${date}...</p>
+        </div>
+    `;
+    document.getElementById('logDetailsModal').classList.remove('hidden');
+    document.getElementById('logDetailsModal').classList.add('flex');
+    
+    // Fetch log data via AJAX
+    fetch(`../logs/get_log_details.php?date=${encodeURIComponent(date)}&type=${encodeURIComponent(logType)}&log_type=${encodeURIComponent(logStatus)}`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('logDetailsContent').innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('logDetailsContent').innerHTML = `
+                <div class="text-center py-8">
+                    <p class="text-red-600">Error loading logs: ${error.message}</p>
+                </div>
+            `;
+        });
+}
+
+function viewFullLogs(date, logType, logStatus) {
+    // Show modal with the appropriate log data
+    showLogDetails(date, logType, logStatus);
+}
+
+function closeLogDetails() {
+    document.getElementById('logDetailsModal').classList.add('hidden');
+    document.getElementById('logDetailsModal').classList.remove('flex');
+    // Reset modal to normal size when closing
+    resetModalSize();
+}
+
+// Fullscreen toggle functionality
+function toggleFullscreen() {
+    const modal = document.getElementById('logDetailsModal');
+    const modalContent = document.getElementById('logModalContent');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
+    const logDetailsContent = document.getElementById('logDetailsContent');
+    
+    if (modalContent.classList.contains('fullscreen')) {
+        // Exit fullscreen
+        modalContent.classList.remove('fullscreen');
+        modalContent.classList.add('max-w-7xl', 'max-h-[90vh]');
+        modalContent.classList.remove('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+        modalContent.style.top = ''; // Reset top position
+        logDetailsContent.classList.add('max-h-[75vh]');
+        logDetailsContent.classList.remove('max-h-[calc(100vh-12rem)]');
+        
+        // Update icon to expand
+        fullscreenIcon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+        `;
+        
+        // Update tooltip
+        document.getElementById('fullscreenToggle').title = 'Enter Fullscreen';
+        
+    } else {
+        // Enter fullscreen (but respect header space)
+        modalContent.classList.add('fullscreen');
+        modalContent.classList.remove('max-w-7xl', 'max-h-[90vh]');
+        modalContent.classList.add('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+        modalContent.style.top = '5rem'; // Start below header
+        logDetailsContent.classList.remove('max-h-[75vh]');
+        logDetailsContent.classList.add('max-h-[calc(100vh-12rem)]'); // Account for header + modal header
+        
+        // Update icon to compress
+        fullscreenIcon.innerHTML = `
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5"></path>
+        `;
+        
+        // Update tooltip
+        document.getElementById('fullscreenToggle').title = 'Exit Fullscreen';
+    }
+}
+
+// Reset modal size when closing
+function resetModalSize() {
+    const modalContent = document.getElementById('logModalContent');
+    const fullscreenIcon = document.getElementById('fullscreenIcon');
+    const logDetailsContent = document.getElementById('logDetailsContent');
+    
+    // Reset to normal size
+    modalContent.classList.remove('fullscreen');
+    modalContent.classList.add('max-w-7xl', 'max-h-[90vh]');
+    modalContent.classList.remove('w-full', 'h-[calc(100vh-5rem)]', 'max-w-none', 'max-h-none');
+    modalContent.style.top = ''; // Reset top position
+    logDetailsContent.classList.add('max-h-[75vh]');
+    logDetailsContent.classList.remove('max-h-[calc(100vh-12rem)]');
+    
+    // Reset icon
+    fullscreenIcon.innerHTML = `
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+    `;
+    
+    // Reset tooltip
+    document.getElementById('fullscreenToggle').title = 'Toggle Fullscreen';
+}
+
+function clearFilters() {
+    document.getElementById('logTypeFilter').value = '';
+    document.getElementById('logDateFilter').value = '';
+    // Trigger the filter function if it exists
+    if (typeof filterLogs === 'function') {
+        filterLogs();
+    }
+}
+
+// Close modal when clicking outside
+document.getElementById('logDetailsModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLogDetails();
+    }
+});
+
+// Keyboard shortcuts for modal
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('logDetailsModal');
+    if (!modal.classList.contains('hidden')) {
+        // F11 key for fullscreen toggle
+        if (e.key === 'F11') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+        // Escape key to close modal
+        if (e.key === 'Escape') {
+            closeLogDetails();
+        }
+    }
+});
+
+// Archive all logs function
+function archiveAllLogs() {
+    if (confirm('Are you sure you want to archive ALL unarchived logs? This will move all unarchived logs to the main logs display and clear them from the individual pages. This action cannot be undone.')) {
+        // Show loading spinner
+        const btn = document.getElementById('archiveAllLogsBtn');
+        const text = document.getElementById('archiveAllLogsText');
+        const spinner = document.getElementById('archiveAllLogsSpinner');
+        
+        btn.disabled = true;
+        text.textContent = 'Archiving...';
+        spinner.classList.remove('hidden');
+        
+        // Show loading notification
+        showNotification('Archiving all unarchived logs...', 'info');
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('action', 'archive_all_logs');
+        formData.append('csrf_token', '<?= csrf_token() ?>');
+        
+        // Submit via AJAX
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.text())
+        .then(data => {
+            // Check if the response indicates success
+            if (data.includes('archived') || data.includes('success') || data.includes('All unarchived logs have been archived')) {
+                showNotification('All unarchived logs archived successfully!', 'success');
+                // Reload the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showNotification('Error archiving logs. Please try again.', 'error');
+                // Reset button state
+                btn.disabled = false;
+                text.textContent = 'Archive All Logs';
+                spinner.classList.add('hidden');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error archiving logs. Please try again.', 'error');
+            // Reset button state
+            btn.disabled = false;
+            text.textContent = 'Archive All Logs';
+            spinner.classList.add('hidden');
+        });
+    }
+}
+
+
+// Back navigation function for settings
+function goBackToSettings() {
+    // Go back to main settings view
+    window.location.href = '?section=main_logs';
+}
+
+// Security action functions
+function clearFailedAttempts() {
+    if (confirm('Are you sure you want to clear all failed login attempts? This will reset all user failed attempt counters.')) {
+        fetch('clear_failed_attempts.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=clear_failed_attempts'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Failed attempts cleared successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Error clearing failed attempts: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error clearing failed attempts', 'error');
+        });
+    }
+}
+
+function clearIPBlocks() {
+    if (confirm('Are you sure you want to clear all IP blocks? This will unblock all currently blocked IP addresses.')) {
+        fetch('clear_ip_blocks.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=clear_ip_blocks'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Error clearing IP blocks: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Error clearing IP blocks', 'error');
+        });
+    }
+}
+
+function getBlockedIPs() {
+    fetch('clear_ip_blocks.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=get_blocked_ips'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Currently blocked IPs: ${data.count}\n\n`;
+            if (data.blocked_ips.length > 0) {
+                data.blocked_ips.forEach(ip => {
+                    message += `• ${ip.ip_address} - ${ip.description} (${ip.timestamp})\n`;
+                });
+            } else {
+                message += 'No IPs are currently blocked.';
+            }
+            alert(message);
+        } else {
+            showNotification('Error getting blocked IPs: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('Error getting blocked IPs', 'error');
+    });
+}
+
+function viewSecurityLogs() {
+    // Open security logs in a new window or redirect to detailed logs
+    window.open('../logs/logs.php?filter=security', '_blank');
+}
+
+function exportSecurityReport() {
+    // Generate and download security report
+    fetch('export_security_report.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=export_report'
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'security_report_' + new Date().toISOString().split('T')[0] + '.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showNotification('Security report downloaded successfully', 'success');
+    })
+    .catch(error => {
+        showNotification('Error generating security report', 'error');
+    });
+}
+
+// Sorting functionality for logs
+let currentSort = { column: 'date', direction: 'desc' };
+
+function sortLogs(column) {
+    console.log('Sorting by:', column); // Debug log
+    try {
+        const tableBody = document.getElementById('dailyLogsTableBody');
+        if (!tableBody) {
+            console.error('Table body not found');
+            return;
+        }
+        
+        const rows = Array.from(tableBody.children);
+        console.log('Found rows:', rows.length); // Debug log
+        if (rows.length === 0) {
+            console.log('No rows to sort');
+            return;
+        }
+        
+        // Remove existing sort indicators
+        document.querySelectorAll('.sort-indicator').forEach(indicator => {
+            indicator.remove();
+        });
+        
+        // Determine sort direction
+        if (currentSort.column === column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.direction = 'asc';
+        }
+        currentSort.column = column;
+        
+        // Add sort indicator to clicked header
+        const header = event.target.closest('div');
+        if (header) {
+            const indicator = document.createElement('span');
+            indicator.className = 'sort-indicator ml-1 text-gray-600';
+            indicator.innerHTML = currentSort.direction === 'asc' ? '↑' : '↓';
+            header.appendChild(indicator);
+        }
+    
+    // Sort rows
+    rows.sort((a, b) => {
+        let aValue, bValue;
+        
+        switch(column) {
+            case 'date':
+                aValue = new Date(a.querySelector('.date-cell').textContent.trim());
+                bValue = new Date(b.querySelector('.date-cell').textContent.trim());
+                console.log('Date comparison:', aValue, bValue); // Debug log
+                break;
+            case 'type':
+                aValue = a.querySelector('.type-cell').textContent.trim();
+                bValue = b.querySelector('.type-cell').textContent.trim();
+                console.log('Type comparison:', aValue, bValue); // Debug log
+                break;
+            case 'records':
+                // Extract number from text like "133 records"
+                const aText = a.querySelector('.records-cell').textContent.trim();
+                const bText = b.querySelector('.records-cell').textContent.trim();
+                aValue = parseInt(aText.match(/\d+/)?.[0] || '0');
+                bValue = parseInt(bText.match(/\d+/)?.[0] || '0');
+                console.log('Records comparison:', aValue, bValue); // Debug log
+                break;
+            default:
+                return 0;
+        }
+        
+        if (currentSort.direction === 'asc') {
+            return aValue > bValue ? 1 : -1;
+        } else {
+            return aValue < bValue ? 1 : -1;
+        }
+    });
+    
+    // Re-append sorted rows
+    rows.forEach((row, index) => {
+        // Update row number
+        const numberCell = row.querySelector('.number-cell');
+        if (numberCell) {
+            numberCell.textContent = index + 1;
+        }
+        tableBody.appendChild(row);
+    });
+    
+    } catch (error) {
+        console.error('Error sorting logs:', error);
+    }
+}
+
+function updateSortIndicator(column, direction) {
+    // Remove existing sort indicators
+    document.querySelectorAll('.sort-indicator').forEach(indicator => {
+        indicator.remove();
+    });
+    
+    // Add sort indicator to clicked header
+    const header = event.target.closest('div');
+    const indicator = document.createElement('span');
+    indicator.className = 'sort-indicator ml-1 text-gray-600';
+    indicator.innerHTML = direction === 'asc' ? '↑' : '↓';
+    header.appendChild(indicator);
+}
+
+
+</script>
+
+<style>
+/* Fullscreen modal styles */
+#logModalContent.fullscreen {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    position: fixed !important;
+    top: 5rem !important; /* Start below header */
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+}
+
+#logModalContent.fullscreen .p-6 {
+    padding: 1.5rem !important;
+}
+
+/* Smooth transitions for fullscreen toggle */
+#logModalContent {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Fullscreen icon animations */
+#fullscreenToggle:hover #fullscreenIcon {
+    transform: scale(1.1);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Better scrollbar styling for fullscreen */
+#logDetailsContent::-webkit-scrollbar {
+    width: 8px;
+}
+
+#logDetailsContent::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+#logDetailsContent::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+#logDetailsContent::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+</style>
+
+<?php include __DIR__ . '/../partials/footer.php'; ?>

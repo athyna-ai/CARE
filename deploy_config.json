@@ -1,0 +1,41 @@
+{
+  "deployment": {
+    "hostinger": {
+      "domain": "olshacare.com",
+      "ftp_server": "145.79.25.112",
+      "ftp_username": "u258651435",
+      "ftp_password": "015hc@r3_Care",
+      "ftp_port": 21,
+      "server_path": "/public_html"
+    },
+    "github": {
+      "repository": "your-username/your-repo-name",
+      "webhook_secret": "olsh_care_webhook_secret_2024_secure",
+      "allowed_branches": ["main", "master", "production"]
+    },
+    "notifications": {
+      "email": "admin@olshacare.com",
+      "enabled": true
+    },
+    "backup": {
+      "enabled": true,
+      "retention_days": 7
+    },
+    "exclude_files": [
+      ".git",
+      ".gitignore",
+      "node_modules",
+      "backups",
+      "logs",
+      "*.log",
+      ".env",
+      "deploy_*",
+      "README.md",
+      ".DS_Store",
+      "Thumbs.db",
+      "test_deployment.php",
+      "src",
+      "dist"
+    ]
+  }
+}
